@@ -1,6 +1,8 @@
 package kr.omong.dulpick.domain.auth.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.auth.application.IssuedNonce;
 import kr.omong.dulpick.domain.auth.application.IssuedTokens;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
+@Tag(name = "인증")
 public class AuthController {
 
     private final LoginNonceService loginNonceService;
@@ -68,6 +71,7 @@ public class AuthController {
     }
 
     @Operation(summary = "로그아웃")
+    @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             @AuthenticationPrincipal Jwt jwt,
