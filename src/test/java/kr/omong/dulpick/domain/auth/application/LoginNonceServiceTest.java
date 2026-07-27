@@ -19,7 +19,7 @@ class LoginNonceServiceTest {
     @Test
     void consumesAppleNonceOnlyOnce() {
         IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.APPLE);
-        String tokenNonce = Sha256.base64Url(issuedNonce.nonce());
+        String tokenNonce = Sha256.hex(issuedNonce.nonce());
 
         loginNonceService.consume(SocialProvider.APPLE, issuedNonce.nonce(), tokenNonce);
 

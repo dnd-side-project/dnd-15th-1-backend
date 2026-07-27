@@ -63,7 +63,7 @@ public class LoginNonceService {
 
     private String expectedTokenNonce(SocialProvider provider, String rawNonce) {
         if (provider == SocialProvider.APPLE) {
-            return Sha256.base64Url(rawNonce);
+            return Sha256.hex(rawNonce);
         }
         return rawNonce;
     }

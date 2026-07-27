@@ -3,7 +3,6 @@ package kr.omong.dulpick.global.security;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 import java.util.HexFormat;
 
 public final class Sha256 {
@@ -13,12 +12,6 @@ public final class Sha256 {
 
     public static String hex(String value) {
         return HexFormat.of().formatHex(digest(value));
-    }
-
-    public static String base64Url(String value) {
-        return Base64.getUrlEncoder()
-                .withoutPadding()
-                .encodeToString(digest(value));
     }
 
     private static byte[] digest(String value) {
