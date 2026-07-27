@@ -66,8 +66,9 @@ public class TokenService {
     }
 
     @Transactional
-    public void revoke(String rawRefreshToken) {
+    public void revoke(String rawRefreshToken, Long memberId) {
         refreshTokenRepository.findByTokenHash(Sha256.hex(rawRefreshToken))
+                .filter(token -> token.getMember().getId().equals(memberId))
                 .ifPresent(RefreshToken::revoke);
     }
 

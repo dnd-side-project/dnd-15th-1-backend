@@ -49,4 +49,18 @@ class TokenServiceTest {
         assertThatThrownBy(() -> tokenService.rotate(issuedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
+
+    @Test
+    void revokesOnlyTokenOwnedByAuthenticatedMember() {
+        Member owner = memberRepository.save(Member.create());
+        Member otherMember = memberRepository.save(Member.create());
+        IssuedTokens issuedTokens = tokenService.issue(owner);
+
+        tokenService.revoke(issuedTokens.refreshToken(), otherMember.getId());
+        IssuedTokens rotatedTokens = tokenService.rotate(issuedTokens.refreshToken());
+        tokenService.revoke(rotatedTokens.refreshToken(), owner.getId());
+
+        assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+    }
 }
