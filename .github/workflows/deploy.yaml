@@ -96,20 +96,52 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           IMAGE_TAG: ${{ github.sha }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
+          PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,KAKAO_NATIVE_APP_KEY,PROVIDER_TOKEN_ENCRYPTION_KEY
           script: |
             set -Eeuo pipefail
+
+            readonly APP_DIR="${HOME}/dulpick"
+            readonly ENV_FILE="${APP_DIR}/.env"
+
             cleanup() {
               docker logout ghcr.io >/dev/null 2>&1 || true
             }
+
+            update_env() {
+              local key="$1"
+              local value="$2"
+              local temp_file
+
+              if [[ -z "${value}" ]]; then
+                echo "Required secret is not configured: ${key}" >&2
+                exit 1
+              fi
+
+              temp_file="$(mktemp "${APP_DIR}/.env.XXXXXX")"
+              awk -F= -v key="${key}" '$1 != key { print }' "${ENV_FILE}" > "${temp_file}"
+              printf '%s=%s\n' "${key}" "${value}" >> "${temp_file}"
+              chmod 600 "${temp_file}"
+              mv "${temp_file}" "${ENV_FILE}"
+            }
+
             trap cleanup EXIT
+
+            update_env "JWT_SECRET" "${JWT_SECRET}"
+            update_env "KAKAO_NATIVE_APP_KEY" "${KAKAO_NATIVE_APP_KEY}"
+            update_env \
+              "PROVIDER_TOKEN_ENCRYPTION_KEY" \
+              "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
+
             echo "${GHCR_TOKEN}" | docker login ghcr.io \
               --username "${GHCR_USERNAME}" \
               --password-stdin
-            /home/ubuntu/dulpick/deploy.sh "${IMAGE_NAME}" "${IMAGE_TAG}"
+            "${APP_DIR}/deploy.sh" "${IMAGE_NAME}" "${IMAGE_TAG}"

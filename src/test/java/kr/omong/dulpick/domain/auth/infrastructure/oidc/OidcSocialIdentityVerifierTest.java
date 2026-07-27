@@ -49,6 +49,25 @@ class OidcSocialIdentityVerifierTest {
         assertThat(verifier.verify("id-token").email()).isNull();
     }
 
+    @Test
+    void extractsKakaoIdentityAndNonce() {
+        OidcSocialIdentityVerifier verifier = new OidcSocialIdentityVerifier(
+                SocialProvider.KAKAO,
+                jwtDecoder
+        );
+        when(jwtDecoder.decode("id-token")).thenReturn(jwt(Map.of(
+                "sub", "kakao-subject",
+                "email", "member@example.com",
+                "nonce", "login-nonce"
+        )));
+
+        SocialIdentity identity = verifier.verify("id-token");
+
+        assertThat(identity.providerSubject()).isEqualTo("kakao-subject");
+        assertThat(identity.email()).isEqualTo("member@example.com");
+        assertThat(identity.tokenNonce()).isEqualTo("login-nonce");
+    }
+
     private Jwt jwt(Map<String, Object> claims) {
         Instant issuedAt = Instant.now();
         return new Jwt(
