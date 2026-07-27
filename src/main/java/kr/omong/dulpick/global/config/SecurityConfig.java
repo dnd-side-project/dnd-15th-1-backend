@@ -12,6 +12,15 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_PATHS = {
+            "/",
+            "/index.html",
+            "/privacy",
+            "/privacy.html",
+            "/terms",
+            "/terms.html",
+            "/assets/**",
+            "/favicon.ico",
+            "/favicon.svg",
             "/health",
             "/actuator/health",
             "/api/v1/auth/nonce",

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="둘픽 서비스 이용약관">
+  <meta name="theme-color" content="#FF5A6F">
+  <title>서비스 이용약관 — 둘픽 (DulPick)</title>
+  <link rel="canonical" href="https://dulpick.omong.kr/terms">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #fbfaf7;
+      --surface: #ffffff;
+      --text: #1c1c1e;
+      --text-muted: #6b6b76;
+      --accent: #ff5a6f;
+      --accent-soft: #fff0f3;
+      --border: #e8e6e0;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      color: var(--text); background: var(--bg);
+      font-size: 16px; line-height: 1.85; -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 820px; margin: 0 auto; padding: 0 28px; }
+
+    /* ─── Top bar ─── */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(251,250,247,0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); padding: 16px 0;
+    }
+    .topbar-inner {
+      max-width: 820px; margin: 0 auto; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-logo { font-size: 18px; font-weight: 600; color: var(--accent); text-decoration: none; letter-spacing: -0.5px; }
+    .topbar-back { font-size: 14px; color: var(--text-muted); text-decoration: none; }
+    .topbar-back:hover { color: var(--text); }
+
+    /* ─── Page header ─── */
+    .page-header {
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 100%);
+      padding: 64px 0 48px; text-align: center;
+    }
+    .page-header h1 { font-size: 28px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }
+    .page-header .meta { font-size: 14px; color: var(--text-muted); }
+
+    /* ─── Main ─── */
+    main { padding: 64px 0 200px; }
+
+    h2 {
+      font-size: 22px; font-weight: 600; margin: 56px 0 20px; color: var(--text);
+      padding-left: 14px; border-left: 3px solid var(--accent);
+    }
+    h2:first-of-type { margin-top: 0; }
+    h3 { font-size: 18px; font-weight: 600; margin: 32px 0 12px; color: var(--text-muted); }
+    p { margin-bottom: 16px; line-height: 1.85; }
+    ul, ol { margin: 0 0 20px 22px; }
+    li { margin-bottom: 6px; line-height: 1.8; }
+
+    /* ─── Tables ─── */
+    .table-wrap { overflow-x: auto; margin: 20px 0 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--text-muted); padding: 0 0 10px; text-align: left;
+      border-bottom: 2px solid var(--text);
+    }
+    tbody td { padding: 13px 0; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.7; }
+    tbody td:last-child { color: var(--text-muted); }
+
+    /* ─── Code / highlight ─── */
+    code {
+      background: #fff0f3; color: var(--accent); padding: 2px 7px;
+      border-radius: 4px; font-size: 0.95em; font-weight: 500; white-space: nowrap;
+    }
+    blockquote {
+      background: #fef9f0; border-left: 3px solid #e8a84c; padding: 14px 18px;
+      margin: 20px 0; border-radius: 0 var(--radius) var(--radius) 0;
+      line-height: 1.75; color: #7a6a4f;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      background: var(--text); color: #a0a0aa; padding: 64px 0 48px; font-size: 14px;
+    }
+    footer .footer-inner {
+      max-width: 820px; margin: 0 auto; padding: 0 28px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;
+    }
+    footer .footer-links { display: flex; gap: 28px; }
+    footer .footer-links a { color: #ccc; text-decoration: none; transition: color 0.2s; }
+    footer .footer-links a:hover { color: #fff; }
+    footer .footer-info { color: #777; line-height: 1.8; }
+    footer .footer-info code {
+      background: rgba(255,255,255,0.08); color: #d8d8dd; padding: 1px 6px;
+      border-radius: 4px; font-size: 0.9em; font-weight: 500;
+    }
+    footer .copyright { color: #555; margin-top: 8px; }
+
+    @media (max-width: 600px) {
+      .page-header h1 { font-size: 24px; }
+      h2 { font-size: 20px; }
+      footer .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body class="legal-page">
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="topbar-logo">둘픽</a>
+    <a href="/" class="topbar-back">← 홈으로</a>
+  </div>
+</div>
+
+<div class="page-header">
+  <div class="container">
+    <h1>서비스 이용약관</h1>
+    <p class="meta">둘픽(DulPick) &ensp;|&ensp; 최종 시행일: 2026.07.27</p>
+  </div>
+</div>
+
+<main class="container">
+
+<h2>제1조 (목적)</h2>
+<p>본 약관은 둘픽(DulPick, 이하 &quot;회사&quot;)이 제공하는 iOS 모바일 애플리케이션 &quot;둘픽&quot; 서비스(이하 &quot;서비스&quot;)의 이용 조건 및 절차, 회사와 이용자의 권리·의무 및 책임 사항을 규정함을 목적으로 합니다.</p>
+
+<h2>제2조 (회사 정보)</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>항목</th><th>내용</th></tr></thead>
+  <tbody>
+    <tr><td>서비스명</td><td>둘픽 (DulPick)</td></tr>
+    <tr><td>운영 주체</td><td>둘픽</td></tr>
+    <tr><td>대표자</td><td><code>윤준석</code></td></tr>
+    <tr><td>사업자등록번호</td><td>발급 및 확정 후 반영 예정</td></tr>
+    <tr><td>소재지</td><td>서울특별시 구로구 연동로 320</td></tr>
+    <tr><td>문의 이메일</td><td><code>devjunseok0304@gmail.com</code></td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>제3조 (서비스 개요)</h2>
+<p>둘픽은 Instagram 릴스 또는 YouTube Shorts에서 발견한 장소를 iOS 공유하기 기능을 통해 앱으로 전달하면, 콘텐츠를 분석해 장소 정보를 자동 추출하고 저장할 수 있도록 제공하는 커플 장소 저장 및 큐레이션 서비스입니다.</p>
+<p><strong>서비스 주요 기능:</strong></p>
+<ul>
+  <li>Apple / Google / Kakao 소셜 로그인</li>
+  <li>Instagram 릴스 및 YouTube Shorts 공유 링크 수신</li>
+  <li>공유 콘텐츠 분석 및 장소 정보 자동 추출</li>
+  <li>장소 저장 및 개인 목록 관리</li>
+  <li>커플 연결 및 상대방 저장 장소 확인</li>
+  <li>두 사용자의 공통 저장 장소 확인</li>
+  <li>현재 위치 기반 지도에 저장 장소 표시</li>
+  <li>외부 지도·길찾기 서비스 연결</li>
+  <li>푸시 알림</li>
+</ul>
+<p><strong>둘픽은 다음 기능을 제공하지 않습니다:</strong></p>
+<ul>
+  <li>앱 내 숏폼 피드 및 원본 영상 자체 재생</li>
+  <li>Instagram DM 연동 및 DM 조회</li>
+  <li>사용자 SNS 계정 임의 접근</li>
+  <li>예약, 결제, 주문, 송금</li>
+  <li>콘텐츠 제공자 정산 및 크리에이터 수익 분배</li>
+</ul>
+
+<h2>제4조 (이용계약의 성립)</h2>
+<ol>
+  <li>이용계약은 이용자가 본 약관에 동의하고 회사가 승낙함으로써 성립합니다.</li>
+  <li>이용자는 서비스 이용을 위해 소셜 로그인(Apple, Google, Kakao)을 통해 본인 인증 및 계정 생성 절차를 완료해야 합니다.</li>
+  <li>회사는 다음 각 호에 해당하는 경우 승낙을 거부하거나 유보할 수 있습니다.
+    <ul>
+      <li>타인의 계정을 도용한 경우</li>
+      <li>허위 정보를 기재한 경우</li>
+      <li>서비스 운영을 고의로 방해하는 경우</li>
+      <li>관련 법령을 위반한 경우</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>제5조 (계정 관리)</h2>
+<ol>
+  <li>이용자는 자신의 계정 및 소셜 로그인 정보를 안전하게 관리할 책임이 있습니다.</li>
+  <li>계정을 타인이 사용하게 하거나 양도할 수 없습니다.</li>
+  <li>계정 도용 사실을 인지한 경우 즉시 회사에 통보해야 합니다.</li>
+  <li>회사는 이용자가 다음 각 호에 해당하는 경우 계정 이용을 제한하거나 해지할 수 있습니다.
+    <ul>
+      <li>타인의 계정 도용</li>
+      <li>상대방 동의 없는 커플 연결 시도</li>
+      <li>불법·부적절 콘텐츠 공유</li>
+      <li>허위·반복적 악의적 신고</li>
+      <li>자동화 프로그램으로 과도한 분석 요청</li>
+      <li>서비스 인증·보안 기능 우회</li>
+      <li>장소 데이터·콘텐츠 정보 무단 대량 수집</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>제6조 (외부 콘텐츠 공유)</h2>
+<ol>
+  <li>이용자는 Instagram 릴스 또는 YouTube Shorts에서 &quot;공유하기&quot; → &quot;둘픽&quot;을 선택하여 콘텐츠 링크를 서비스로 전달할 수 있습니다.</li>
+  <li>회사는 전달된 콘텐츠 링크와 접근 가능한 정보를 기반으로 장소 정보를 분석합니다.</li>
+  <li>회사는 이용자의 Instagram DM을 읽거나 수집하지 않으며, 이용자의 Instagram·YouTube 계정에 임의로 접속하지 않습니다.</li>
+</ol>
+
+<h2>제7조 (콘텐츠 분석 및 장소 자동 추출)</h2>
+<ol>
+  <li>회사는 공유된 콘텐츠의 제목, 설명, 해시태그, 자막, 썸네일, 영상 프레임 등을 분석하여 장소 정보를 자동 추출합니다.</li>
+  <li>분석에는 Google Gemini API 및 자체 로컬 AI 모델(Gemma 등)이 사용될 수 있습니다.</li>
+  <li>추출 결과의 정확성은 보장되지 않으며, 이용자는 저장 전에 분석 결과를 확인하고 수정하거나 저장하지 않을 수 있습니다.</li>
+</ol>
+
+<h2>제8조 (장소 저장 및 관리)</h2>
+<ol>
+  <li>이용자는 자동 추출된 장소 정보를 확인 후 저장할 수 있습니다.</li>
+  <li>저장된 장소는 개인 목록에서 조회·삭제할 수 있습니다.</li>
+  <li>회사는 다음 정보를 장소 저장 정보로 관리할 수 있습니다.
+    <ul>
+      <li>장소명, 주소, 위도·경도, 장소 유형</li>
+      <li>대표 이미지(썸네일), 장소 설명</li>
+      <li>원본 콘텐츠 URL 및 플랫폼</li>
+      <li>저장 일시, 분석 결과, 이용자가 수정한 정보</li>
+    </ul>
+  </li>
+</ol>
+
+<h2>제9조 (커플 연결)</h2>
+<ol>
+  <li>이용자는 초대 코드 또는 서비스 내 연결 절차를 통해 다른 이용자와 커플 관계를 설정할 수 있습니다.</li>
+  <li>커플 연결 시 상대방에게 다음 정보가 공개됩니다.
+    <ul>
+      <li>닉네임 또는 기본 프로필</li>
+      <li>저장한 장소 및 원본 콘텐츠 링크</li>
+      <li>장소 저장 일시</li>
+      <li>공통 저장 장소</li>
+    </ul>
+  </li>
+  <li>커플 연결된 상대방에게 이메일, 소셜 계정 식별값, 기기 정보, 신고·문의 내역 등은 공개되지 않습니다.</li>
+  <li>이용자는 언제든지 커플 연결을 해제할 수 있으며, 해제 시 상대방의 저장 장소 및 공통 저장 장소 기능을 더 이상 이용할 수 없습니다.</li>
+</ol>
+
+<h2>제10조 (공통 저장 장소)</h2>
+<p>커플로 연결된 두 이용자가 동일한 장소로 판단되는 장소를 각각 저장한 경우, 해당 장소는 공통 저장 장소로 분류됩니다. 동일 여부는 장소 식별번호, 장소명, 주소, 위도·경도 등을 기준으로 판단합니다.</p>
+
+<h2>제11조 (위치 기반 지도 기능)</h2>
+<ol>
+  <li>이용자가 기기에서 위치정보 접근을 허용한 경우, 현재 위치를 기준으로 저장된 장소를 지도에 표시할 수 있습니다.</li>
+  <li>회사는 이용자의 개인 위치정보를 서버에 저장하지 않습니다. 현재 위치는 지도 기능 제공 시점에 일시적으로만 사용됩니다.</li>
+  <li>회사는 이용자의 이동 경로를 추적하거나 위치 이력을 생성하지 않습니다.</li>
+  <li>위치 권한을 허용하지 않더라도 지도 기반 기능을 제외한 다른 모든 기능을 이용할 수 있습니다.</li>
+</ol>
+
+<h2>제12조 (외부 지도 및 장소 서비스)</h2>
+<ol>
+  <li>둘픽은 저장된 장소를 자체 지도 화면에서 표시하며, 실제 길찾기는 외부 지도 앱·웹페이지로 연결합니다. (Apple 지도, Google 지도, 카카오맵, 네이버 지도 등)</li>
+  <li>외부 지도 서비스 이용 시 해당 서비스의 이용약관 및 개인정보처리방침이 적용됩니다.</li>
+</ol>
+<p>둘픽에서 사용하는 지도 및 장소 정보 API 제공자는 서비스 연동 변경 시 본 약관을 통해 고지합니다.</p>
+
+<h2>제13조 (푸시 알림)</h2>
+<ol>
+  <li>회사는 Google Firebase Cloud Messaging을 통해 서비스 관련 알림을 발송합니다.
+    <ul>
+      <li>커플 연결 요청·완료·해제</li>
+      <li>상대방 장소 저장 알림, 공통 저장 장소 발생</li>
+      <li>콘텐츠 분석 완료, 장소 추출 성공·실패</li>
+      <li>서비스 점검·운영 공지, 약관 변경 안내</li>
+    </ul>
+  </li>
+  <li>이용자는 iOS 설정 또는 앱 내 설정에서 알림 수신을 해제할 수 있습니다.</li>
+  <li>광고성·마케팅 알림은 이용자의 별도 동의가 있는 경우에만 발송됩니다.</li>
+</ol>
+
+<h2>제14조 (신고 및 운영자 조치)</h2>
+<ol>
+  <li>이용자는 잘못된 장소 정보, 폐업 장소, 부적절한 콘텐츠, 저작권 침해 의심 콘텐츠 등에 대해 신고할 수 있습니다.</li>
+  <li>회사는 신고 접수 후 내용을 검토하고 필요한 조치(수정·삭제·이용 제한)를 취할 수 있습니다.</li>
+  <li>신고 기록은 접수일 또는 처리 완료일로부터 30일간 보관 후 삭제합니다 (법적 분쟁 시 예외).</li>
+</ol>
+
+<h2>제15조 (저작권)</h2>
+<ol>
+  <li>외부 콘텐츠(Instagram 릴스, YouTube Shorts)의 저작권은 해당 콘텐츠 제작자 또는 정당한 권리자에게 있습니다.</li>
+  <li>회사는 콘텐츠 원본을 복제·저장·재배포하지 않으며, 각 플랫폼 정책과 관계 법령을 준수하는 범위에서 콘텐츠 정보를 처리합니다.</li>
+  <li>권리자의 삭제 요청이 접수되면 관련 콘텐츠 링크, 썸네일, 분석 정보 및 장소 연결 정보를 검토하여 수정·삭제할 수 있습니다.</li>
+</ol>
+
+<h2>제16조 (장소 정보 정확성 고지)</h2>
+<ol>
+  <li>둘픽이 자동 추출하는 장소 정보는 다음 이유로 정확하지 않을 수 있습니다.
+    <ul>
+      <li>콘텐츠에 장소가 명확히 표시되지 않은 경우</li>
+      <li>동명이장(같은 이름의 장소가 여러 곳 존재)</li>
+      <li>콘텐츠 작성자의 잘못된 장소명 표기</li>
+      <li>장소 이전·폐업으로 인한 정보 불일치</li>
+      <li>인공지능 분석 오류</li>
+    </ul>
+  </li>
+  <li>이용자는 실제 방문 전 장소 운영자 공식 채널 또는 지도 서비스를 통해 주소, 운영시간, 가격, 휴무일 등 장소 정보를 재확인해야 합니다.</li>
+  <li>회사는 자동 분석 결과 및 외부 장소 정보의 완전성·정확성을 보장하지 않습니다.</li>
+</ol>
+
+<h2>제17조 (이용자의 금지 행위)</h2>
+<p>이용자는 서비스 이용 시 다음 행위를 해서는 안 됩니다.</p>
+<ul>
+  <li>타인의 계정 도용</li>
+  <li>상대방 동의 없는 커플 연결 시도</li>
+  <li>불법·부적절 콘텐츠 공유</li>
+  <li>타인의 저작권·상표권·초상권·개인정보 침해</li>
+  <li>허위 신고 또는 반복적 악의적 신고</li>
+  <li>자동화 프로그램으로 과도한 분석 요청</li>
+  <li>서비스 인증·보안 기능 우회</li>
+  <li>장소 데이터·콘텐츠 정보 무단 대량 수집</li>
+  <li>둘픽을 이용한 원본 콘텐츠 무단 복제·재배포</li>
+  <li>서비스 정상적 운영 방해</li>
+</ul>
+
+<h2>제18조 (서비스 변경·중단·종료)</h2>
+<ol>
+  <li>회사는 운영상·기술상 필요에 따라 서비스의 전부 또는 일부를 변경할 수 있으며, 변경 시 사전 공지합니다.</li>
+  <li>회사는 다음 사유 발생 시 서비스 제공을 일시 중단할 수 있습니다.
+    <ul>
+      <li>천재지변, 비상사태, 설비 점검·교체·장애</li>
+      <li>이용자의 서비스 방해 행위</li>
+    </ul>
+  </li>
+  <li>회사는 서비스 종료 시 시행일 30일 전까지 앱 내 공지 및 푸시 알림을 통해 통보합니다.</li>
+</ol>
+
+<h2>제19조 (손해배상 및 책임 제한)</h2>
+<ol>
+  <li>회사의 귀책 사유로 이용자에게 손해가 발생한 경우, 회사는 통상의 손해 범위 내에서 배상합니다.</li>
+  <li>회사는 다음 사유로 발생한 손해에 대해 책임을 지지 않습니다.
+    <ul>
+      <li>천재지변 또는 불가항력</li>
+      <li>이용자의 귀책 사유</li>
+      <li>제3자가 제공하는 외부 서비스(지도·콘텐츠 플랫폼 등) 이용 중 발생한 손해</li>
+      <li>자동 분석 결과의 부정확성에 기인한 손해</li>
+    </ul>
+  </li>
+  <li>회사는 무료로 제공하는 서비스 관련 손해에 대해서는 관련 법령상 면책 규정을 따릅니다.</li>
+</ol>
+
+<h2>제20조 (약관 변경 및 고지)</h2>
+<ol>
+  <li>회사는 약관을 변경할 수 있으며, 변경 약관은 시행일 최소 7일 전(이용자 불리 변경 시 30일 전)부터 앱 내 공지·푸시 알림을 통해 고지합니다.</li>
+  <li>변경 약관에 동의하지 않는 경우 회원 탈퇴를 통해 이용계약을 해지할 수 있으며, 효력 발생일까지 거부 의사를 표시하지 않으면 변경 약관에 동의한 것으로 간주합니다.</li>
+</ol>
+
+<h2>제21조 (분쟁 해결 및 관할 법원)</h2>
+<ol>
+  <li>본 약관과 관련한 분쟁은 회사 소재지를 관할하는 법원을 관할 법원으로 합니다.</li>
+  <li>본 약관의 해석과 적용에는 대한민국 법률을 적용합니다.</li>
+</ol>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-info">
+        <strong class="footer-title">둘픽 (DulPick)</strong><br>
+        대표 <code>윤준석</code> &ensp;|&ensp; 문의 <code>devjunseok0304@gmail.com</code><br>
+        서울특별시 구로구 연동로 320
+      </div>
+      <div class="copyright">&copy; DulPick. All rights reserved.</div>
+    </div>
+    <div class="footer-links">
+      <a href="/">홈</a>
+      <a href="/privacy">개인정보처리방침</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

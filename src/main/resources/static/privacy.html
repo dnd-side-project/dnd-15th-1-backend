@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="둘픽 개인정보처리방침">
+  <meta name="theme-color" content="#FF5A6F">
+  <title>개인정보처리방침 — 둘픽 (DulPick)</title>
+  <link rel="canonical" href="https://dulpick.omong.kr/privacy">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg: #fbfaf7;
+      --surface: #ffffff;
+      --text: #1c1c1e;
+      --text-muted: #6b6b76;
+      --accent: #ff5a6f;
+      --accent-soft: #fff0f3;
+      --border: #e8e6e0;
+      --radius: 10px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Pretendard', 'Noto Sans KR', 'Segoe UI', sans-serif;
+      color: var(--text); background: var(--bg);
+      font-size: 16px; line-height: 1.85; -webkit-font-smoothing: antialiased;
+    }
+    .container { max-width: 820px; margin: 0 auto; padding: 0 28px; }
+
+    /* ─── Top bar ─── */
+    .topbar {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(251,250,247,0.9); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border); padding: 16px 0;
+    }
+    .topbar-inner {
+      max-width: 820px; margin: 0 auto; padding: 0 28px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar-logo { font-size: 18px; font-weight: 600; color: var(--accent); text-decoration: none; letter-spacing: -0.5px; }
+    .topbar-back { font-size: 14px; color: var(--text-muted); text-decoration: none; }
+    .topbar-back:hover { color: var(--text); }
+
+    /* ─── Page header ─── */
+    .page-header {
+      background: linear-gradient(180deg, var(--accent-soft) 0%, var(--bg) 100%);
+      padding: 64px 0 48px; text-align: center;
+    }
+    .page-header h1 { font-size: 28px; font-weight: 600; letter-spacing: -1px; margin-bottom: 8px; }
+    .page-header .meta { font-size: 14px; color: var(--text-muted); }
+
+    /* ─── Main ─── */
+    main { padding: 64px 0 200px; }
+
+    h2 {
+      font-size: 22px; font-weight: 600; margin: 56px 0 20px; color: var(--text);
+      padding-left: 14px; border-left: 3px solid var(--accent);
+    }
+    h2:first-of-type { margin-top: 0; }
+    h3 { font-size: 18px; font-weight: 600; margin: 32px 0 12px; color: var(--text-muted); }
+    p { margin-bottom: 16px; line-height: 1.85; }
+    ul, ol { margin: 0 0 20px 22px; }
+    li { margin-bottom: 6px; line-height: 1.8; }
+
+    /* ─── Tables ─── */
+    .table-wrap { overflow-x: auto; margin: 20px 0 24px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    thead th {
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      color: var(--text-muted); padding: 0 0 10px; text-align: left;
+      border-bottom: 2px solid var(--text);
+    }
+    tbody td { padding: 13px 0; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.7; }
+    tbody td:last-child { color: var(--text-muted); }
+
+    /* ─── Code / highlight ─── */
+    code {
+      background: #fff0f3; color: var(--accent); padding: 2px 7px;
+      border-radius: 4px; font-size: 0.95em; font-weight: 500; white-space: nowrap;
+    }
+    blockquote {
+      background: #fef9f0; border-left: 3px solid #e8a84c; padding: 14px 18px;
+      margin: 20px 0; border-radius: 0 var(--radius) var(--radius) 0;
+      line-height: 1.75; color: #7a6a4f;
+    }
+
+    /* ─── Footer ─── */
+    footer {
+      background: var(--text); color: #a0a0aa; padding: 64px 0 48px; font-size: 14px;
+    }
+    footer .footer-inner {
+      max-width: 820px; margin: 0 auto; padding: 0 28px;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;
+    }
+    footer .footer-links { display: flex; gap: 28px; }
+    footer .footer-links a { color: #ccc; text-decoration: none; transition: color 0.2s; }
+    footer .footer-links a:hover { color: #fff; }
+    footer .footer-info { color: #777; line-height: 1.8; }
+    footer .footer-info code {
+      background: rgba(255,255,255,0.08); color: #d8d8dd; padding: 1px 6px;
+      border-radius: 4px; font-size: 0.9em; font-weight: 500;
+    }
+    footer .copyright { color: #555; margin-top: 8px; }
+
+    @media (max-width: 600px) {
+      .page-header h1 { font-size: 24px; }
+      h2 { font-size: 20px; }
+      footer .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body class="legal-page">
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <a href="/" class="topbar-logo">둘픽</a>
+    <a href="/" class="topbar-back">← 홈으로</a>
+  </div>
+</div>
+
+<div class="page-header">
+  <div class="container">
+    <h1>개인정보처리방침</h1>
+    <p class="meta">둘픽(DulPick) &ensp;|&ensp; 최종 시행일: 2026.07.27</p>
+  </div>
+</div>
+
+<main class="container">
+
+<h2>제1조 (총칙)</h2>
+<p>둘픽(DulPick, 이하 &quot;둘픽&quot;)은 이용자의 개인정보를 소중히 다루며, 「개인정보 보호법」 및 관련 법령을 준수합니다. 본 개인정보처리방침은 둘픽이 제공하는 iOS 모바일 애플리케이션 서비스에서 수집·이용하는 개인정보의 항목, 처리 목적, 보유기간 및 이용자의 권리 행사 방법 등을 안내합니다.</p>
+
+<h2>제2조 (개인정보 처리자 정보)</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>항목</th><th>내용</th></tr></thead>
+  <tbody>
+    <tr><td>서비스명</td><td>둘픽 (DulPick)</td></tr>
+    <tr><td>운영 주체</td><td>둘픽</td></tr>
+    <tr><td>대표자</td><td><code>윤준석</code></td></tr>
+    <tr><td>사업자등록번호</td><td>발급 및 확정 후 반영 예정</td></tr>
+    <tr><td>사업장 주소</td><td>서울특별시 구로구 연동로 320</td></tr>
+    <tr><td>개인정보 보호책임자</td><td><code>윤준석</code></td></tr>
+    <tr><td>문의 이메일</td><td><code>devjunseok0304@gmail.com</code></td></tr>
+    <tr><td>서버 운영 위치</td><td>대한민국 서울특별시</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>제3조 (수집하는 개인정보 항목 및 수집 방법)</h2>
+<h3>3.1 회원가입 및 소셜 로그인</h3>
+<p>둘픽은 Apple, Google, Kakao 소셜 로그인(OIDC 기반)을 통해 다음 정보를 처리합니다.</p>
+<ul>
+  <li>소셜 로그인 제공자 (Apple / Google / Kakao)</li>
+  <li>소셜 계정 고유 식별값</li>
+  <li>이메일 (Apple 로그인 가리기 선택 시 비공개 이메일 주소 포함)</li>
+  <li>이름 또는 닉네임</li>
+  <li>프로필 이미지</li>
+  <li>계정 생성 일시 / 최근 로그인 일시</li>
+</ul>
+<p>둘픽은 사용자의 소셜 계정 비밀번호를 직접 입력받거나 저장하지 않습니다.</p>
+
+<h3>3.2 외부 콘텐츠 공유 및 분석</h3>
+<p>사용자가 Instagram 릴스 또는 YouTube Shorts의 &quot;공유하기&quot; 기능을 통해 둘픽으로 콘텐츠를 전달하면 다음 정보가 처리됩니다.</p>
+<ul>
+  <li>원본 콘텐츠 URL</li>
+  <li>콘텐츠 제공 플랫폼</li>
+  <li>콘텐츠 제목 / 설명 / 해시태그 / 자막</li>
+  <li>썸네일 및 영상 일부 프레임</li>
+  <li>콘텐츠 공유 시각</li>
+</ul>
+
+<h3>3.3 장소 저장 및 관리</h3>
+<ul>
+  <li>장소명, 주소, 위도·경도, 장소 유형</li>
+  <li>대표 이미지(썸네일), 장소 설명</li>
+  <li>원본 콘텐츠 URL 및 플랫폼</li>
+  <li>저장 일시, 사용자 식별값</li>
+  <li>분석 결과 및 사용자가 수정한 장소 정보</li>
+</ul>
+
+<h3>3.4 커플 연결</h3>
+<ul>
+  <li>커플 연결 상태, 상대방 식별값</li>
+  <li>연결 일시, 커플 연결 이력</li>
+</ul>
+
+<h3>3.5 위치정보</h3>
+<p>지도 기능 이용 시점의 현재 위치 (일시적 사용, 서버 미저장)</p>
+
+<h3>3.6 푸시 알림</h3>
+<ul>
+  <li>FCM 등록 토큰</li>
+  <li>기기 식별 기술 정보, 운영체제, 앱 버전</li>
+  <li>알림 수신 설정, 알림 발송 기록</li>
+</ul>
+
+<h3>3.7 신고 및 문의</h3>
+<ul>
+  <li>신고 대상(장소/콘텐츠), 신고 사유, 신고 내용</li>
+  <li>문의 내용 및 처리 결과</li>
+</ul>
+
+<h3>3.8 자동 수집 정보</h3>
+<ul>
+  <li>IP 주소, 접속 일시, 서비스 이용 기록</li>
+  <li>기기 모델, 운영체제, 앱 버전</li>
+  <li>오류·장애 기록, 보안 관련 기록</li>
+</ul>
+
+<h2>제4조 (개인정보 처리 목적)</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>처리 목적</th><th>설명</th></tr></thead>
+  <tbody>
+    <tr><td>회원 관리</td><td>소셜 로그인 인증, 계정 생성 및 관리, 서비스 이용 자격 확인</td></tr>
+    <tr><td>장소 추출 및 저장</td><td>공유 콘텐츠 분석, 장소 정보 자동 추출, 장소 저장·관리</td></tr>
+    <tr><td>커플 기능 제공</td><td>커플 연결·해제, 상대방 저장 장소 확인, 공통 저장 장소 분류</td></tr>
+    <tr><td>지도 기능 제공</td><td>현재 위치 기반 저장 장소 지도 표시, 거리 계산·정렬</td></tr>
+    <tr><td>푸시 알림</td><td>커플 연결 알림, 콘텐츠 분석 완료 알림, 서비스 공지</td></tr>
+    <tr><td>고객 지원</td><td>신고 처리, 이용문의 대응, 분쟁 해결</td></tr>
+    <tr><td>서비스 개선</td><td>오류 분석, 보안 관리, 서비스 이용 통계</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>제5조 (개인정보 보유 및 이용기간)</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>구분</th><th>보유기간</th><th>비고</th></tr></thead>
+  <tbody>
+    <tr><td>회원 계정 및 이용정보</td><td>회원 탈퇴일까지</td><td>탈퇴 후 12개월 보관</td></tr>
+    <tr><td>공유 콘텐츠 링크 및 분석 결과</td><td>회원 탈퇴일까지</td><td>탈퇴 후 최대 12개월</td></tr>
+    <tr><td>신고 기록</td><td>접수·처리 완료 후 30일</td><td>법적 분쟁 시 목적 달성까지</td></tr>
+    <tr><td>위치정보</td><td>보관하지 않음</td><td>지도 기능 이용 시 일시적 사용</td></tr>
+    <tr><td>FCM 푸시 알림 토큰</td><td>탈퇴·연결 해제·토큰 무효화 시까지</td><td>즉시 삭제 또는 비활성화</td></tr>
+  </tbody>
+</table>
+</div>
+<p>회원 탈퇴 후 12개월 보관 목적은 부정 이용 방지, 분쟁 대응 및 관계 법령에 따른 의무 이행입니다. 보관기간 종료 후 복구 불가능한 방법으로 파기합니다.</p>
+
+<h2>제6조 (개인정보 파기 절차 및 방법)</h2>
+<ul>
+  <li>파기 절차: 보유기간 만료 또는 처리 목적 달성 시 지체 없이 파기</li>
+  <li>파기 방법: 전자 파일은 복구 불가능한 기술적 방법으로 삭제, 출력물은 분쇄</li>
+</ul>
+
+<h2>제7조 (개인정보 제3자 제공 및 처리위탁)</h2>
+<h3>7.1 제3자 제공</h3>
+<p>현재 사용자의 개인정보를 제3자에게 제공하는 계획은 없습니다.</p>
+<h3>7.2 처리위탁</h3>
+<p>둘픽은 서비스 제공을 위해 다음과 같이 개인정보 처리를 위탁하고 있습니다.</p>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>수탁사</th><th>위탁 업무</th></tr></thead>
+  <tbody>
+    <tr><td>Google (Gemini API)</td><td>공유 콘텐츠 분석 및 장소 정보 추출</td></tr>
+    <tr><td>Google (Firebase Cloud Messaging)</td><td>푸시 알림 발송</td></tr>
+    <tr><td>Apple (Sign in with Apple)</td><td>소셜 로그인 인증</td></tr>
+    <tr><td>Google (Google 로그인)</td><td>소셜 로그인 인증</td></tr>
+    <tr><td>Kakao (카카오 로그인)</td><td>소셜 로그인 인증</td></tr>
+  </tbody>
+</table>
+</div>
+<p>위탁 업무의 범위와 수탁사는 서비스 연동 구조에 따라 변경될 수 있으며, 변경 시 본 방침을 통해 고지합니다.</p>
+
+<h2>제8조 (개인정보 국외 이전)</h2>
+<p>둘픽의 자체 서버와 로컬 AI 모델(Gemma 등)은 <strong>대한민국</strong>에서 운영됩니다.</p>
+<p>다만 Gemini API, Firebase Cloud Messaging 등 Google 서비스 이용 과정에서 개인정보 또는 콘텐츠 정보가 국외에서 처리될 수 있습니다. 이 경우 이전되는 개인정보 항목, 국가, 목적, 이전받는 자, 보유기간 및 거부 방법을 본 방침에 고지합니다.</p>
+
+<h2>제9조 (인공지능 분석 시스템)</h2>
+<h3>9.1 외부 AI 서비스 (Gemini API)</h3>
+<ul><li>제공자: Google</li><li>목적: 콘텐츠 URL, 제목, 설명, 자막, 썸네일, 영상 프레임에서 장소 정보 추출</li></ul>
+<p>Gemini API 이용 시 Google에 전달되는 데이터의 범위와 보관 여부에 따라 처리위탁 및 국외 이전 내용을 본 방침에 추가로 고지합니다.</p>
+<h3>9.2 로컬 AI 모델 (Gemma 등)</h3>
+<ul>
+  <li>운영 위치: 대한민국 서울 소재 둘픽 서버</li>
+  <li>목적: 콘텐츠 텍스트 분석 및 장소 정보 추출</li>
+  <li>특징: 로컬 실행 모델 사용 시 분석 정보가 외부로 전달되지 않음</li>
+</ul>
+
+<h2>제10조 (위치정보)</h2>
+<ul>
+  <li>둘픽은 사용자의 개인 위치정보를 서버에 저장하지 않습니다.</li>
+  <li>현재 위치는 지도 기능 이용 시점에 기기에서 조회하여 기능 제공에 필요한 범위에서만 일시적으로 사용합니다.</li>
+  <li>사용자의 이동 경로를 추적하거나 위치 이력을 생성하지 않습니다.</li>
+  <li>위치 권한을 허용하지 않아도 지도 기반 기능을 제외한 다른 기능 이용이 가능합니다.</li>
+</ul>
+
+<h2>제11조 (커플 연결 시 정보 공개)</h2>
+<p>커플로 연결된 상대방에게 <strong>공개되는 정보:</strong></p>
+<ul>
+  <li>닉네임 또는 기본 프로필</li>
+  <li>상대방이 저장한 장소 및 원본 콘텐츠 링크</li>
+  <li>장소 저장 일시</li>
+  <li>공통 저장 장소</li>
+</ul>
+<p>커플 상대방에게 <strong>공개되지 않는 정보:</strong></p>
+<ul>
+  <li>소셜 로그인 인증 토큰 및 사용자 식별값</li>
+  <li>이메일(비공개 포함)</li>
+  <li>FCM 토큰, 접속 로그, 기기 정보</li>
+  <li>신고·문의 내용, 계정 보안 정보</li>
+</ul>
+
+<h2>제12조 (이용자 및 법정대리인의 권리 행사)</h2>
+<p>이용자는 언제든지 다음 권리를 행사할 수 있습니다.</p>
+<ol>
+  <li>개인정보 열람 요청</li>
+  <li>오류 정정 요청</li>
+  <li>삭제 요청</li>
+  <li>처리 정지 요청</li>
+</ol>
+<p>권리 행사는 <code>devjunseok0304@gmail.com</code> 또는 둘픽 앱 내 설정 메뉴를 통해 가능합니다. 만 14세 미만 아동의 개인정보 처리는 현재 계획되지 않았으며, 추후 관련 기능 도입 시 법정대리인 동의 절차를 마련합니다.</p>
+
+<h2>제13조 (회원 탈퇴)</h2>
+<p>사용자는 둘픽 앱 내 설정에서 회원 탈퇴를 요청할 수 있습니다. 탈퇴 시:</p>
+<ul>
+  <li>계정 비활성화 및 커플 연결 해제</li>
+  <li>상대방 저장 목록 접근 차단</li>
+  <li>푸시 알림 중단, 소셜 로그인 연결 해제</li>
+  <li>탈퇴 후 12개월간 관련 법령에 따른 보관 후 파기</li>
+</ul>
+
+<h2>제14조 (개인정보 안전성 확보조치)</h2>
+<p>둘픽은 개인정보 보호를 위해 다음과 같은 기술적·관리적 조치를 시행합니다.</p>
+<ul>
+  <li>개인정보 암호화 저장 및 통신 구간 암호화(HTTPS/TLS)</li>
+  <li>접근 권한 통제 및 접속 기록 관리</li>
+  <li>백신·방화벽 등 보안 프로그램 운영</li>
+  <li>개인정보 취급 직원 최소화 및 정기적 보안 교육</li>
+</ul>
+
+<h2>제15조 (개인정보 보호책임자)</h2>
+<ul>
+  <li>이름: <code>윤준석</code></li>
+  <li>이메일: <code>devjunseok0304@gmail.com</code></li>
+</ul>
+<p>개인정보 관련 문의, 불만 처리 및 피해 구제는 위 연락처로 문의해 주시기 바랍니다.</p>
+
+<h2>제16조 (개인정보처리방침 변경)</h2>
+<p>본 개인정보처리방침은 법령·정책 또는 서비스 변경에 따라 개정될 수 있습니다. 변경 시 시행일 최소 7일 전(이용자에게 불리하거나 중대한 변경의 경우 30일 전)부터 앱 내 공지 및 서비스 공식 채널을 통해 고지합니다.</p>
+
+</main>
+
+<footer>
+  <div class="footer-inner">
+    <div>
+      <div class="footer-info">
+        <strong class="footer-title">둘픽 (DulPick)</strong><br>
+        대표 <code>윤준석</code> &ensp;|&ensp; 문의 <code>devjunseok0304@gmail.com</code><br>
+        서울특별시 구로구 연동로 320
+      </div>
+      <div class="copyright">&copy; DulPick. All rights reserved.</div>
+    </div>
+    <div class="footer-links">
+      <a href="/">홈</a>
+      <a href="/terms">서비스 이용약관</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
