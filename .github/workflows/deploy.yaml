@@ -51,7 +51,7 @@ jobs:
           cache: gradle
 
       - name: Test and build
-        run: ./gradlew clean build --no-daemon
+        run: JWT_SECRET="$(openssl rand -base64 48)" ./gradlew clean build --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/dulpick_test?serverTimezone=UTC&characterEncoding=UTF-8
           SPRING_DATASOURCE_USERNAME: dulpick

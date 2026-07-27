@@ -13,3 +13,7 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET}
