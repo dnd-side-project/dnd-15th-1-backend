@@ -1,0 +1,74 @@
+name: 버그 신고
+description: 재현 가능한 오류나 비정상 동작을 등록합니다.
+title: "[Fix] "
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: 오류 내용
+      description: 발생한 문제를 간결하게 작성해 주세요.
+      placeholder: 어떤 문제가 발생했는지 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: 재현 방법
+      description: 오류를 재현할 수 있는 순서를 작성해 주세요.
+      placeholder: |
+        1. 요청 또는 동작
+        2. 입력값
+        3. 오류 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 기대 결과
+      description: 정상적으로 동작했을 때의 결과를 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: 실제 결과
+      description: 실제 응답, 오류 메시지 또는 로그를 작성해 주세요.
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: 발생 환경
+      description: local, develop, production 등 오류가 발생한 환경을 작성해 주세요.
+      placeholder: production
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      description: 영향도와 위험도를 기준으로 선택해 주세요.
+      options:
+        - P1 - 인증, 권한, 개인정보, 데이터 손실 위험
+        - P2 - 주요 기능, 공통 도메인, DB 및 API 계약
+        - P3 - 운영 장애 긴급 대응
+        - P4 - 일반 기능 및 제한된 범위의 수정
+        - P5 - 문서, 단순 설정 및 비기능 변경
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 검증 항목
+      description: 수정 후 확인해야 할 테스트나 시나리오를 작성해 주세요.
+      placeholder: |
+        - [ ] 재현 시나리오 테스트
+        - [ ] 회귀 테스트
+    validations:
+      required: true
