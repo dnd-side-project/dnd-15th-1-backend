@@ -25,3 +25,9 @@ auth:
         audience: ${KAKAO_NATIVE_APP_KEY}
       apple:
         audience: ${APPLE_CLIENT_ID}
+  apple:
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
+    client-id: ${APPLE_CLIENT_ID}
+    private-key-base64: ${APPLE_PRIVATE_KEY_BASE64}
+    token-encryption-key: ${PROVIDER_TOKEN_ENCRYPTION_KEY}
