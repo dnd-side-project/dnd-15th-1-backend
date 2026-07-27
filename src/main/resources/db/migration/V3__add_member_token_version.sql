@@ -1,0 +1,2 @@
+ALTER TABLE members
+    ADD COLUMN token_version BIGINT NOT NULL DEFAULT 0;

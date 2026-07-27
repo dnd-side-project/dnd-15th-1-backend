@@ -72,6 +72,14 @@ public class SocialAccount {
         return member;
     }
 
+    public SocialProvider getProvider() {
+        return provider;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
     public void updateEmail(String email) {
         this.email = email;
         this.updatedAt = Instant.now();

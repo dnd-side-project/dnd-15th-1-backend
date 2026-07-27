@@ -34,6 +34,8 @@ class TokenServiceTest {
 
         assertThat(jwt.getSubject()).isEqualTo(member.getId().toString());
         assertThat(jwt.getClaimAsString("type")).isEqualTo("access");
+        Number tokenVersion = jwt.getClaim("tokenVersion");
+        assertThat(tokenVersion.longValue()).isZero();
         assertThat(tokens.refreshToken()).isNotBlank();
         assertThat(tokens.accessTokenExpiresIn()).isEqualTo(900);
     }

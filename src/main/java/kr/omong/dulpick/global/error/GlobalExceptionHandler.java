@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
 import kr.omong.dulpick.domain.auth.application.InvalidSocialLoginRequestException;
 import kr.omong.dulpick.domain.auth.infrastructure.apple.AppleAuthorizationException;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.InvalidSocialTokenException;
+import kr.omong.dulpick.domain.member.application.MemberNotActiveException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -37,6 +38,15 @@ public class GlobalExceptionHandler {
                 HttpStatus.UNAUTHORIZED,
                 "AUTHENTICATION_FAILED",
                 "Authentication failed"
+        );
+    }
+
+    @ExceptionHandler(MemberNotActiveException.class)
+    public ResponseEntity<ErrorResponse> handleInactiveMember() {
+        return response(
+                HttpStatus.FORBIDDEN,
+                "MEMBER_NOT_ACTIVE",
+                "Member is not active"
         );
     }
 

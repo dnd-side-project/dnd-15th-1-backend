@@ -8,18 +8,23 @@ import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+
 @Service
 public class SocialAccountService {
 
     private final SocialAccountRepository socialAccountRepository;
     private final MemberRepository memberRepository;
+    private final Clock clock;
 
     public SocialAccountService(
             SocialAccountRepository socialAccountRepository,
-            MemberRepository memberRepository
+            MemberRepository memberRepository,
+            Clock clock
     ) {
         this.socialAccountRepository = socialAccountRepository;
         this.memberRepository = memberRepository;
+        this.clock = clock;
     }
 
     @Transactional
@@ -39,13 +44,13 @@ public class SocialAccountService {
                 ));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthenticatedMember getExisting(
             SocialProvider provider,
             String providerSubject
     ) {
         return socialAccountRepository.findByProviderAndProviderSubject(provider, providerSubject)
-                .map(account -> new AuthenticatedMember(account.getMember(), false))
+                .map(this::authenticateExisting)
                 .orElseThrow(() -> new IllegalStateException("Social account was not created"));
     }
 
@@ -54,6 +59,7 @@ public class SocialAccountService {
             String email,
             String encryptedProviderRefreshToken
     ) {
+        rejoinIfWithdrawn(account.getMember());
         if (email != null) {
             account.updateEmail(email);
         }
@@ -76,5 +82,17 @@ public class SocialAccountService {
         }
         socialAccountRepository.saveAndFlush(account);
         return new AuthenticatedMember(member, true);
+    }
+
+    private AuthenticatedMember authenticateExisting(SocialAccount account) {
+        rejoinIfWithdrawn(account.getMember());
+        return new AuthenticatedMember(account.getMember(), false);
+    }
+
+    private void rejoinIfWithdrawn(Member member) {
+        if (member.isActive()) {
+            return;
+        }
+        member.rejoin(clock.instant());
     }
 }

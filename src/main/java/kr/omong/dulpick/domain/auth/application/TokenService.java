@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.auth.application;
 
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
+import kr.omong.dulpick.domain.member.application.MemberNotActiveException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.global.security.JwtProperties;
 import kr.omong.dulpick.global.security.Sha256;
@@ -46,6 +47,9 @@ public class TokenService {
 
     @Transactional
     public IssuedTokens issue(Member member) {
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
         String refreshToken = generateRefreshToken();
         saveRefreshToken(member, refreshToken);
         return createIssuedTokens(member, refreshToken);
@@ -90,6 +94,7 @@ public class TokenService {
                 .expiresAt(issuedAt.plus(properties.accessTokenTtl()))
                 .id(UUID.randomUUID().toString())
                 .claim("type", "access")
+                .claim("tokenVersion", member.getTokenVersion())
                 .build();
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();

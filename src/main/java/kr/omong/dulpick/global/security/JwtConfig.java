@@ -2,6 +2,7 @@ package kr.omong.dulpick.global.security;
 
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.nimbusds.jose.proc.SecurityContext;
+import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,13 +30,17 @@ public class JwtConfig {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(JwtProperties properties) {
+    public JwtDecoder jwtDecoder(
+            JwtProperties properties,
+            MemberRepository memberRepository
+    ) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder
                 .withSecretKey(properties.secretKey())
                 .build();
         OAuth2TokenValidator<Jwt> validator = new DelegatingOAuth2TokenValidator<>(
                 JwtValidators.createDefaultWithIssuer(properties.issuer()),
-                new AccessTokenTypeValidator()
+                new AccessTokenTypeValidator(),
+                new MemberAccessTokenValidator(memberRepository)
         );
         decoder.setJwtValidator(validator);
         return decoder;
