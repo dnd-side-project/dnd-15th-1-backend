@@ -20,7 +20,7 @@ auth:
   social:
     providers:
       google:
-        audience: ${GOOGLE_IOS_CLIENT_ID}
+        audience: ${GOOGLE_SERVER_CLIENT_ID}
       kakao:
         audience: ${KAKAO_NATIVE_APP_KEY}
       apple:

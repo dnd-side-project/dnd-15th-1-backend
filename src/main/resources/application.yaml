@@ -29,7 +29,7 @@ auth:
           - https://accounts.google.com
           - accounts.google.com
         jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
-        audience: ${GOOGLE_IOS_CLIENT_ID:}
+        audience: ${GOOGLE_SERVER_CLIENT_ID:}
       kakao:
         issuers:
           - https://kauth.kakao.com

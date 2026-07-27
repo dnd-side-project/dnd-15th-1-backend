@@ -97,6 +97,7 @@ jobs:
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           IMAGE_TAG: ${{ github.sha }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
           KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
           PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
         with:
@@ -105,7 +106,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,KAKAO_NATIVE_APP_KEY,PROVIDER_TOKEN_ENCRYPTION_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,PROVIDER_TOKEN_ENCRYPTION_KEY
           script: |
             set -Eeuo pipefail
 
@@ -136,6 +137,9 @@ jobs:
             trap cleanup EXIT
 
             update_env "JWT_SECRET" "${JWT_SECRET}"
+            update_env \
+              "GOOGLE_SERVER_CLIENT_ID" \
+              "${GOOGLE_SERVER_CLIENT_ID}"
             update_env "KAKAO_NATIVE_APP_KEY" "${KAKAO_NATIVE_APP_KEY}"
             update_env \
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
