@@ -29,8 +29,10 @@ public class MemberCommandService {
     @Transactional
     public void withdraw(Long memberId) {
         Member member = memberRepository.findForUpdateById(memberId)
-                .filter(Member::isActive)
-                .orElseThrow(MemberNotActiveException::new);
+                .orElseThrow(MemberNotFoundException::new);
+        if (!member.isActive()) {
+            throw new MemberAlreadyWithdrawnException();
+        }
         Instant withdrawnAt = clock.instant();
         member.withdraw(withdrawnAt);
         refreshTokenRepository.revokeAllByMemberId(memberId, withdrawnAt);

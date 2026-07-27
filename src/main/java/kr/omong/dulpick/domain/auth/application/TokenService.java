@@ -59,8 +59,8 @@ public class TokenService {
     public IssuedTokens rotate(String rawRefreshToken) {
         String currentHash = Sha256.hex(rawRefreshToken);
         RefreshToken currentToken = refreshTokenRepository.findByTokenHash(currentHash)
-                .filter(token -> token.isUsable(clock.instant()))
                 .orElseThrow(InvalidRefreshTokenException::new);
+        validateRefreshToken(currentToken);
 
         String newRefreshToken = generateRefreshToken();
         String newTokenHash = Sha256.hex(newRefreshToken);
@@ -113,6 +113,18 @@ public class TokenService {
         byte[] bytes = new byte[REFRESH_TOKEN_BYTES];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private void validateRefreshToken(RefreshToken refreshToken) {
+        if (refreshToken.isRevoked()) {
+            throw new InvalidRefreshTokenException();
+        }
+        if (refreshToken.isExpired(clock.instant())) {
+            throw new ExpiredRefreshTokenException();
+        }
+        if (!refreshToken.getMember().isActive()) {
+            throw new MemberNotActiveException();
+        }
     }
 
 }

@@ -55,7 +55,7 @@ class AuthSecurityIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
@@ -66,7 +66,7 @@ class AuthSecurityIntegrationTest {
                                 {"refreshToken":"unknown-refresh-token"}
                                 """))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+                .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
     }
 
     @Test
@@ -76,10 +76,12 @@ class AuthSecurityIntegrationTest {
                         .content("""
                                 {"refreshToken":"refresh-token"}
                                 """))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
 
         mockMvc.perform(get("/api/v1/members/me"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
     @Test

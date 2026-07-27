@@ -58,8 +58,12 @@ public class RefreshToken {
         return member;
     }
 
-    public boolean isUsable(Instant now) {
-        return revokedAt == null && expiresAt.isAfter(now) && member.isActive();
+    public boolean isRevoked() {
+        return revokedAt != null;
+    }
+
+    public boolean isExpired(Instant now) {
+        return !expiresAt.isAfter(now);
     }
 
     public void rotate(String replacementTokenHash) {

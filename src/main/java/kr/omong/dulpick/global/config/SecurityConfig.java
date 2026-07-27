@@ -1,5 +1,6 @@
 package kr.omong.dulpick.global.config;
 
+import kr.omong.dulpick.global.exception.SecurityExceptionHandler;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -22,7 +23,10 @@ public class SecurityConfig {
     };
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http,
+            SecurityExceptionHandler securityExceptionHandler
+    ) throws Exception {
         return http
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session
@@ -32,7 +36,15 @@ public class SecurityConfig {
                         .requestMatchers(PUBLIC_PATHS).permitAll()
                         .anyRequest().authenticated()
                 )
-                .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()))
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint(securityExceptionHandler)
+                        .accessDeniedHandler(securityExceptionHandler)
+                )
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .authenticationEntryPoint(securityExceptionHandler)
+                        .accessDeniedHandler(securityExceptionHandler)
+                        .jwt(Customizer.withDefaults())
+                )
                 .build();
     }
 }

@@ -7,7 +7,7 @@ import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.SocialLoginService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.global.error.GlobalExceptionHandler;
+import kr.omong.dulpick.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
@@ -90,6 +90,6 @@ class AuthControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 }

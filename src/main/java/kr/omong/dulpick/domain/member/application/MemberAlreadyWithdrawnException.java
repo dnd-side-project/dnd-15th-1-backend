@@ -3,9 +3,9 @@ package kr.omong.dulpick.domain.member.application;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 
-public class MemberNotActiveException extends BusinessException {
+public class MemberAlreadyWithdrawnException extends BusinessException {
 
-    public MemberNotActiveException() {
-        super(ErrorCode.MEMBER_WITHDRAWN);
+    public MemberAlreadyWithdrawnException() {
+        super(ErrorCode.MEMBER_ALREADY_WITHDRAWN);
     }
 }

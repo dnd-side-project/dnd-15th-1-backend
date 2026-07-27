@@ -1,8 +1,11 @@
 package kr.omong.dulpick.domain.auth.application;
 
-public class InvalidSocialLoginRequestException extends RuntimeException {
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
+
+public class InvalidSocialLoginRequestException extends BusinessException {
 
     public InvalidSocialLoginRequestException(String message) {
-        super(message);
+        super(ErrorCode.INVALID_INPUT, message);
     }
 }

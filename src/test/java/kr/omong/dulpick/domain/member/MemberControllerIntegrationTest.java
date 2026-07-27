@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.auth.application.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.member.application.MemberAlreadyWithdrawnException;
 import kr.omong.dulpick.domain.member.application.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
@@ -81,7 +82,8 @@ class MemberControllerIntegrationTest {
 
         mockMvc.perform(get("/api/v1/members/me")
                         .header("Authorization", bearer(tokens)))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
 
     @Test
@@ -100,6 +102,15 @@ class MemberControllerIntegrationTest {
         assertThat(rejoinedMember.getStatus()).isEqualTo(MemberStatus.ACTIVE);
         assertThat(rejoinedMember.getLastWithdrawnAt()).isNotNull();
         assertThat(rejoinedMember.getLastRejoinedAt()).isNotNull();
+    }
+
+    @Test
+    void rejectsDuplicateWithdrawal() {
+        Member member = createSocialMember("duplicate-withdraw-subject");
+        memberCommandService.withdraw(member.getId());
+
+        assertThatThrownBy(() -> memberCommandService.withdraw(member.getId()))
+                .isInstanceOf(MemberAlreadyWithdrawnException.class);
     }
 
     private Member createSocialMember(String providerSubject) {

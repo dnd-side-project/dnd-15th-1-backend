@@ -1,8 +1,14 @@
 package kr.omong.dulpick.domain.auth.application;
 
-public class InvalidLoginNonceException extends RuntimeException {
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
+
+public class InvalidLoginNonceException extends BusinessException {
 
     public InvalidLoginNonceException() {
-        super("Login nonce is invalid, expired, or already used");
+        super(
+                ErrorCode.OAUTH_VERIFICATION_FAILED,
+                "Login nonce is invalid, expired, or already used"
+        );
     }
 }

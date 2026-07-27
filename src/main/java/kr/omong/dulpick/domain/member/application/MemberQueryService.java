@@ -35,9 +35,12 @@ public class MemberQueryService {
     }
 
     private Member findActiveMember(Long memberId) {
-        return memberRepository.findById(memberId)
-                .filter(Member::isActive)
-                .orElseThrow(MemberNotActiveException::new);
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
+        return member;
     }
 
     private MemberSocialAccount toSocialAccount(SocialAccount account) {

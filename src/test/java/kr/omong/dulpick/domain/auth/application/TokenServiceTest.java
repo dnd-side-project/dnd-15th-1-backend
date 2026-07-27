@@ -1,13 +1,19 @@
 package kr.omong.dulpick.domain.auth.application;
 
+import kr.omong.dulpick.domain.auth.domain.RefreshToken;
+import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.global.security.Sha256;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -21,6 +27,9 @@ class TokenServiceTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Autowired
     private JwtDecoder jwtDecoder;
@@ -64,5 +73,18 @@ class TokenServiceTest {
 
         assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    void distinguishesExpiredRefreshToken() {
+        Member member = memberRepository.save(Member.create());
+        IssuedTokens tokens = tokenService.issue(member);
+        RefreshToken refreshToken = refreshTokenRepository
+                .findByTokenHash(Sha256.hex(tokens.refreshToken()))
+                .orElseThrow();
+        ReflectionTestUtils.setField(refreshToken, "expiresAt", Instant.EPOCH);
+
+        assertThatThrownBy(() -> tokenService.rotate(tokens.refreshToken()))
+                .isInstanceOf(ExpiredRefreshTokenException.class);
     }
 }
