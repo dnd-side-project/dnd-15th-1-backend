@@ -20,3 +20,20 @@ auth:
     refresh-token-ttl: 30d
   social:
     nonce-ttl: 5m
+    providers:
+      google:
+        issuers:
+          - https://accounts.google.com
+          - accounts.google.com
+        jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
+        audience: ${GOOGLE_IOS_CLIENT_ID:}
+      kakao:
+        issuers:
+          - https://kauth.kakao.com
+        jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
+        audience: ${KAKAO_NATIVE_APP_KEY:}
+      apple:
+        issuers:
+          - https://appleid.apple.com
+        jwk-set-uri: https://appleid.apple.com/auth/keys
+        audience: ${APPLE_CLIENT_ID:}

@@ -17,3 +17,11 @@ springdoc:
 auth:
   jwt:
     secret: ${JWT_SECRET}
+  social:
+    providers:
+      google:
+        audience: ${GOOGLE_IOS_CLIENT_ID}
+      kakao:
+        audience: ${KAKAO_NATIVE_APP_KEY}
+      apple:
+        audience: ${APPLE_CLIENT_ID}
