@@ -23,7 +23,7 @@ public class LoginNonce {
     @Column(nullable = false, length = 20)
     private SocialProvider provider;
 
-    @Column(name = "nonce_hash", nullable = false, unique = true, length = 64)
+    @Column(name = "nonce_hash", nullable = false, length = 64)
     private String nonceHash;
 
     @Column(name = "expires_at", nullable = false)

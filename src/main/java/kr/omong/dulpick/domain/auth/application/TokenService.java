@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.global.security.JwtProperties;
+import kr.omong.dulpick.global.security.Sha256;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -12,14 +13,10 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.HexFormat;
 import java.util.UUID;
 
 @Service
@@ -56,13 +53,13 @@ public class TokenService {
 
     @Transactional
     public IssuedTokens rotate(String rawRefreshToken) {
-        String currentHash = hash(rawRefreshToken);
+        String currentHash = Sha256.hex(rawRefreshToken);
         RefreshToken currentToken = refreshTokenRepository.findByTokenHash(currentHash)
                 .filter(token -> token.isUsable(clock.instant()))
                 .orElseThrow(InvalidRefreshTokenException::new);
 
         String newRefreshToken = generateRefreshToken();
-        String newTokenHash = hash(newRefreshToken);
+        String newTokenHash = Sha256.hex(newRefreshToken);
         currentToken.rotate(newTokenHash);
         saveRefreshToken(currentToken.getMember(), newRefreshToken);
         return createIssuedTokens(currentToken.getMember(), newRefreshToken);
@@ -70,7 +67,7 @@ public class TokenService {
 
     @Transactional
     public void revoke(String rawRefreshToken) {
-        refreshTokenRepository.findByTokenHash(hash(rawRefreshToken))
+        refreshTokenRepository.findByTokenHash(Sha256.hex(rawRefreshToken))
                 .ifPresent(RefreshToken::revoke);
     }
 
@@ -100,7 +97,7 @@ public class TokenService {
     private void saveRefreshToken(Member member, String rawRefreshToken) {
         RefreshToken refreshToken = RefreshToken.create(
                 member,
-                hash(rawRefreshToken),
+                Sha256.hex(rawRefreshToken),
                 clock.instant().plus(properties.refreshTokenTtl())
         );
         refreshTokenRepository.save(refreshToken);
@@ -112,13 +109,4 @@ public class TokenService {
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
-    private String hash(String rawToken) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hashed = digest.digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hashed);
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is not available", exception);
-        }
-    }
 }
