@@ -12,8 +12,15 @@ import java.util.Optional;
 
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<RefreshToken> findByTokenHash(String tokenHash);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+            SELECT token
+            FROM RefreshToken token
+            WHERE token.tokenHash = :tokenHash
+            """)
+    Optional<RefreshToken> findForUpdateByTokenHash(@Param("tokenHash") String tokenHash);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""

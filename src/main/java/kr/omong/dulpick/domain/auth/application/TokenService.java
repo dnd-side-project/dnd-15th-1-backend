@@ -58,7 +58,8 @@ public class TokenService {
     @Transactional
     public IssuedTokens rotate(String rawRefreshToken) {
         String currentHash = Sha256.hex(rawRefreshToken);
-        RefreshToken currentToken = refreshTokenRepository.findByTokenHash(currentHash)
+        RefreshToken currentToken = refreshTokenRepository
+                .findForUpdateByTokenHash(currentHash)
                 .orElseThrow(InvalidRefreshTokenException::new);
         validateRefreshToken(currentToken);
 
@@ -71,7 +72,8 @@ public class TokenService {
 
     @Transactional
     public void revoke(String rawRefreshToken, Long memberId) {
-        refreshTokenRepository.findByTokenHash(Sha256.hex(rawRefreshToken))
+        refreshTokenRepository
+                .findForUpdateByTokenHash(Sha256.hex(rawRefreshToken))
                 .filter(token -> token.getMember().getId().equals(memberId))
                 .ifPresent(RefreshToken::revoke);
     }
