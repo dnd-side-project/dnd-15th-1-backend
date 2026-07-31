@@ -54,9 +54,11 @@ class AuthControllerTest {
                         .contentType("application/json")
                         .content("""
                                 {"provider":"APPLE"}
-                                """))
+                """))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nonce").value("nonce"));
+                .andExpect(jsonPath("$.nonce").value("nonce"))
+                .andExpect(jsonPath("$.expiresAt")
+                        .value("2026-07-27T09:00:00"));
     }
 
     @Test

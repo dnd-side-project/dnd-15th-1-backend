@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.member;
 
 import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
 import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.application.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
@@ -20,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -58,6 +61,8 @@ class MemberControllerIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(member.getId()))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
+                .andExpect(jsonPath("$.createdAt")
+                        .value(not(containsString("+09:00"))))
                 .andExpect(jsonPath("$.socialAccounts[0].provider").value("KAKAO"))
                 .andExpect(jsonPath("$.socialAccounts[0].email")
                         .value("member@example.com"));
@@ -95,7 +100,7 @@ class MemberControllerIntegrationTest {
                 SocialProvider.KAKAO,
                 "rejoin-subject",
                 "updated@example.com",
-                null
+                ProviderAuthorization.none()
         ).member();
 
         assertThat(rejoinedMember.getId()).isEqualTo(member.getId());
@@ -118,7 +123,7 @@ class MemberControllerIntegrationTest {
                 SocialProvider.KAKAO,
                 providerSubject,
                 "member@example.com",
-                null
+                ProviderAuthorization.none()
         ).member();
     }
 

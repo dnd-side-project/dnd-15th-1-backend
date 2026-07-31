@@ -16,7 +16,6 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 import java.security.SecureRandom;
-import java.time.Clock;
 
 @Configuration
 @EnableConfigurationProperties(JwtProperties.class)
@@ -51,8 +50,4 @@ public class JwtConfig {
         return new SecureRandom();
     }
 
-    @Bean
-    public Clock clock() {
-        return Clock.systemUTC();
-    }
 }

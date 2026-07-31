@@ -7,6 +7,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
@@ -15,6 +20,21 @@ class LoginNonceServiceTest {
 
     @Autowired
     private LoginNonceService loginNonceService;
+
+    @Autowired
+    private Clock clock;
+
+    @Test
+    void issuesNonceWithTenMinuteLifetimeUsingKoreaTimeZone() {
+        Instant earliestExpiry = clock.instant().plus(Duration.ofMinutes(10));
+
+        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.KAKAO);
+
+        Instant latestExpiry = clock.instant().plus(Duration.ofMinutes(10));
+        assertThat(clock.getZone().getId()).isEqualTo("Asia/Seoul");
+        assertThat(issuedNonce.expiresAt())
+                .isBetween(earliestExpiry, latestExpiry);
+    }
 
     @Test
     void consumesGoogleNonceOnlyOnce() {
