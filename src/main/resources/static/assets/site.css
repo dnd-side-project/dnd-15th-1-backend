@@ -490,7 +490,7 @@ a {
   font-size: 14px;
 }
 
-.legal-page main {
+.legal-page main.container {
   margin-bottom: 96px;
   padding: 64px 72px 88px;
   background: var(--surface);
@@ -642,7 +642,7 @@ a {
     flex-direction: column;
   }
 
-  .legal-page main {
+  .legal-page main.container {
     padding: 48px 34px 64px;
     border-radius: 20px;
   }
@@ -696,7 +696,7 @@ a {
     padding: 54px 0 34px;
   }
 
-  .legal-page main {
+  .legal-page main.container {
     width: 100%;
     margin-bottom: 64px;
     padding: 42px 22px 56px;
