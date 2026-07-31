@@ -141,7 +141,7 @@ jobs:
             readonly ENV_FILE="${APP_DIR}/.env"
             readonly SECRETS_DIR="${APP_DIR}/secrets"
             readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
-            readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-true}"
+            readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
 
             chmod 700 "${APP_DIR}/deploy.sh"
 

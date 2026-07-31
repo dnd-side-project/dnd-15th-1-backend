@@ -19,7 +19,7 @@ springdoc:
 
 features:
   test-auth:
-    enabled: ${TEST_AUTH_ENABLED:true}
+    enabled: ${TEST_AUTH_ENABLED:false}
     access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
 
 auth:
