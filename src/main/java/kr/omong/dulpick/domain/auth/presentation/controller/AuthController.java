@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.auth.controller;
+package kr.omong.dulpick.domain.auth.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -10,12 +10,12 @@ import kr.omong.dulpick.domain.auth.application.LoginNonceService;
 import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.SocialLoginService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
-import kr.omong.dulpick.domain.auth.controller.request.NonceIssueRequest;
-import kr.omong.dulpick.domain.auth.controller.request.SocialLoginRequest;
-import kr.omong.dulpick.domain.auth.controller.request.TokenRefreshRequest;
-import kr.omong.dulpick.domain.auth.controller.response.NonceResponse;
-import kr.omong.dulpick.domain.auth.controller.response.SocialLoginResponse;
-import kr.omong.dulpick.domain.auth.controller.response.TokenResponse;
+import kr.omong.dulpick.domain.auth.presentation.dto.request.NonceIssueRequest;
+import kr.omong.dulpick.domain.auth.presentation.dto.request.SocialLoginRequest;
+import kr.omong.dulpick.domain.auth.presentation.dto.request.TokenRefreshRequest;
+import kr.omong.dulpick.domain.auth.presentation.dto.response.NonceResponse;
+import kr.omong.dulpick.domain.auth.presentation.dto.response.SocialLoginResponse;
+import kr.omong.dulpick.domain.auth.presentation.dto.response.TokenResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;

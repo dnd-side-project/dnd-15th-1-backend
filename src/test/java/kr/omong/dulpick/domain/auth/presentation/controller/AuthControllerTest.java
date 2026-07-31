@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.auth.controller;
+package kr.omong.dulpick.domain.auth.presentation.controller;
 
 import kr.omong.dulpick.domain.auth.application.IssuedNonce;
 import kr.omong.dulpick.domain.auth.application.IssuedTokens;

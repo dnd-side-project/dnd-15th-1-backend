@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.member.controller;
+package kr.omong.dulpick.domain.member.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.member.application.MemberCommandService;
 import kr.omong.dulpick.domain.member.application.MemberProfile;
 import kr.omong.dulpick.domain.member.application.MemberQueryService;
-import kr.omong.dulpick.domain.member.controller.response.MemberMeResponse;
+import kr.omong.dulpick.domain.member.presentation.dto.response.MemberMeResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;

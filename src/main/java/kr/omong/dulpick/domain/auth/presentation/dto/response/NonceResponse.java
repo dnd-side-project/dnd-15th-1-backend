@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.auth.controller.response;
+package kr.omong.dulpick.domain.auth.presentation.dto.response;
 
 import kr.omong.dulpick.domain.auth.application.IssuedNonce;
 

@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.auth.controller.request;
+package kr.omong.dulpick.domain.auth.presentation.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 

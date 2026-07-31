@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.member.controller.response;
+package kr.omong.dulpick.domain.member.presentation.dto.response;
 
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.application.MemberSocialAccount;
