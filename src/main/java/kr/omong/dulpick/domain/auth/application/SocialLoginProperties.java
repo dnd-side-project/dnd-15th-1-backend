@@ -8,4 +8,10 @@ import java.time.Duration;
 public record SocialLoginProperties(
         Duration nonceTtl
 ) {
+
+    public SocialLoginProperties {
+        if (nonceTtl == null || nonceTtl.isZero() || nonceTtl.isNegative()) {
+            throw new IllegalArgumentException("auth.social.nonce-ttl must be positive");
+        }
+    }
 }
