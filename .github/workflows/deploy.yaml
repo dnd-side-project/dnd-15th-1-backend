@@ -121,13 +121,15 @@ jobs:
           APPLE_DEV_CLIENT_ID: ${{ secrets.APPLE_DEV_CLIENT_ID }}
           APPLE_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_PRIVATE_KEY_BASE64 }}
           PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
+          TEST_AUTH_ENABLED: ${{ secrets.TEST_AUTH_ENABLED }}
+          TEST_AUTH_ACCESS_KEY: ${{ secrets.TEST_AUTH_ACCESS_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY
           script: |
             set -Eeuo pipefail
 
@@ -135,6 +137,7 @@ jobs:
             readonly ENV_FILE="${APP_DIR}/.env"
             readonly SECRETS_DIR="${APP_DIR}/secrets"
             readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+            readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-true}"
 
             chmod 700 "${APP_DIR}/deploy.sh"
 
@@ -179,6 +182,15 @@ jobs:
             update_env \
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
+            if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
+              update_env "TEST_AUTH_ENABLED" "true"
+              update_env "TEST_AUTH_ACCESS_KEY" "${TEST_AUTH_ACCESS_KEY}"
+            elif [[ "${TEST_AUTH_ENABLED_VALUE}" == "false" ]]; then
+              update_env "TEST_AUTH_ENABLED" "false"
+            else
+              echo "TEST_AUTH_ENABLED must be true or false" >&2
+              exit 1
+            fi
 
             if [[ -z "${APPLE_PRIVATE_KEY_BASE64}" ]]; then
               echo "Required secret is not configured: APPLE_PRIVATE_KEY_BASE64" >&2

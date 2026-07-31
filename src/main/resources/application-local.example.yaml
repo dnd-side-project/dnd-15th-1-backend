@@ -14,6 +14,11 @@ springdoc:
   swagger-ui:
     enabled: true
 
+features:
+  test-auth:
+    enabled: ${TEST_AUTH_ENABLED:true}
+    access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
+
 auth:
   jwt:
     secret: ${JWT_SECRET}
