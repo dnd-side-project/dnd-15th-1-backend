@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -32,16 +33,28 @@ class RefreshTokenConcurrencyIntegrationTest {
     @Autowired
     private RefreshTokenRepository refreshTokenRepository;
 
+    private Long testMemberId;
+
     @AfterEach
+    @Transactional
     void cleanUp() {
-        refreshTokenRepository.deleteAll();
-        memberRepository.deleteAll();
+        if (testMemberId == null) {
+            return;
+        }
+        refreshTokenRepository.deleteAll(
+                refreshTokenRepository.findAll().stream()
+                        .filter(token -> testMemberId.equals(token.getMember().getId()))
+                        .toList()
+        );
+        refreshTokenRepository.flush();
+        memberRepository.deleteById(testMemberId);
     }
 
     @Test
     @Timeout(10)
     void allowsOnlyOneConcurrentRotation() throws Exception {
         Member member = memberRepository.save(Member.create());
+        testMemberId = member.getId();
         IssuedTokens issuedTokens = tokenService.issue(member);
         ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
         CountDownLatch ready = new CountDownLatch(CONCURRENT_REQUESTS);

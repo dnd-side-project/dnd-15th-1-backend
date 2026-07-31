@@ -23,6 +23,8 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.hasItem;
@@ -63,9 +65,10 @@ class TestAuthIntegrationTest {
 
     @Test
     void signsUpAsKakaoMemberAndUsesAccessTokenOnProtectedApi() throws Exception {
-        AuthTokens tokens = signUp("swagger-test@example.com");
+        String email = uniqueEmail("signup");
+        AuthTokens tokens = signUp(email);
         TestAuthCredential credential = credentialRepository
-                .findByEmail("swagger-test@example.com")
+                .findByEmail(email)
                 .orElseThrow();
         Member member = credential.getMember();
         SocialAccount socialAccount = socialAccountRepository
@@ -74,7 +77,7 @@ class TestAuthIntegrationTest {
 
         assertThat(member.getStatus()).isEqualTo(MemberStatus.ACTIVE);
         assertThat(socialAccount.getProvider()).isEqualTo(SocialProvider.KAKAO);
-        assertThat(socialAccount.getEmail()).isEqualTo("swagger-test@example.com");
+        assertThat(socialAccount.getEmail()).isEqualTo(email);
         assertThat(credential.getPasswordHash()).isNotEqualTo(PASSWORD);
 
         mockMvc.perform(get("/api/v1/members/me")
@@ -86,26 +89,28 @@ class TestAuthIntegrationTest {
 
     @Test
     void requiresTestAccessKeyAndRejectsDuplicateSignup() throws Exception {
+        String email = uniqueEmail("duplicate");
         mockMvc.perform(post("/api/v1/test-auth/signup")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(credentials("duplicate@example.com", PASSWORD)))
+                        .content(credentials(email, PASSWORD)))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
 
-        signUp("duplicate@example.com");
+        signUp(email);
 
         mockMvc.perform(post("/api/v1/test-auth/signup")
                         .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(credentials("DUPLICATE@example.com", PASSWORD)))
+                        .content(credentials(email.toUpperCase(), PASSWORD)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
     void logsInCaseInsensitivelyAndReactivatesWithdrawnMember() throws Exception {
-        signUp("reactivate@example.com");
-        Long memberId = credentialRepository.findByEmail("reactivate@example.com")
+        String email = uniqueEmail("reactivate");
+        signUp(email);
+        Long memberId = credentialRepository.findByEmail(email)
                 .orElseThrow()
                 .getMember()
                 .getId();
@@ -114,7 +119,7 @@ class TestAuthIntegrationTest {
         MvcResult loginResult = mockMvc.perform(post("/api/v1/test-auth/login")
                         .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(credentials("REACTIVATE@example.com", PASSWORD)))
+                        .content(credentials(email.toUpperCase(), PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(memberId))
                 .andReturn();
@@ -126,13 +131,14 @@ class TestAuthIntegrationTest {
 
     @Test
     void rejectsIncorrectPasswordWithoutExposingAccountExistence() throws Exception {
-        signUp("wrong-password@example.com");
+        String email = uniqueEmail("wrong-password");
+        signUp(email);
 
         mockMvc.perform(post("/api/v1/test-auth/login")
                         .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials(
-                                "wrong-password@example.com",
+                                email,
                                 "incorrect-password"
                         )))
                 .andExpect(status().isUnauthorized())
@@ -141,7 +147,7 @@ class TestAuthIntegrationTest {
 
     @Test
     void rotatesOnlyTestAuthRefreshTokenAndLogsOut() throws Exception {
-        AuthTokens tokens = signUp("token-flow@example.com");
+        AuthTokens tokens = signUp(uniqueEmail("token-flow"));
 
         MvcResult reissueResult = mockMvc.perform(post("/api/v1/test-auth/reissue")
                         .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)
@@ -254,6 +260,10 @@ class TestAuthIntegrationTest {
         return """
                 {"refreshToken":"%s"}
                 """.formatted(refreshToken);
+    }
+
+    private String uniqueEmail(String prefix) {
+        return prefix + "-" + UUID.randomUUID() + "@example.com";
     }
 
     private String bearer(String accessToken) {

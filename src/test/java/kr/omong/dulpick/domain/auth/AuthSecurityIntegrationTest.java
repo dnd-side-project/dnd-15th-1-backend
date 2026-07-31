@@ -1,8 +1,12 @@
 package kr.omong.dulpick.domain.auth;
 
+import com.jayway.jsonpath.JsonPath;
 import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
 import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.SocialIdentityVerifierRegistry;
 import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import org.junit.jupiter.api.Test;
@@ -10,11 +14,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.containsString;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
@@ -34,6 +43,9 @@ class AuthSecurityIntegrationTest {
 
     @Autowired
     private TokenService tokenService;
+
+    @MockitoBean
+    private SocialIdentityVerifierRegistry verifierRegistry;
 
     @Test
     void allowsNonceIssueWithoutAuthentication() throws Exception {
@@ -96,6 +108,45 @@ class AuthSecurityIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void socialLoginSucceedsWithoutTestAuthAccessKey() throws Exception {
+        String providerSubject = "provider-member-" + UUID.randomUUID();
+        String email = providerSubject + "@example.com";
+        MvcResult nonceResult = mockMvc.perform(post("/api/v1/auth/nonce")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"provider":"KAKAO"}
+                                """))
+                .andExpect(status().isOk())
+                .andReturn();
+        String nonce = JsonPath.read(
+                nonceResult.getResponse().getContentAsString(),
+                "$.nonce"
+        );
+        when(verifierRegistry.verify(SocialProvider.KAKAO, "provider-id-token"))
+                .thenReturn(new SocialIdentity(
+                        providerSubject,
+                        email,
+                        nonce,
+                        "kakao-native-app-key"
+                ));
+
+        mockMvc.perform(post("/api/v1/auth/social-login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "provider":"KAKAO",
+                                  "idToken":"provider-id-token",
+                                  "nonce":"%s"
+                                }
+                                """.formatted(nonce)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").isNumber())
+                .andExpect(jsonPath("$.newMember").value(true))
+                .andExpect(jsonPath("$.token.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.token.refreshToken").isNotEmpty());
     }
 
     @Test
