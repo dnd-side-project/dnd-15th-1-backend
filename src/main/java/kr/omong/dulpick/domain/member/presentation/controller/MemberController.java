@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.member.application.MemberCommandService;
 import kr.omong.dulpick.domain.member.application.MemberProfile;
 import kr.omong.dulpick.domain.member.application.MemberQueryService;
-import kr.omong.dulpick.domain.member.presentation.dto.response.MemberMeResponse;
+import kr.omong.dulpick.domain.member.presentation.dto.response.MemberResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -34,9 +34,9 @@ public class MemberController {
 
     @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
-    public ResponseEntity<MemberMeResponse> me(@AuthenticationPrincipal Jwt jwt) {
+    public ResponseEntity<MemberResponse> me(@AuthenticationPrincipal Jwt jwt) {
         MemberProfile profile = memberQueryService.getMyProfile(memberId(jwt));
-        return ResponseEntity.ok(MemberMeResponse.from(profile));
+        return ResponseEntity.ok(MemberResponse.from(profile));
     }
 
     @Operation(summary = "회원 탈퇴")

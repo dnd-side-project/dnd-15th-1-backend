@@ -6,7 +6,7 @@ import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import java.time.Instant;
 import java.util.List;
 
-public record MemberMeResponse(
+public record MemberResponse(
         Long memberId,
         MemberStatus status,
         Instant createdAt,
@@ -16,12 +16,12 @@ public record MemberMeResponse(
         List<MemberSocialAccountResponse> socialAccounts
 ) {
 
-    public static MemberMeResponse from(MemberProfile profile) {
+    public static MemberResponse from(MemberProfile profile) {
         List<MemberSocialAccountResponse> accounts = profile.socialAccounts()
                 .stream()
                 .map(MemberSocialAccountResponse::from)
                 .toList();
-        return new MemberMeResponse(
+        return new MemberResponse(
                 profile.memberId(),
                 profile.status(),
                 profile.createdAt(),
