@@ -89,6 +89,22 @@ jobs:
     environment: production
 
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+
+      - name: Sync deployment script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          source: deploy/deploy.sh
+          target: dulpick
+          strip_components: 1
+          overwrite: true
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         env:
@@ -119,6 +135,8 @@ jobs:
             readonly ENV_FILE="${APP_DIR}/.env"
             readonly SECRETS_DIR="${APP_DIR}/secrets"
             readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+
+            chmod 700 "${APP_DIR}/deploy.sh"
 
             cleanup() {
               docker logout ghcr.io >/dev/null 2>&1 || true
