@@ -17,6 +17,23 @@ class LoginNonceServiceTest {
     private LoginNonceService loginNonceService;
 
     @Test
+    void consumesGoogleNonceOnlyOnce() {
+        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.GOOGLE);
+
+        loginNonceService.consume(
+                SocialProvider.GOOGLE,
+                issuedNonce.nonce(),
+                issuedNonce.nonce()
+        );
+
+        assertThatThrownBy(() -> loginNonceService.consume(
+                SocialProvider.GOOGLE,
+                issuedNonce.nonce(),
+                issuedNonce.nonce()
+        )).isInstanceOf(InvalidLoginNonceException.class);
+    }
+
+    @Test
     void consumesAppleNonceOnlyOnce() {
         IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.APPLE);
         String tokenNonce = Sha256.hex(issuedNonce.nonce());

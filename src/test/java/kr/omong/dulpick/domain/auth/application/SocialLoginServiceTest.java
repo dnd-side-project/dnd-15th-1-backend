@@ -9,9 +9,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class SocialLoginServiceTest {
@@ -32,14 +31,18 @@ class SocialLoginServiceTest {
     );
 
     @Test
-    void logsInGoogleUserWithoutNonce() {
+    void verifiesGoogleNonce() {
         SocialLoginCommand command = new SocialLoginCommand(
                 SocialProvider.GOOGLE,
                 "id-token",
                 null,
-                null
+                "login-nonce"
         );
-        SocialIdentity identity = new SocialIdentity("subject", "member@example.com", null);
+        SocialIdentity identity = new SocialIdentity(
+                "subject",
+                "member@example.com",
+                "login-nonce"
+        );
         Member member = member(1L);
         when(verifierRegistry.verify(SocialProvider.GOOGLE, "id-token")).thenReturn(identity);
         when(socialAccountService.getOrCreate(
@@ -54,11 +57,25 @@ class SocialLoginServiceTest {
 
         assertThat(result.memberId()).isEqualTo(1L);
         assertThat(result.newMember()).isTrue();
-        verify(loginNonceService, never()).consume(
+        verify(loginNonceService).consume(
                 SocialProvider.GOOGLE,
+                "login-nonce",
+                "login-nonce"
+        );
+    }
+
+    @Test
+    void rejectsGoogleLoginWithoutNonceBeforeVerifyingToken() {
+        SocialLoginCommand command = new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "id-token",
                 null,
                 null
         );
+
+        assertThatThrownBy(() -> service.login(command))
+                .isInstanceOf(InvalidSocialLoginRequestException.class);
+        verifyNoInteractions(verifierRegistry, loginNonceService);
     }
 
     @Test

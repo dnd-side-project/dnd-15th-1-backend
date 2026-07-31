@@ -25,13 +25,15 @@ class OidcSocialIdentityVerifierTest {
         when(jwtDecoder.decode("id-token")).thenReturn(jwt(Map.of(
                 "sub", "google-subject",
                 "email", "member@example.com",
-                "email_verified", true
+                "email_verified", true,
+                "nonce", "login-nonce"
         )));
 
         SocialIdentity identity = verifier.verify("id-token");
 
         assertThat(identity.providerSubject()).isEqualTo("google-subject");
         assertThat(identity.email()).isEqualTo("member@example.com");
+        assertThat(identity.tokenNonce()).isEqualTo("login-nonce");
     }
 
     @Test

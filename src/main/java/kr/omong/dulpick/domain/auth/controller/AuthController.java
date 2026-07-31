@@ -43,7 +43,10 @@ public class AuthController {
         this.tokenService = tokenService;
     }
 
-    @Operation(summary = "소셜 로그인 nonce 발급")
+    @Operation(
+            summary = "소셜 로그인 nonce 발급",
+            description = "Google, Kakao, Apple 로그인 전에 사용할 일회성 nonce를 발급합니다."
+    )
     @PostMapping("/nonce")
     public ResponseEntity<NonceResponse> issueNonce(
             @Valid @RequestBody NonceIssueRequest request
@@ -52,7 +55,10 @@ public class AuthController {
         return ResponseEntity.ok(NonceResponse.from(issuedNonce));
     }
 
-    @Operation(summary = "소셜 로그인")
+    @Operation(
+            summary = "소셜 로그인",
+            description = "발급받은 nonce 원문과 해당 nonce가 포함된 ID Token을 검증합니다."
+    )
     @PostMapping("/social-login")
     public ResponseEntity<SocialLoginResponse> socialLogin(
             @Valid @RequestBody SocialLoginRequest request

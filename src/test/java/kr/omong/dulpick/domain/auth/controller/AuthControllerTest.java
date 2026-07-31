@@ -70,7 +70,8 @@ class AuthControllerTest {
                         .content("""
                                 {
                                   "provider":"GOOGLE",
-                                  "idToken":"id-token"
+                                  "idToken":"id-token",
+                                  "nonce":"login-nonce"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -86,7 +87,23 @@ class AuthControllerTest {
                         .content("""
                                 {
                                   "provider":"GOOGLE",
-                                  "idToken":""
+                                  "idToken":"",
+                                  "nonce":"login-nonce"
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void rejectsBlankNonce() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/social-login")
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "provider":"GOOGLE",
+                                  "idToken":"id-token",
+                                  "nonce":""
                                 }
                                 """))
                 .andExpect(status().isBadRequest())

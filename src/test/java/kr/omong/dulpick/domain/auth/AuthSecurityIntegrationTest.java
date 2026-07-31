@@ -90,7 +90,8 @@ class AuthSecurityIntegrationTest {
                         .content("""
                                 {
                                   "provider":"GOOGLE",
-                                  "idToken":""
+                                  "idToken":"",
+                                  "nonce":"login-nonce"
                                 }
                                 """))
                 .andExpect(status().isBadRequest())

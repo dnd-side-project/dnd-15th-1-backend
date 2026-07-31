@@ -47,9 +47,6 @@ public class SocialLoginService {
     }
 
     private void validateNonce(SocialLoginCommand command, SocialIdentity identity) {
-        if (command.provider() == SocialProvider.GOOGLE) {
-            return;
-        }
         loginNonceService.consume(command.provider(), command.nonce(), identity.tokenNonce());
     }
 
@@ -64,7 +61,7 @@ public class SocialLoginService {
     }
 
     private void validateRequiredFields(SocialLoginCommand command) {
-        if (command.provider() != SocialProvider.GOOGLE && isBlank(command.nonce())) {
+        if (isBlank(command.nonce())) {
             throw new InvalidSocialLoginRequestException("Nonce is required");
         }
         if (command.provider() == SocialProvider.APPLE
