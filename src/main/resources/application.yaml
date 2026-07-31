@@ -28,6 +28,11 @@ auth:
     secret: ${JWT_SECRET}
     access-token-ttl: 15m
     refresh-token-ttl: 30d
+  maintenance:
+    fixed-delay: 1h
+    batch-size: 1000
+    max-batches-per-run: 10
+    revoked-refresh-token-retention: 1d
   social:
     nonce-ttl: 10m
     providers:

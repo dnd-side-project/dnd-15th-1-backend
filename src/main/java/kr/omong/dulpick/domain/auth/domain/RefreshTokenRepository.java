@@ -33,4 +33,34 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
             @Param("memberId") Long memberId,
             @Param("revokedAt") Instant revokedAt
     );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    DELETE FROM refresh_tokens
+                    WHERE expires_at <= :expiredBefore
+                    LIMIT :batchSize
+                    """,
+            nativeQuery = true
+    )
+    int deleteExpiredBefore(
+            @Param("expiredBefore") Instant expiredBefore,
+            @Param("batchSize") int batchSize
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+            value = """
+                    DELETE FROM refresh_tokens
+                    WHERE revoked_at IS NOT NULL
+                      AND revoked_at <= :revokedBefore
+                      AND replaced_by_token_hash IS NULL
+                    LIMIT :batchSize
+                    """,
+            nativeQuery = true
+    )
+    int deleteRevokedBeforeWithoutRotation(
+            @Param("revokedBefore") Instant revokedBefore,
+            @Param("batchSize") int batchSize
+    );
 }
