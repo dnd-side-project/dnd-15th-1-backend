@@ -143,7 +143,69 @@ jobs:
             readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
             readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
 
-            chmod 700 "${APP_DIR}/deploy.sh"
+            require_value() {
+              local key="$1"
+              local value="$2"
+
+              if [[ -z "${value}" ]]; then
+                echo "Required deployment value is not configured: ${key}" >&2
+                exit 1
+              fi
+            }
+
+            validate_deployment_inputs() {
+              require_value "GHCR_USERNAME" "${GHCR_USERNAME:-}"
+              require_value "GHCR_TOKEN" "${GHCR_TOKEN:-}"
+              require_value "IMAGE_NAME" "${IMAGE_NAME:-}"
+              require_value "IMAGE_TAG" "${IMAGE_TAG:-}"
+              require_value "JWT_SECRET" "${JWT_SECRET:-}"
+              require_value \
+                "GOOGLE_SERVER_CLIENT_ID" \
+                "${GOOGLE_SERVER_CLIENT_ID:-}"
+              require_value \
+                "KAKAO_NATIVE_APP_KEY" \
+                "${KAKAO_NATIVE_APP_KEY:-}"
+              require_value "APPLE_TEAM_ID" "${APPLE_TEAM_ID:-}"
+              require_value "APPLE_KEY_ID" "${APPLE_KEY_ID:-}"
+              require_value \
+                "APPLE_PROD_CLIENT_ID" \
+                "${APPLE_PROD_CLIENT_ID:-}"
+              require_value \
+                "APPLE_DEV_CLIENT_ID" \
+                "${APPLE_DEV_CLIENT_ID:-}"
+              require_value \
+                "APPLE_PRIVATE_KEY_BASE64" \
+                "${APPLE_PRIVATE_KEY_BASE64:-}"
+              require_value \
+                "PROVIDER_TOKEN_ENCRYPTION_KEY" \
+                "${PROVIDER_TOKEN_ENCRYPTION_KEY:-}"
+
+              if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
+                require_value \
+                  "TEST_AUTH_ACCESS_KEY" \
+                  "${TEST_AUTH_ACCESS_KEY:-}"
+                if (( ${#TEST_AUTH_ACCESS_KEY} < 32 )); then
+                  echo \
+                    "TEST_AUTH_ACCESS_KEY must contain at least 32 characters" \
+                    >&2
+                  exit 1
+                fi
+              elif [[ "${TEST_AUTH_ENABLED_VALUE}" != "false" ]]; then
+                echo "TEST_AUTH_ENABLED must be true or false" >&2
+                exit 1
+              fi
+
+              if ! printf '%s' "${APPLE_PRIVATE_KEY_BASE64}" \
+                | base64 --decode >/dev/null 2>&1; then
+                echo "APPLE_PRIVATE_KEY_BASE64 must be valid Base64" >&2
+                exit 1
+              fi
+
+              if [[ ! -f "${ENV_FILE}" ]]; then
+                echo "Environment file not found: ${ENV_FILE}" >&2
+                exit 1
+              fi
+            }
 
             cleanup() {
               docker logout ghcr.io >/dev/null 2>&1 || true
@@ -154,11 +216,6 @@ jobs:
               local value="$2"
               local temp_file
 
-              if [[ -z "${value}" ]]; then
-                echo "Required secret is not configured: ${key}" >&2
-                exit 1
-              fi
-
               temp_file="$(mktemp "${APP_DIR}/.env.XXXXXX")"
               awk -F= -v key="${key}" '$1 != key { print }' "${ENV_FILE}" > "${temp_file}"
               printf '%s=%s\n' "${key}" "${value}" >> "${temp_file}"
@@ -166,6 +223,9 @@ jobs:
               mv "${temp_file}" "${ENV_FILE}"
             }
 
+            validate_deployment_inputs
+
+            chmod 700 "${APP_DIR}/deploy.sh"
             trap cleanup EXIT
 
             mkdir -p "${SECRETS_DIR}"
@@ -187,24 +247,10 @@ jobs:
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
             if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
-              if (( ${#TEST_AUTH_ACCESS_KEY} < 32 )); then
-                echo \
-                  "TEST_AUTH_ACCESS_KEY must contain at least 32 characters" \
-                  >&2
-                exit 1
-              fi
               update_env "TEST_AUTH_ENABLED" "true"
               update_env "TEST_AUTH_ACCESS_KEY" "${TEST_AUTH_ACCESS_KEY}"
-            elif [[ "${TEST_AUTH_ENABLED_VALUE}" == "false" ]]; then
-              update_env "TEST_AUTH_ENABLED" "false"
             else
-              echo "TEST_AUTH_ENABLED must be true or false" >&2
-              exit 1
-            fi
-
-            if [[ -z "${APPLE_PRIVATE_KEY_BASE64}" ]]; then
-              echo "Required secret is not configured: APPLE_PRIVATE_KEY_BASE64" >&2
-              exit 1
+              update_env "TEST_AUTH_ENABLED" "false"
             fi
 
             private_key_temp="$(mktemp "${SECRETS_DIR}/apple-private-key.XXXXXX")"
