@@ -47,6 +47,18 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
+    void allowsNonceIssueWithInvalidBearerToken() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/nonce")
+                        .header("Authorization", "Bearer invalid-access-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"provider":"APPLE"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nonce").isNotEmpty());
+    }
+
+    @Test
     void allowsPublicPagesWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk())
@@ -71,8 +83,9 @@ class AuthSecurityIntegrationTest {
     }
 
     @Test
-    void validatesSocialLoginRequestWithoutAuthentication() throws Exception {
+    void validatesSocialLoginRequestWithInvalidBearerToken() throws Exception {
         mockMvc.perform(post("/api/v1/auth/social-login")
+                        .header("Authorization", "Bearer invalid-access-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -82,6 +95,22 @@ class AuthSecurityIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void reissuesTokensWithInvalidBearerToken() throws Exception {
+        Member member = memberRepository.save(Member.create());
+        IssuedTokens tokens = tokenService.issue(member);
+
+        mockMvc.perform(post("/api/v1/auth/reissue")
+                        .header("Authorization", "Bearer invalid-access-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"refreshToken":"%s"}
+                                """.formatted(tokens.refreshToken())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.refreshToken").isNotEmpty());
     }
 
     @Test
@@ -106,6 +135,14 @@ class AuthSecurityIntegrationTest {
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
 
         mockMvc.perform(get("/api/v1/members/me"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
+    }
+
+    @Test
+    void rejectsInvalidBearerTokenOnProtectedApi() throws Exception {
+        mockMvc.perform(get("/api/v1/members/me")
+                        .header("Authorization", "Bearer invalid-access-token"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.code").value("AUTHENTICATION_FAILED"));
     }
