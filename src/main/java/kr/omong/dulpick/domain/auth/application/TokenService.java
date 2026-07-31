@@ -2,7 +2,7 @@ package kr.omong.dulpick.domain.auth.application;
 
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
-import kr.omong.dulpick.domain.member.application.MemberNotActiveException;
+import kr.omong.dulpick.domain.member.application.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.global.security.JwtProperties;
 import kr.omong.dulpick.global.security.Sha256;

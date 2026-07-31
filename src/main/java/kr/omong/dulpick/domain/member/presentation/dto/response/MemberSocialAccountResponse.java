@@ -2,7 +2,7 @@ package kr.omong.dulpick.domain.member.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.domain.member.application.MemberSocialAccount;
+import kr.omong.dulpick.domain.member.application.query.view.MemberSocialAccount;
 
 public record MemberSocialAccountResponse(
         @Schema(

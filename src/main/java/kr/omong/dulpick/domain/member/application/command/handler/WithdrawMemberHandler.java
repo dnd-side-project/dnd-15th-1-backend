@@ -1,25 +1,25 @@
-package kr.omong.dulpick.domain.member.application;
+package kr.omong.dulpick.domain.member.application.command.handler;
 
 import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
+import kr.omong.dulpick.domain.member.application.exception.MemberAlreadyWithdrawnException;
+import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
 
-@Service
-@Transactional
-public class MemberCommandService {
+@Component
+public class WithdrawMemberHandler {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppleAccountRevocationService appleAccountRevocationService;
     private final Clock clock;
 
-    public MemberCommandService(
+    public WithdrawMemberHandler(
             MemberRepository memberRepository,
             RefreshTokenRepository refreshTokenRepository,
             AppleAccountRevocationService appleAccountRevocationService,
@@ -31,13 +31,25 @@ public class MemberCommandService {
         this.clock = clock;
     }
 
-    public void withdraw(Long memberId) {
-        Member member = memberRepository.findForUpdateById(memberId)
+    public void handle(Long memberId) {
+        Member member = findMemberForUpdate(memberId);
+        validateActive(member);
+        appleAccountRevocationService.enqueueForMember(memberId);
+        withdraw(member, memberId);
+    }
+
+    private Member findMemberForUpdate(Long memberId) {
+        return memberRepository.findForUpdateById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
+    }
+
+    private void validateActive(Member member) {
         if (!member.isActive()) {
             throw new MemberAlreadyWithdrawnException();
         }
-        appleAccountRevocationService.enqueueForMember(memberId);
+    }
+
+    private void withdraw(Member member, Long memberId) {
         Instant withdrawnAt = clock.instant();
         member.withdraw(withdrawnAt);
         refreshTokenRepository.revokeAllByMemberId(memberId, withdrawnAt);

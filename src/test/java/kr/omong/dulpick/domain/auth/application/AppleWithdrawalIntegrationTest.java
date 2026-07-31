@@ -6,7 +6,7 @@ import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.apple.AppleAuthorizationException;
-import kr.omong.dulpick.domain.member.application.MemberCommandService;
+import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import org.junit.jupiter.api.Test;
