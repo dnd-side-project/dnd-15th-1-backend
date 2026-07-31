@@ -1,21 +1,24 @@
-package kr.omong.dulpick.domain.member.application;
+package kr.omong.dulpick.domain.member.application.query.reader;
 
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
+import kr.omong.dulpick.domain.member.application.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberSocialAccount;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 
-@Service
-public class MemberQueryService {
+@Component
+public class MemberProfileReader {
 
     private final MemberRepository memberRepository;
     private final SocialAccountRepository socialAccountRepository;
 
-    public MemberQueryService(
+    public MemberProfileReader(
             MemberRepository memberRepository,
             SocialAccountRepository socialAccountRepository
     ) {
@@ -23,8 +26,7 @@ public class MemberQueryService {
         this.socialAccountRepository = socialAccountRepository;
     }
 
-    @Transactional(readOnly = true)
-    public MemberProfile getMyProfile(Long memberId) {
+    public MemberProfile read(Long memberId) {
         Member member = findActiveMember(memberId);
         List<MemberSocialAccount> accounts = socialAccountRepository
                 .findAllByMemberId(memberId)

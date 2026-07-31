@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.member.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import kr.omong.dulpick.domain.member.application.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import kr.omong.dulpick.global.time.ServiceTime;
 

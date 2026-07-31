@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.member.application;
+package kr.omong.dulpick.domain.member.application.command.handler;
 
 import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
@@ -16,7 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class MemberCommandServiceTest {
+class WithdrawMemberHandlerTest {
 
     private static final Instant NOW = Instant.parse("2026-07-31T12:00:00Z");
 
@@ -25,7 +25,7 @@ class MemberCommandServiceTest {
             mock(RefreshTokenRepository.class);
     private final AppleAccountRevocationService appleAccountRevocationService =
             mock(AppleAccountRevocationService.class);
-    private final MemberCommandService service = new MemberCommandService(
+    private final WithdrawMemberHandler handler = new WithdrawMemberHandler(
             memberRepository,
             refreshTokenRepository,
             appleAccountRevocationService,
@@ -37,7 +37,7 @@ class MemberCommandServiceTest {
         Member member = Member.create();
         when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
 
-        service.withdraw(1L);
+        handler.handle(1L);
 
         verify(appleAccountRevocationService).enqueueForMember(1L);
         verify(refreshTokenRepository).revokeAllByMemberId(1L, NOW);
