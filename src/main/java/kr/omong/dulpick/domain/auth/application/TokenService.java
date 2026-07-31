@@ -55,12 +55,13 @@ public class TokenService {
         return createIssuedTokens(member, refreshToken);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
     public IssuedTokens rotate(String rawRefreshToken) {
         String currentHash = Sha256.hex(rawRefreshToken);
         RefreshToken currentToken = refreshTokenRepository
                 .findForUpdateByTokenHash(currentHash)
                 .orElseThrow(InvalidRefreshTokenException::new);
+        rejectRotatedTokenReplay(currentToken);
         validateRefreshToken(currentToken);
 
         String newRefreshToken = generateRefreshToken();
@@ -127,6 +128,17 @@ public class TokenService {
         if (!refreshToken.getMember().isActive()) {
             throw new MemberNotActiveException();
         }
+    }
+
+    private void rejectRotatedTokenReplay(RefreshToken refreshToken) {
+        if (!refreshToken.wasRotated()) {
+            return;
+        }
+        refreshTokenRepository.revokeAllByMemberId(
+                refreshToken.getMember().getId(),
+                clock.instant()
+        );
+        throw new InvalidRefreshTokenException();
     }
 
 }

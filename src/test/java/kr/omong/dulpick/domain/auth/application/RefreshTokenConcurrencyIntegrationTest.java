@@ -18,6 +18,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 class RefreshTokenConcurrencyIntegrationTest {
@@ -75,6 +76,14 @@ class RefreshTokenConcurrencyIntegrationTest {
             assertThat(results).filteredOn(IssuedTokens.class::isInstance).hasSize(1);
             assertThat(results).filteredOn(InvalidRefreshTokenException.class::isInstance)
                     .hasSize(1);
+            IssuedTokens successfulRotation = results.stream()
+                    .filter(IssuedTokens.class::isInstance)
+                    .map(IssuedTokens.class::cast)
+                    .findFirst()
+                    .orElseThrow();
+            assertThatThrownBy(() -> tokenService.rotate(
+                    successfulRotation.refreshToken()
+            )).isInstanceOf(InvalidRefreshTokenException.class);
         } finally {
             executor.shutdownNow();
         }

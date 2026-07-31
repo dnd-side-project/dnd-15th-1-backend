@@ -62,6 +62,10 @@ public class RefreshToken {
         return revokedAt != null;
     }
 
+    public boolean wasRotated() {
+        return replacedByTokenHash != null;
+    }
+
     public boolean isExpired(Instant now) {
         return !expiresAt.isAfter(now);
     }

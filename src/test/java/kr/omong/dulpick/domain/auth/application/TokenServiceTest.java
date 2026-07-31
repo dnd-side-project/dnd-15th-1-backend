@@ -50,14 +50,19 @@ class TokenServiceTest {
     }
 
     @Test
-    void rotatesRefreshTokenOnlyOnce() {
+    void revokesTokenFamilyWhenRotatedTokenIsReplayed() {
         Member member = memberRepository.save(Member.create());
         IssuedTokens issuedTokens = tokenService.issue(member);
 
         IssuedTokens rotatedTokens = tokenService.rotate(issuedTokens.refreshToken());
+        IssuedTokens otherSessionTokens = tokenService.issue(member);
 
         assertThat(rotatedTokens.refreshToken()).isNotEqualTo(issuedTokens.refreshToken());
         assertThatThrownBy(() -> tokenService.rotate(issuedTokens.refreshToken()))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThatThrownBy(() -> tokenService.rotate(otherSessionTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
 
