@@ -187,6 +187,12 @@ jobs:
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
             if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
+              if (( ${#TEST_AUTH_ACCESS_KEY} < 32 )); then
+                echo \
+                  "TEST_AUTH_ACCESS_KEY must contain at least 32 characters" \
+                  >&2
+                exit 1
+              fi
               update_env "TEST_AUTH_ENABLED" "true"
               update_env "TEST_AUTH_ACCESS_KEY" "${TEST_AUTH_ACCESS_KEY}"
             elif [[ "${TEST_AUTH_ENABLED_VALUE}" == "false" ]]; then
