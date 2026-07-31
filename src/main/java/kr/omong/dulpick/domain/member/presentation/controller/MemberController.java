@@ -39,7 +39,13 @@ public class MemberController {
         return ResponseEntity.ok(MemberResponse.from(profile));
     }
 
-    @Operation(summary = "회원 탈퇴")
+    @Operation(
+            summary = "회원 탈퇴",
+            description = """
+                    회원을 비활성화하고 발급된 Refresh Token을 모두 폐기합니다.
+                    Apple 철회 정보가 저장된 경우 로컬 탈퇴를 먼저 완료한 뒤 서버가 Apple 연결 해제를 비동기로 재시도합니다.
+                    """
+    )
     @DeleteMapping("/me")
     public ResponseEntity<Void> withdraw(@AuthenticationPrincipal Jwt jwt) {
         memberCommandService.withdraw(memberId(jwt));

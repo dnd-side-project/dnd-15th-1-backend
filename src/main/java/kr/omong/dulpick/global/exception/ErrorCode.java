@@ -28,10 +28,6 @@ public enum ErrorCode {
             HttpStatus.UNAUTHORIZED,
             "소셜 로그인 토큰 검증에 실패했습니다"
     ),
-    APPLE_TOKEN_REVOCATION_FAILED(
-            HttpStatus.SERVICE_UNAVAILABLE,
-            "Apple 계정 연결 해제에 실패했습니다. 잠시 후 다시 시도해 주세요"
-    ),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "유효하지 않은 리프레시 토큰입니다"),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 리프레시 토큰입니다");
 

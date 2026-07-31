@@ -67,3 +67,8 @@ auth:
     token-uri: https://appleid.apple.com/auth/token
     revoke-uri: https://appleid.apple.com/auth/revoke
     client-secret-ttl: 5m
+    revocation:
+      process-delay: 1m
+      batch-size: 20
+      initial-retry-delay: 1m
+      max-retry-delay: 1h

@@ -37,7 +37,7 @@ public class MemberCommandService {
         if (!member.isActive()) {
             throw new MemberAlreadyWithdrawnException();
         }
-        appleAccountRevocationService.revokeForMember(memberId);
+        appleAccountRevocationService.enqueueForMember(memberId);
         Instant withdrawnAt = clock.instant();
         member.withdraw(withdrawnAt);
         refreshTokenRepository.revokeAllByMemberId(memberId, withdrawnAt);

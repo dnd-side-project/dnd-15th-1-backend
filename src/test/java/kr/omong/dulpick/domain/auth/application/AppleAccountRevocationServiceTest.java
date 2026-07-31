@@ -1,36 +1,44 @@
 package kr.omong.dulpick.domain.auth.application;
 
+import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutbox;
+import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutboxRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.domain.auth.infrastructure.apple.AppleAuthorizationException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.doThrow;
+import static org.assertj.core.groups.Tuple.tuple;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 class AppleAccountRevocationServiceTest {
 
+    private static final Instant NOW = Instant.parse("2026-07-31T12:00:00Z");
+
     private final SocialAccountRepository socialAccountRepository =
             mock(SocialAccountRepository.class);
-    private final AppleAuthorizationService appleAuthorizationService =
-            mock(AppleAuthorizationService.class);
+    private final AppleRevocationOutboxRepository outboxRepository =
+            mock(AppleRevocationOutboxRepository.class);
     private final AppleAccountRevocationService service =
             new AppleAccountRevocationService(
                     socialAccountRepository,
-                    appleAuthorizationService
+                    outboxRepository,
+                    Clock.fixed(NOW, ZoneOffset.UTC)
             );
 
     @Test
-    void revokesProdAndDevAppleAccountsWithStoredClientIds() {
+    void enqueuesProdAndDevAppleAccountsAndClearsStoredAuthorization() {
         SocialAccount prodAccount = account(
                 SocialProvider.APPLE,
                 "prod-token",
@@ -45,17 +53,28 @@ class AppleAccountRevocationServiceTest {
         when(socialAccountRepository.findAllByMemberId(1L))
                 .thenReturn(List.of(prodAccount, devAccount, kakaoAccount));
 
-        service.revokeForMember(1L);
+        service.enqueueForMember(1L);
 
-        verify(appleAuthorizationService).revoke(
-                "prod-token",
-                "com.dulpick.app"
-        );
-        verify(appleAuthorizationService).revoke(
-                "dev-token",
-                "com.dulpick.dev"
-        );
-        verifyNoMoreInteractions(appleAuthorizationService);
+        var captor = forClass(AppleRevocationOutbox.class);
+        verify(outboxRepository, times(2)).save(captor.capture());
+        assertThat(captor.getAllValues())
+                .extracting(
+                        AppleRevocationOutbox::getMemberId,
+                        AppleRevocationOutbox::getEncryptedRefreshToken,
+                        AppleRevocationOutbox::getClientId
+                )
+                .containsExactlyInAnyOrder(
+                        tuple(
+                                1L,
+                                "prod-token",
+                                "com.dulpick.app"
+                        ),
+                        tuple(
+                                1L,
+                                "dev-token",
+                                "com.dulpick.dev"
+                        )
+                );
         assertThat(prodAccount.getProviderRefreshToken()).isNull();
         assertThat(prodAccount.getProviderClientId()).isNull();
         assertThat(devAccount.getProviderRefreshToken()).isNull();
@@ -68,32 +87,9 @@ class AppleAccountRevocationServiceTest {
         when(socialAccountRepository.findAllByMemberId(1L))
                 .thenReturn(List.of(appleAccount));
 
-        service.revokeForMember(1L);
+        service.enqueueForMember(1L);
 
-        verifyNoMoreInteractions(appleAuthorizationService);
-    }
-
-    @Test
-    void preservesAuthorizationAndReturnsRetryableFailureWhenRevocationFails() {
-        SocialAccount appleAccount = account(
-                SocialProvider.APPLE,
-                "encrypted-refresh-token",
-                "com.dulpick.app"
-        );
-        when(socialAccountRepository.findAllByMemberId(1L))
-                .thenReturn(List.of(appleAccount));
-        doThrow(new AppleAuthorizationException("sensitive-refresh-token"))
-                .when(appleAuthorizationService)
-                .revoke("encrypted-refresh-token", "com.dulpick.app");
-
-        assertThatThrownBy(() -> service.revokeForMember(1L))
-                .isInstanceOf(AppleTokenRevocationException.class)
-                .hasMessageNotContaining("encrypted-refresh-token")
-                .hasMessageNotContaining("sensitive-refresh-token");
-        assertThat(appleAccount.getProviderRefreshToken())
-                .isEqualTo("encrypted-refresh-token");
-        assertThat(appleAccount.getProviderClientId())
-                .isEqualTo("com.dulpick.app");
+        verifyNoMoreInteractions(outboxRepository);
     }
 
     private SocialAccount account(

@@ -1,29 +1,35 @@
 package kr.omong.dulpick.domain.auth.application;
 
+import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutbox;
+import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutboxRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.domain.auth.infrastructure.apple.AppleAuthorizationException;
 import org.springframework.stereotype.Service;
+
+import java.time.Clock;
 
 @Service
 public class AppleAccountRevocationService {
 
     private final SocialAccountRepository socialAccountRepository;
-    private final AppleAuthorizationService appleAuthorizationService;
+    private final AppleRevocationOutboxRepository outboxRepository;
+    private final Clock clock;
 
     public AppleAccountRevocationService(
             SocialAccountRepository socialAccountRepository,
-            AppleAuthorizationService appleAuthorizationService
+            AppleRevocationOutboxRepository outboxRepository,
+            Clock clock
     ) {
         this.socialAccountRepository = socialAccountRepository;
-        this.appleAuthorizationService = appleAuthorizationService;
+        this.outboxRepository = outboxRepository;
+        this.clock = clock;
     }
 
-    public void revokeForMember(Long memberId) {
+    public void enqueueForMember(Long memberId) {
         socialAccountRepository.findAllByMemberId(memberId).stream()
                 .filter(this::hasAppleRefreshToken)
-                .forEach(this::revoke);
+                .forEach(account -> enqueue(memberId, account));
     }
 
     private boolean hasAppleRefreshToken(SocialAccount account) {
@@ -31,15 +37,14 @@ public class AppleAccountRevocationService {
                 && account.getProviderRefreshToken() != null;
     }
 
-    private void revoke(SocialAccount account) {
-        try {
-            appleAuthorizationService.revoke(
-                    account.getProviderRefreshToken(),
-                    account.getProviderClientId()
-            );
-            account.clearProviderAuthorization();
-        } catch (AppleAuthorizationException exception) {
-            throw new AppleTokenRevocationException(exception);
-        }
+    private void enqueue(Long memberId, SocialAccount account) {
+        AppleRevocationOutbox outbox = AppleRevocationOutbox.create(
+                memberId,
+                account.getProviderRefreshToken(),
+                account.getProviderClientId(),
+                clock.instant()
+        );
+        outboxRepository.save(outbox);
+        account.clearProviderAuthorization();
     }
 }
