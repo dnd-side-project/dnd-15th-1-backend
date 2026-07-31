@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Instant;
 
 @Service
+@Transactional
 public class MemberCommandService {
 
     private final MemberRepository memberRepository;
@@ -26,7 +27,6 @@ public class MemberCommandService {
         this.clock = clock;
     }
 
-    @Transactional
     public void withdraw(Long memberId) {
         Member member = memberRepository.findForUpdateById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
