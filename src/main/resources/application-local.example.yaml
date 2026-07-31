@@ -6,10 +6,39 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
 
 springdoc:
   api-docs:
     enabled: true
   swagger-ui:
     enabled: true
+
+features:
+  test-auth:
+    enabled: ${TEST_AUTH_ENABLED:false}
+    access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
+
+auth:
+  jwt:
+    secret: ${JWT_SECRET}
+  social:
+    providers:
+      google:
+        audiences:
+          - ${GOOGLE_SERVER_CLIENT_ID}
+      kakao:
+        audiences:
+          - ${KAKAO_NATIVE_APP_KEY}
+      apple:
+        audiences:
+          - ${APPLE_PROD_CLIENT_ID}
+          - ${APPLE_DEV_CLIENT_ID}
+  apple:
+    team-id: ${APPLE_TEAM_ID}
+    key-id: ${APPLE_KEY_ID}
+    client-ids:
+      - ${APPLE_PROD_CLIENT_ID}
+      - ${APPLE_DEV_CLIENT_ID}
+    private-key-path: ${APPLE_PRIVATE_KEY_PATH}
+    token-encryption-key: ${PROVIDER_TOKEN_ENCRYPTION_KEY}

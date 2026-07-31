@@ -8,6 +8,9 @@ build/
 # Local-only Spring configuration (may contain secrets)
 src/main/resources/application-local.yaml
 deploy/.env
+*.p8
+secrets/
+local-docs/
 
 ### STS ###
 .apt_generated

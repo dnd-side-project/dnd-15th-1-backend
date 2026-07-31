@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - main
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: Test and build
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_DATABASE: dulpick_test
+          MYSQL_USER: dulpick
+          MYSQL_PASSWORD: test-password
+          MYSQL_ROOT_PASSWORD: root-password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot-password"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Test and build
+        run: >-
+          JWT_SECRET="$(openssl rand -base64 48)"
+          PROVIDER_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          ./gradlew clean build --no-daemon
+        env:
+          SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/dulpick_test?serverTimezone=UTC&characterEncoding=UTF-8
+          SPRING_DATASOURCE_USERNAME: dulpick
+          SPRING_DATASOURCE_PASSWORD: test-password

@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Java 21
         uses: actions/setup-java@v5
@@ -51,7 +53,10 @@ jobs:
           cache: gradle
 
       - name: Test and build
-        run: ./gradlew clean build --no-daemon
+        run: >-
+          JWT_SECRET="$(openssl rand -base64 48)"
+          PROVIDER_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)"
+          ./gradlew clean build --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/dulpick_test?serverTimezone=UTC&characterEncoding=UTF-8
           SPRING_DATASOURCE_USERNAME: dulpick
@@ -86,6 +91,24 @@ jobs:
     environment: production
 
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Sync deployment script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          source: deploy/deploy.sh
+          target: dulpick
+          strip_components: 1
+          overwrite: true
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         env:
@@ -93,20 +116,98 @@ jobs:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           IMAGE_NAME: ${{ env.IMAGE_NAME }}
           IMAGE_TAG: ${{ github.sha }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
+          KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_PROD_CLIENT_ID: ${{ secrets.APPLE_PROD_CLIENT_ID }}
+          APPLE_DEV_CLIENT_ID: ${{ secrets.APPLE_DEV_CLIENT_ID }}
+          APPLE_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_PRIVATE_KEY_BASE64 }}
+          PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
+          TEST_AUTH_ENABLED: ${{ secrets.TEST_AUTH_ENABLED }}
+          TEST_AUTH_ACCESS_KEY: ${{ secrets.TEST_AUTH_ACCESS_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY
           script: |
             set -Eeuo pipefail
+
+            readonly APP_DIR="${HOME}/dulpick"
+            readonly ENV_FILE="${APP_DIR}/.env"
+            readonly SECRETS_DIR="${APP_DIR}/secrets"
+            readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+            readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
+
+            chmod 700 "${APP_DIR}/deploy.sh"
+
             cleanup() {
               docker logout ghcr.io >/dev/null 2>&1 || true
             }
+
+            update_env() {
+              local key="$1"
+              local value="$2"
+              local temp_file
+
+              if [[ -z "${value}" ]]; then
+                echo "Required secret is not configured: ${key}" >&2
+                exit 1
+              fi
+
+              temp_file="$(mktemp "${APP_DIR}/.env.XXXXXX")"
+              awk -F= -v key="${key}" '$1 != key { print }' "${ENV_FILE}" > "${temp_file}"
+              printf '%s=%s\n' "${key}" "${value}" >> "${temp_file}"
+              chmod 600 "${temp_file}"
+              mv "${temp_file}" "${ENV_FILE}"
+            }
+
             trap cleanup EXIT
+
+            mkdir -p "${SECRETS_DIR}"
+            chmod 700 "${SECRETS_DIR}"
+
+            update_env "JWT_SECRET" "${JWT_SECRET}"
+            update_env \
+              "GOOGLE_SERVER_CLIENT_ID" \
+              "${GOOGLE_SERVER_CLIENT_ID}"
+            update_env "KAKAO_NATIVE_APP_KEY" "${KAKAO_NATIVE_APP_KEY}"
+            update_env "APPLE_TEAM_ID" "${APPLE_TEAM_ID}"
+            update_env "APPLE_KEY_ID" "${APPLE_KEY_ID}"
+            update_env "APPLE_PROD_CLIENT_ID" "${APPLE_PROD_CLIENT_ID}"
+            update_env "APPLE_DEV_CLIENT_ID" "${APPLE_DEV_CLIENT_ID}"
+            update_env \
+              "APPLE_PRIVATE_KEY_PATH" \
+              "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+            update_env \
+              "PROVIDER_TOKEN_ENCRYPTION_KEY" \
+              "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
+            if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
+              update_env "TEST_AUTH_ENABLED" "true"
+              update_env "TEST_AUTH_ACCESS_KEY" "${TEST_AUTH_ACCESS_KEY}"
+            elif [[ "${TEST_AUTH_ENABLED_VALUE}" == "false" ]]; then
+              update_env "TEST_AUTH_ENABLED" "false"
+            else
+              echo "TEST_AUTH_ENABLED must be true or false" >&2
+              exit 1
+            fi
+
+            if [[ -z "${APPLE_PRIVATE_KEY_BASE64}" ]]; then
+              echo "Required secret is not configured: APPLE_PRIVATE_KEY_BASE64" >&2
+              exit 1
+            fi
+
+            private_key_temp="$(mktemp "${SECRETS_DIR}/apple-private-key.XXXXXX")"
+            printf '%s' "${APPLE_PRIVATE_KEY_BASE64}" \
+              | base64 --decode > "${private_key_temp}"
+            chmod 600 "${private_key_temp}"
+            mv "${private_key_temp}" "${APPLE_PRIVATE_KEY_FILE}"
+
             echo "${GHCR_TOKEN}" | docker login ghcr.io \
               --username "${GHCR_USERNAME}" \
               --password-stdin
-            /home/ubuntu/dulpick/deploy.sh "${IMAGE_NAME}" "${IMAGE_TAG}"
+            "${APP_DIR}/deploy.sh" "${IMAGE_NAME}" "${IMAGE_TAG}"

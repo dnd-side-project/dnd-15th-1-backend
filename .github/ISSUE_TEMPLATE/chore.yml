@@ -1,0 +1,67 @@
+name: 환경 및 문서 작업
+description: 설정, 의존성, 리팩터링, 테스트 또는 문서 작업을 등록합니다.
+title: "[Chore] "
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: 작업 유형
+      options:
+        - refactor
+        - test
+        - docs
+        - chore
+        - ci
+        - style
+        - perf
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 작업 내용
+      description: 수행할 작업과 목적을 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 변경 범위
+      description: 영향을 받는 코드, 설정 또는 문서를 작성해 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 완료 조건
+      description: 작업 완료와 검증 기준을 작성해 주세요.
+      placeholder: |
+        - [ ] 작업 완료
+        - [ ] 빌드 및 테스트 확인
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 우선순위
+      description: 영향도와 위험도를 기준으로 선택해 주세요.
+      options:
+        - P1 - 인증, 권한, 개인정보, 데이터 손실 위험
+        - P2 - 주요 기능, 공통 도메인, DB 및 API 계약
+        - P3 - 운영 장애 긴급 대응
+        - P4 - 일반 기능 및 제한된 범위의 수정
+        - P5 - 문서, 단순 설정 및 비기능 변경
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 참고 사항
+      description: 관련 이슈나 문서가 있다면 작성해 주세요.
+    validations:
+      required: false

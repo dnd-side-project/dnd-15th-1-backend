@@ -26,3 +26,8 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+features:
+  test-auth:
+    enabled: ${TEST_AUTH_ENABLED:false}
+    access-key: ${TEST_AUTH_ACCESS_KEY:}
