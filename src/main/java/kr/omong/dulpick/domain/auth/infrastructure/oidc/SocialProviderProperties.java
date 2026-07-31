@@ -14,7 +14,7 @@ public record SocialProviderProperties(
     public record Provider(
             Set<String> issuers,
             String jwkSetUri,
-            String audience
+            Set<String> audiences
     ) {
     }
 }

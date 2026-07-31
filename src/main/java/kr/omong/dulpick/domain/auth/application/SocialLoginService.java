@@ -32,11 +32,11 @@ public class SocialLoginService {
         validateRequiredFields(command);
         SocialIdentity identity = verifierRegistry.verify(command.provider(), command.idToken());
         validateNonce(command, identity);
-        String providerRefreshToken = exchangeAppleCode(command, identity);
+        ProviderAuthorization providerAuthorization = exchangeAppleCode(command, identity);
         AuthenticatedMember authenticatedMember = getOrCreateMember(
                 command.provider(),
                 identity,
-                providerRefreshToken
+                providerAuthorization
         );
         IssuedTokens tokens = tokenService.issue(authenticatedMember.member());
         return new SocialLoginResult(
@@ -50,12 +50,15 @@ public class SocialLoginService {
         loginNonceService.consume(command.provider(), command.nonce(), identity.tokenNonce());
     }
 
-    private String exchangeAppleCode(
+    private ProviderAuthorization exchangeAppleCode(
             SocialLoginCommand command,
             SocialIdentity identity
     ) {
         if (command.provider() != SocialProvider.APPLE) {
-            return null;
+            return ProviderAuthorization.none();
+        }
+        if (isBlank(command.authorizationCode())) {
+            return ProviderAuthorization.clientIdOnly(identity.audience());
         }
         return appleAuthorizationService.exchange(command.authorizationCode(), identity);
     }
@@ -64,23 +67,25 @@ public class SocialLoginService {
         if (isBlank(command.nonce())) {
             throw new InvalidSocialLoginRequestException("Nonce is required");
         }
-        if (command.provider() == SocialProvider.APPLE
-                && isBlank(command.authorizationCode())) {
-            throw new InvalidSocialLoginRequestException("Apple authorization code is required");
+        if (command.provider() == null) {
+            throw new InvalidSocialLoginRequestException("Provider is required");
+        }
+        if (isBlank(command.idToken())) {
+            throw new InvalidSocialLoginRequestException("ID token is required");
         }
     }
 
     private AuthenticatedMember getOrCreateMember(
             SocialProvider provider,
             SocialIdentity identity,
-            String providerRefreshToken
+            ProviderAuthorization providerAuthorization
     ) {
         try {
             return socialAccountService.getOrCreate(
                     provider,
                     identity.providerSubject(),
                     identity.email(),
-                    providerRefreshToken
+                    providerAuthorization
             );
         } catch (DataIntegrityViolationException exception) {
             return socialAccountService.getExisting(provider, identity.providerSubject());

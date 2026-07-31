@@ -99,6 +99,11 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
           KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_PROD_CLIENT_ID: ${{ secrets.APPLE_PROD_CLIENT_ID }}
+          APPLE_DEV_CLIENT_ID: ${{ secrets.APPLE_DEV_CLIENT_ID }}
+          APPLE_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_PRIVATE_KEY_BASE64 }}
           PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -106,12 +111,14 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,PROVIDER_TOKEN_ENCRYPTION_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY
           script: |
             set -Eeuo pipefail
 
             readonly APP_DIR="${HOME}/dulpick"
             readonly ENV_FILE="${APP_DIR}/.env"
+            readonly SECRETS_DIR="${APP_DIR}/secrets"
+            readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
 
             cleanup() {
               docker logout ghcr.io >/dev/null 2>&1 || true
@@ -136,14 +143,35 @@ jobs:
 
             trap cleanup EXIT
 
+            mkdir -p "${SECRETS_DIR}"
+            chmod 700 "${SECRETS_DIR}"
+
             update_env "JWT_SECRET" "${JWT_SECRET}"
             update_env \
               "GOOGLE_SERVER_CLIENT_ID" \
               "${GOOGLE_SERVER_CLIENT_ID}"
             update_env "KAKAO_NATIVE_APP_KEY" "${KAKAO_NATIVE_APP_KEY}"
+            update_env "APPLE_TEAM_ID" "${APPLE_TEAM_ID}"
+            update_env "APPLE_KEY_ID" "${APPLE_KEY_ID}"
+            update_env "APPLE_PROD_CLIENT_ID" "${APPLE_PROD_CLIENT_ID}"
+            update_env "APPLE_DEV_CLIENT_ID" "${APPLE_DEV_CLIENT_ID}"
+            update_env \
+              "APPLE_PRIVATE_KEY_PATH" \
+              "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
             update_env \
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
+
+            if [[ -z "${APPLE_PRIVATE_KEY_BASE64}" ]]; then
+              echo "Required secret is not configured: APPLE_PRIVATE_KEY_BASE64" >&2
+              exit 1
+            fi
+
+            private_key_temp="$(mktemp "${SECRETS_DIR}/apple-private-key.XXXXXX")"
+            printf '%s' "${APPLE_PRIVATE_KEY_BASE64}" \
+              | base64 --decode > "${private_key_temp}"
+            chmod 600 "${private_key_temp}"
+            mv "${private_key_temp}" "${APPLE_PRIVATE_KEY_FILE}"
 
             echo "${GHCR_TOKEN}" | docker login ghcr.io \
               --username "${GHCR_USERNAME}" \

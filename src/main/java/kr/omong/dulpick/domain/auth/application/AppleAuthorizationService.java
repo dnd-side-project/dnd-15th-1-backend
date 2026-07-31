@@ -27,19 +27,37 @@ public class AppleAuthorizationService {
         this.providerTokenCipher = providerTokenCipher;
     }
 
-    public String exchange(String authorizationCode, SocialIdentity initialIdentity) {
-        AppleTokenResponse response = appleTokenClient.exchange(authorizationCode);
+    public ProviderAuthorization exchange(
+            String authorizationCode,
+            SocialIdentity initialIdentity
+    ) {
+        String clientId = initialIdentity.audience();
+        AppleTokenResponse response = appleTokenClient.exchange(authorizationCode, clientId);
         validateResponse(response);
         SocialIdentity exchangedIdentity = appleIdentityVerifier.verify(response.idToken());
-        if (!initialIdentity.providerSubject().equals(exchangedIdentity.providerSubject())) {
-            throw new AppleAuthorizationException("Apple identity subject mismatch");
-        }
-        return providerTokenCipher.encrypt(response.refreshToken());
+        validateIdentity(initialIdentity, exchangedIdentity);
+        return new ProviderAuthorization(
+                providerTokenCipher.encrypt(response.refreshToken()),
+                clientId
+        );
     }
 
-    public void revoke(String encryptedRefreshToken) {
+    public void revoke(String encryptedRefreshToken, String clientId) {
+        if (isBlank(encryptedRefreshToken) || isBlank(clientId)) {
+            throw new AppleAuthorizationException("Apple revocation data is incomplete");
+        }
         String refreshToken = providerTokenCipher.decrypt(encryptedRefreshToken);
-        appleTokenClient.revoke(refreshToken);
+        appleTokenClient.revoke(refreshToken, clientId);
+    }
+
+    private void validateIdentity(
+            SocialIdentity initialIdentity,
+            SocialIdentity exchangedIdentity
+    ) {
+        if (!initialIdentity.providerSubject().equals(exchangedIdentity.providerSubject())
+                || !initialIdentity.audience().equals(exchangedIdentity.audience())) {
+            throw new AppleAuthorizationException("Apple identity mismatch");
+        }
     }
 
     private void validateResponse(AppleTokenResponse response) {

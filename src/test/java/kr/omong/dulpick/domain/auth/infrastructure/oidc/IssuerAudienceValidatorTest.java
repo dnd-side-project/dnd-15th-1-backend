@@ -16,12 +16,17 @@ class IssuerAudienceValidatorTest {
 
     private final IssuerAudienceValidator validator = new IssuerAudienceValidator(
             Set.of(ISSUER),
-            AUDIENCE
+            Set.of(AUDIENCE, "ios-dev-client-id")
     );
 
     @Test
     void acceptsExpectedIssuerAndAudience() {
         assertThat(validator.validate(jwt(ISSUER, AUDIENCE)).hasErrors()).isFalse();
+    }
+
+    @Test
+    void acceptsSecondConfiguredAudience() {
+        assertThat(validator.validate(jwt(ISSUER, "ios-dev-client-id")).hasErrors()).isFalse();
     }
 
     @Test

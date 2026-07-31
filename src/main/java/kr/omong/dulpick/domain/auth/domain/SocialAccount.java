@@ -40,6 +40,9 @@ public class SocialAccount {
     @Column(name = "provider_refresh_token", length = 2048)
     private String providerRefreshToken;
 
+    @Column(name = "provider_client_id", length = 255)
+    private String providerClientId;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -85,8 +88,34 @@ public class SocialAccount {
         this.updatedAt = Instant.now();
     }
 
-    public void updateProviderRefreshToken(String encryptedRefreshToken) {
+    public String getProviderRefreshToken() {
+        return providerRefreshToken;
+    }
+
+    public String getProviderClientId() {
+        return providerClientId;
+    }
+
+    public void updateProviderAuthorization(
+            String encryptedRefreshToken,
+            String clientId
+    ) {
         this.providerRefreshToken = encryptedRefreshToken;
+        this.providerClientId = clientId;
+        this.updatedAt = Instant.now();
+    }
+
+    public void updateProviderClientIdWhenTokenIsAbsent(String clientId) {
+        if (providerRefreshToken != null) {
+            return;
+        }
+        this.providerClientId = clientId;
+        this.updatedAt = Instant.now();
+    }
+
+    public void clearProviderAuthorization() {
+        this.providerRefreshToken = null;
+        this.providerClientId = null;
         this.updatedAt = Instant.now();
     }
 }

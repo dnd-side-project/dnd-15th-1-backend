@@ -23,8 +23,8 @@ public class AppleTokenHttpClient implements AppleTokenClient {
     }
 
     @Override
-    public AppleTokenResponse exchange(String authorizationCode) {
-        MultiValueMap<String, String> form = commonForm();
+    public AppleTokenResponse exchange(String authorizationCode, String clientId) {
+        MultiValueMap<String, String> form = commonForm(clientId);
         form.add("grant_type", "authorization_code");
         form.add("code", authorizationCode);
         try {
@@ -40,8 +40,8 @@ public class AppleTokenHttpClient implements AppleTokenClient {
     }
 
     @Override
-    public void revoke(String refreshToken) {
-        MultiValueMap<String, String> form = commonForm();
+    public void revoke(String refreshToken, String clientId) {
+        MultiValueMap<String, String> form = commonForm(clientId);
         form.add("token", refreshToken);
         form.add("token_type_hint", "refresh_token");
         try {
@@ -56,10 +56,10 @@ public class AppleTokenHttpClient implements AppleTokenClient {
         }
     }
 
-    private MultiValueMap<String, String> commonForm() {
+    private MultiValueMap<String, String> commonForm(String clientId) {
         MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-        form.add("client_id", properties.clientId());
-        form.add("client_secret", clientSecretGenerator.generate());
+        form.add("client_id", clientId);
+        form.add("client_secret", clientSecretGenerator.generate(clientId));
         return form;
     }
 }

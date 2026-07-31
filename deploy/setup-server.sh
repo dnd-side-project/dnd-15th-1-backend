@@ -19,6 +19,8 @@ fi
 
 mkdir -p "${APP_DIR}"
 chmod 700 "${APP_DIR}"
+mkdir -p "${APP_DIR}/secrets"
+chmod 700 "${APP_DIR}/secrets"
 
 if [[ -f "${ENV_FILE}" ]]; then
     db_password="$(sed -n 's/^DB_PASSWORD=//p' "${ENV_FILE}")"

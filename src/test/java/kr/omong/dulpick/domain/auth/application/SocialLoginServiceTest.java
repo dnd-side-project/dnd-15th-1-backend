@@ -41,7 +41,8 @@ class SocialLoginServiceTest {
         SocialIdentity identity = new SocialIdentity(
                 "subject",
                 "member@example.com",
-                "login-nonce"
+                "login-nonce",
+                "google-client-id"
         );
         Member member = member(1L);
         when(verifierRegistry.verify(SocialProvider.GOOGLE, "id-token")).thenReturn(identity);
@@ -49,7 +50,7 @@ class SocialLoginServiceTest {
                 SocialProvider.GOOGLE,
                 "subject",
                 "member@example.com",
-                null
+                ProviderAuthorization.none()
         )).thenReturn(new AuthenticatedMember(member, true));
         when(tokenService.issue(member)).thenReturn(tokens());
 
@@ -89,17 +90,24 @@ class SocialLoginServiceTest {
         SocialIdentity identity = new SocialIdentity(
                 "apple-subject",
                 "member@example.com",
-                "hashed-nonce"
+                "hashed-nonce",
+                "com.dulpick.app"
         );
         Member member = member(2L);
         when(verifierRegistry.verify(SocialProvider.APPLE, "id-token")).thenReturn(identity);
         when(appleAuthorizationService.exchange("authorization-code", identity))
-                .thenReturn("encrypted-provider-token");
+                .thenReturn(new ProviderAuthorization(
+                        "encrypted-provider-token",
+                        "com.dulpick.app"
+                ));
         when(socialAccountService.getOrCreate(
                 SocialProvider.APPLE,
                 "apple-subject",
                 "member@example.com",
-                "encrypted-provider-token"
+                new ProviderAuthorization(
+                        "encrypted-provider-token",
+                        "com.dulpick.app"
+                )
         )).thenReturn(new AuthenticatedMember(member, false));
         when(tokenService.issue(member)).thenReturn(tokens());
 
@@ -114,17 +122,37 @@ class SocialLoginServiceTest {
     }
 
     @Test
-    void rejectsAppleLoginWithoutCodeBeforeConsumingNonce() {
+    void allowsAppleLoginWithoutAuthorizationCode() {
         SocialLoginCommand command = new SocialLoginCommand(
                 SocialProvider.APPLE,
                 "id-token",
                 null,
                 "raw-nonce"
         );
+        SocialIdentity identity = new SocialIdentity(
+                "apple-subject",
+                null,
+                "hashed-nonce",
+                "com.dulpick.dev"
+        );
+        Member member = member(3L);
+        when(verifierRegistry.verify(SocialProvider.APPLE, "id-token")).thenReturn(identity);
+        when(socialAccountService.getOrCreate(
+                SocialProvider.APPLE,
+                "apple-subject",
+                null,
+                ProviderAuthorization.clientIdOnly("com.dulpick.dev")
+        )).thenReturn(new AuthenticatedMember(member, false));
+        when(tokenService.issue(member)).thenReturn(tokens());
 
-        assertThatThrownBy(() -> service.login(command))
-                .isInstanceOf(InvalidSocialLoginRequestException.class);
-        verifyNoInteractions(verifierRegistry, loginNonceService);
+        service.login(command);
+
+        verify(loginNonceService).consume(
+                SocialProvider.APPLE,
+                "raw-nonce",
+                "hashed-nonce"
+        );
+        verifyNoInteractions(appleAuthorizationService);
     }
 
     private Member member(Long id) {

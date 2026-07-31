@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.member.application;
 
+import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
@@ -15,15 +16,18 @@ public class MemberCommandService {
 
     private final MemberRepository memberRepository;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final AppleAccountRevocationService appleAccountRevocationService;
     private final Clock clock;
 
     public MemberCommandService(
             MemberRepository memberRepository,
             RefreshTokenRepository refreshTokenRepository,
+            AppleAccountRevocationService appleAccountRevocationService,
             Clock clock
     ) {
         this.memberRepository = memberRepository;
         this.refreshTokenRepository = refreshTokenRepository;
+        this.appleAccountRevocationService = appleAccountRevocationService;
         this.clock = clock;
     }
 
@@ -33,6 +37,7 @@ public class MemberCommandService {
         if (!member.isActive()) {
             throw new MemberAlreadyWithdrawnException();
         }
+        appleAccountRevocationService.revokeForMember(memberId);
         Instant withdrawnAt = clock.instant();
         member.withdraw(withdrawnAt);
         refreshTokenRepository.revokeAllByMemberId(memberId, withdrawnAt);

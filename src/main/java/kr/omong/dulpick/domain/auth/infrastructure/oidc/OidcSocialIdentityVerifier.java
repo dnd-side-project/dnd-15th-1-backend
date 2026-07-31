@@ -5,14 +5,22 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
 
+import java.util.Set;
+
 public class OidcSocialIdentityVerifier implements SocialIdentityVerifier {
 
     private final SocialProvider provider;
     private final JwtDecoder jwtDecoder;
+    private final Set<String> allowedAudiences;
 
-    public OidcSocialIdentityVerifier(SocialProvider provider, JwtDecoder jwtDecoder) {
+    public OidcSocialIdentityVerifier(
+            SocialProvider provider,
+            JwtDecoder jwtDecoder,
+            Set<String> allowedAudiences
+    ) {
         this.provider = provider;
         this.jwtDecoder = jwtDecoder;
+        this.allowedAudiences = Set.copyOf(allowedAudiences);
     }
 
     @Override
@@ -27,11 +35,19 @@ public class OidcSocialIdentityVerifier implements SocialIdentityVerifier {
             return new SocialIdentity(
                     requiredSubject(jwt),
                     verifiedEmail(jwt),
-                    jwt.getClaimAsString("nonce")
+                    jwt.getClaimAsString("nonce"),
+                    requiredAudience(jwt)
             );
         } catch (JwtException | IllegalArgumentException exception) {
             throw new InvalidSocialTokenException(exception);
         }
+    }
+
+    private String requiredAudience(Jwt jwt) {
+        return jwt.getAudience().stream()
+                .filter(allowedAudiences::contains)
+                .findFirst()
+                .orElseThrow(InvalidSocialTokenException::new);
     }
 
     private String requiredSubject(Jwt jwt) {

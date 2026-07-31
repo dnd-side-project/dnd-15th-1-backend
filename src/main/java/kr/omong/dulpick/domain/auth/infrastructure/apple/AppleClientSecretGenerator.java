@@ -7,6 +7,9 @@ import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -15,7 +18,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.time.Clock;
 import java.time.Instant;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Date;
 
@@ -31,12 +33,12 @@ public class AppleClientSecretGenerator {
         this.clock = clock;
     }
 
-    public String generate() {
-        validateProperties();
+    public String generate(String clientId) {
+        validateProperties(clientId);
         Instant issuedAt = clock.instant();
         JWTClaimsSet claims = new JWTClaimsSet.Builder()
                 .issuer(properties.teamId())
-                .subject(properties.clientId())
+                .subject(clientId)
                 .audience(APPLE_ISSUER)
                 .issueTime(Date.from(issuedAt))
                 .expirationTime(Date.from(issuedAt.plus(properties.clientSecretTtl())))
@@ -59,8 +61,7 @@ public class AppleClientSecretGenerator {
 
     private ECPrivateKey readPrivateKey() {
         try {
-            byte[] pemBytes = Base64.getDecoder().decode(properties.privateKeyBase64());
-            String pem = new String(pemBytes, StandardCharsets.UTF_8);
+            String pem = Files.readString(Path.of(properties.privateKeyPath()));
             String encodedKey = pem
                     .replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
@@ -69,17 +70,29 @@ public class AppleClientSecretGenerator {
             PrivateKey privateKey = KeyFactory.getInstance("EC")
                     .generatePrivate(new PKCS8EncodedKeySpec(keyBytes));
             return (ECPrivateKey) privateKey;
-        } catch (IllegalArgumentException | NoSuchAlgorithmException | InvalidKeySpecException exception) {
+        } catch (IOException exception) {
+            throw new AppleAuthorizationException("Apple private key could not be loaded", exception);
+        } catch (ClassCastException
+                 | IllegalArgumentException
+                 | NoSuchAlgorithmException
+                 | InvalidKeySpecException exception) {
             throw new AppleAuthorizationException("Apple private key is invalid", exception);
         }
     }
 
-    private void validateProperties() {
+    private void validateProperties(String clientId) {
         if (isBlank(properties.teamId())
                 || isBlank(properties.keyId())
-                || isBlank(properties.clientId())
-                || isBlank(properties.privateKeyBase64())) {
+                || properties.clientIds() == null
+                || properties.clientIds().isEmpty()
+                || isBlank(properties.privateKeyPath())
+                || properties.clientSecretTtl() == null
+                || properties.clientSecretTtl().isNegative()
+                || properties.clientSecretTtl().isZero()) {
             throw new AppleAuthorizationException("Apple token configuration is incomplete");
+        }
+        if (isBlank(clientId) || !properties.clientIds().contains(clientId)) {
+            throw new AppleAuthorizationException("Apple client ID is not allowed");
         }
     }
 

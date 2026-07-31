@@ -7,6 +7,7 @@ readonly IMAGE_TAG="${2:?Usage: deploy.sh <image-name> <image-tag>}"
 readonly FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 readonly APP_DIR="${APP_DIR:-/home/ubuntu/dulpick}"
 readonly ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
+readonly APPLE_PRIVATE_KEY_FILE="${APP_DIR}/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-dulpick-backend}"
 readonly DOCKER_NETWORK="${DOCKER_NETWORK:-short-net}"
 readonly HOST_PORT="${HOST_PORT:-8083}"
@@ -14,6 +15,11 @@ readonly HEALTH_URL="http://127.0.0.1:${HOST_PORT}/health"
 
 if [[ ! -f "${ENV_FILE}" ]]; then
     echo "Environment file not found: ${ENV_FILE}" >&2
+    exit 1
+fi
+
+if [[ ! -f "${APPLE_PRIVATE_KEY_FILE}" ]]; then
+    echo "Apple private key not found: ${APPLE_PRIVATE_KEY_FILE}" >&2
     exit 1
 fi
 
@@ -44,6 +50,7 @@ run_container() {
         --network "${DOCKER_NETWORK}" \
         --env-file "${ENV_FILE}" \
         --env SPRING_PROFILES_ACTIVE=prod \
+        --volume "${APPLE_PRIVATE_KEY_FILE}:/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8:ro" \
         --publish "127.0.0.1:${HOST_PORT}:8080" \
         "${image}"
 }

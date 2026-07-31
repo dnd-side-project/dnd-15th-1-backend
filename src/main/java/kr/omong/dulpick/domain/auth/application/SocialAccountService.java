@@ -32,15 +32,15 @@ public class SocialAccountService {
             SocialProvider provider,
             String providerSubject,
             String email,
-            String encryptedProviderRefreshToken
+            ProviderAuthorization providerAuthorization
     ) {
         return socialAccountRepository.findByProviderAndProviderSubject(provider, providerSubject)
-                .map(account -> updateExisting(account, email, encryptedProviderRefreshToken))
+                .map(account -> updateExisting(account, email, providerAuthorization))
                 .orElseGet(() -> create(
                         provider,
                         providerSubject,
                         email,
-                        encryptedProviderRefreshToken
+                        providerAuthorization
                 ));
     }
 
@@ -57,29 +57,43 @@ public class SocialAccountService {
     private AuthenticatedMember updateExisting(
             SocialAccount account,
             String email,
-            String encryptedProviderRefreshToken
+            ProviderAuthorization providerAuthorization
     ) {
         rejoinIfWithdrawn(account.getMember());
         if (email != null) {
             account.updateEmail(email);
         }
-        if (encryptedProviderRefreshToken != null) {
-            account.updateProviderRefreshToken(encryptedProviderRefreshToken);
-        }
+        updateProviderAuthorization(account, providerAuthorization);
         return new AuthenticatedMember(account.getMember(), false);
+    }
+
+    private void updateProviderAuthorization(
+            SocialAccount account,
+            ProviderAuthorization providerAuthorization
+    ) {
+        if (providerAuthorization.hasRefreshToken()) {
+            account.updateProviderAuthorization(
+                    providerAuthorization.encryptedRefreshToken(),
+                    providerAuthorization.clientId()
+            );
+            return;
+        }
+        if (providerAuthorization.hasClientId()) {
+            account.updateProviderClientIdWhenTokenIsAbsent(
+                    providerAuthorization.clientId()
+            );
+        }
     }
 
     private AuthenticatedMember create(
             SocialProvider provider,
             String providerSubject,
             String email,
-            String encryptedProviderRefreshToken
+            ProviderAuthorization providerAuthorization
     ) {
         Member member = memberRepository.save(Member.create());
         SocialAccount account = SocialAccount.create(member, provider, providerSubject, email);
-        if (encryptedProviderRefreshToken != null) {
-            account.updateProviderRefreshToken(encryptedProviderRefreshToken);
-        }
+        updateProviderAuthorization(account, providerAuthorization);
         socialAccountRepository.saveAndFlush(account);
         return new AuthenticatedMember(member, true);
     }

@@ -29,22 +29,28 @@ auth:
           - https://accounts.google.com
           - accounts.google.com
         jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
-        audience: ${GOOGLE_SERVER_CLIENT_ID:}
+        audiences:
+          - ${GOOGLE_SERVER_CLIENT_ID:}
       kakao:
         issuers:
           - https://kauth.kakao.com
         jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
-        audience: ${KAKAO_NATIVE_APP_KEY:}
+        audiences:
+          - ${KAKAO_NATIVE_APP_KEY:}
       apple:
         issuers:
           - https://appleid.apple.com
         jwk-set-uri: https://appleid.apple.com/auth/keys
-        audience: ${APPLE_CLIENT_ID:}
+        audiences:
+          - ${APPLE_PROD_CLIENT_ID:}
+          - ${APPLE_DEV_CLIENT_ID:}
   apple:
     team-id: ${APPLE_TEAM_ID:}
     key-id: ${APPLE_KEY_ID:}
-    client-id: ${APPLE_CLIENT_ID:}
-    private-key-base64: ${APPLE_PRIVATE_KEY_BASE64:}
+    client-ids:
+      - ${APPLE_PROD_CLIENT_ID:}
+      - ${APPLE_DEV_CLIENT_ID:}
+    private-key-path: ${APPLE_PRIVATE_KEY_PATH:}
     token-encryption-key: ${PROVIDER_TOKEN_ENCRYPTION_KEY:}
     token-uri: https://appleid.apple.com/auth/token
     revoke-uri: https://appleid.apple.com/auth/revoke

@@ -21,11 +21,11 @@ class IssuerAudienceValidator implements OAuth2TokenValidator<Jwt> {
     );
 
     private final Set<String> issuers;
-    private final String audience;
+    private final Set<String> audiences;
 
-    IssuerAudienceValidator(Set<String> issuers, String audience) {
+    IssuerAudienceValidator(Set<String> issuers, Set<String> audiences) {
         this.issuers = issuers;
-        this.audience = audience;
+        this.audiences = audiences;
     }
 
     @Override
@@ -34,7 +34,9 @@ class IssuerAudienceValidator implements OAuth2TokenValidator<Jwt> {
         if (issuer == null || !issuers.contains(issuer)) {
             return OAuth2TokenValidatorResult.failure(INVALID_ISSUER);
         }
-        if (audience == null || audience.isBlank() || !jwt.getAudience().contains(audience)) {
+        if (audiences == null
+                || audiences.isEmpty()
+                || jwt.getAudience().stream().noneMatch(audiences::contains)) {
             return OAuth2TokenValidatorResult.failure(INVALID_AUDIENCE);
         }
         return OAuth2TokenValidatorResult.success();
