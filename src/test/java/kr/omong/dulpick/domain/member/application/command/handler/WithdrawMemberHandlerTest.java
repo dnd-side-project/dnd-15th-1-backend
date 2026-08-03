@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -12,8 +13,10 @@ import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class WithdrawMemberHandlerTest {
@@ -42,5 +45,19 @@ class WithdrawMemberHandlerTest {
         verify(appleAccountRevocationService).enqueueForMember(1L);
         verify(refreshTokenRepository).revokeAllByMemberId(1L, NOW);
         assertThat(member.isActive()).isFalse();
+        assertThat(member.getTokenVersion()).isEqualTo(1);
+        assertThat(member.getLastWithdrawnAt()).isEqualTo(NOW);
+    }
+
+    @Test
+    void rejectsDuplicateWithdrawalBeforeAuthenticationRevocation() {
+        Member member = Member.create();
+        member.withdraw(NOW.minusSeconds(1));
+        when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+
+        assertThatThrownBy(() -> handler.handle(1L))
+                .isInstanceOf(MemberAlreadyWithdrawnException.class);
+
+        verifyNoInteractions(appleAccountRevocationService, refreshTokenRepository);
     }
 }

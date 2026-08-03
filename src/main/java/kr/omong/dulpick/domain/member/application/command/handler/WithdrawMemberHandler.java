@@ -2,11 +2,12 @@ package kr.omong.dulpick.domain.member.application.command.handler;
 
 import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
-import kr.omong.dulpick.domain.member.application.exception.MemberAlreadyWithdrawnException;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -31,6 +32,7 @@ public class WithdrawMemberHandler {
         this.clock = clock;
     }
 
+    @Transactional
     public void handle(Long memberId) {
         Member member = findMemberForUpdate(memberId);
         validateActive(member);
