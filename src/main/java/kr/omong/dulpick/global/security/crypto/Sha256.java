@@ -1,4 +1,4 @@
-package kr.omong.dulpick.global.security;
+package kr.omong.dulpick.global.security.crypto;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;

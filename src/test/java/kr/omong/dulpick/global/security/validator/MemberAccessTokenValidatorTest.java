@@ -1,4 +1,4 @@
-package kr.omong.dulpick.global.security;
+package kr.omong.dulpick.global.security.validator;
 
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;

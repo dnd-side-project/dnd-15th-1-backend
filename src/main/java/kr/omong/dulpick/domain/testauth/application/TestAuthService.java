@@ -13,7 +13,7 @@ import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredential;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredentialRepository;
-import kr.omong.dulpick.global.security.Sha256;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;

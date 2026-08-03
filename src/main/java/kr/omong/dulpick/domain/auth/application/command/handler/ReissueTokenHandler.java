@@ -7,7 +7,7 @@ import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
-import kr.omong.dulpick.global.security.Sha256;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 

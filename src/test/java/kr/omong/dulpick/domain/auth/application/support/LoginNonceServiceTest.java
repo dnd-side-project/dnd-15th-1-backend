@@ -4,7 +4,7 @@ import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidLoginNonceException;
 import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.global.security.Sha256;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -1,4 +1,4 @@
-package kr.omong.dulpick.global.security;
+package kr.omong.dulpick.global.security.validator;
 
 import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2TokenValidator;

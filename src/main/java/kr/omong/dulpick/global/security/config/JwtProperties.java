@@ -1,4 +1,4 @@
-package kr.omong.dulpick.global.security;
+package kr.omong.dulpick.global.security.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 

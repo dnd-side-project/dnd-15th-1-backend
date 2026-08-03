@@ -1,4 +1,4 @@
-package kr.omong.dulpick.global.config;
+package kr.omong.dulpick.global.security.config;
 
 import kr.omong.dulpick.global.exception.SecurityExceptionHandler;
 import org.springframework.context.annotation.Bean;

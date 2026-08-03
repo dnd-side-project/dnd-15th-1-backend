@@ -4,7 +4,7 @@ import kr.omong.dulpick.domain.auth.application.exception.InvalidLoginNonceExcep
 import kr.omong.dulpick.domain.auth.domain.LoginNonce;
 import kr.omong.dulpick.domain.auth.domain.LoginNonceRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.global.security.Sha256;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
