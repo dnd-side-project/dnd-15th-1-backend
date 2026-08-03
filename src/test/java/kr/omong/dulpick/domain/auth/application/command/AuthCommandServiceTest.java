@@ -1,6 +1,5 @@
 package kr.omong.dulpick.domain.auth.application.command;
 
-import kr.omong.dulpick.domain.auth.application.command.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.handler.IssueNonceHandler;
 import kr.omong.dulpick.domain.auth.application.command.handler.LogoutHandler;
 import kr.omong.dulpick.domain.auth.application.command.handler.ReissueTokenHandler;

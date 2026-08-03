@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.auth.application.command.handler;
 
-import kr.omong.dulpick.domain.auth.application.command.command.SocialLoginCommand;
+import kr.omong.dulpick.domain.auth.application.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
