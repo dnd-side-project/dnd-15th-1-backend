@@ -1,16 +1,16 @@
 package kr.omong.dulpick.domain.auth.application.command.handler;
 
-import kr.omong.dulpick.domain.auth.application.AppleAuthorizationService;
-import kr.omong.dulpick.domain.auth.application.AuthenticatedMember;
-import kr.omong.dulpick.domain.auth.application.InvalidSocialLoginRequestException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.LoginNonceService;
-import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
-import kr.omong.dulpick.domain.auth.application.SocialAccountService;
-import kr.omong.dulpick.domain.auth.application.SocialIdentityVerifierRegistry;
-import kr.omong.dulpick.domain.auth.application.SocialLoginCommand;
-import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
-import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.command.SocialLoginCommand;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
+import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
+import kr.omong.dulpick.domain.auth.application.support.LoginNonceService;
+import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.support.SocialIdentityVerifierRegistry;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
+import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMember;
+import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import org.springframework.dao.DataIntegrityViolationException;

@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.auth.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 
 public record TokenResponse(
         @Schema(description = "Authorization 헤더에 사용할 토큰 타입", example = "Bearer")

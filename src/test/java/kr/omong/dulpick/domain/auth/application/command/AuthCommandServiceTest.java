@@ -1,13 +1,13 @@
 package kr.omong.dulpick.domain.auth.application.command;
 
-import kr.omong.dulpick.domain.auth.application.IssuedNonce;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.SocialLoginCommand;
-import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.command.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.handler.IssueNonceHandler;
 import kr.omong.dulpick.domain.auth.application.command.handler.LogoutHandler;
 import kr.omong.dulpick.domain.auth.application.command.handler.ReissueTokenHandler;
 import kr.omong.dulpick.domain.auth.application.command.handler.SocialLoginHandler;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ package kr.omong.dulpick.domain.auth.presentation.dto.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import kr.omong.dulpick.domain.auth.application.SocialLoginCommand;
+import kr.omong.dulpick.domain.auth.application.command.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 
 public record SocialLoginRequest(

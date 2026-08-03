@@ -1,9 +1,9 @@
 package kr.omong.dulpick.domain.auth.presentation.controller;
 
-import kr.omong.dulpick.domain.auth.application.IssuedNonce;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;

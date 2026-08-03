@@ -1,11 +1,11 @@
 package kr.omong.dulpick.domain.member;
 
-import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
-import kr.omong.dulpick.domain.auth.application.SocialAccountService;
-import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
+import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;

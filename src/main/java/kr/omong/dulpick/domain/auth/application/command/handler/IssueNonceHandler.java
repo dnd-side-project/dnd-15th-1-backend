@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.auth.application.command.handler;
 
-import kr.omong.dulpick.domain.auth.application.IssuedNonce;
-import kr.omong.dulpick.domain.auth.application.SocialLoginProperties;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
+import kr.omong.dulpick.domain.auth.application.properties.SocialLoginProperties;
 import kr.omong.dulpick.domain.auth.domain.LoginNonce;
 import kr.omong.dulpick.domain.auth.domain.LoginNonceRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;

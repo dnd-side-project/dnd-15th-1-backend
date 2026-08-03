@@ -1,9 +1,9 @@
 package kr.omong.dulpick.domain.auth.application.command;
 
-import kr.omong.dulpick.domain.auth.application.ExpiredRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.exception.ExpiredRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;

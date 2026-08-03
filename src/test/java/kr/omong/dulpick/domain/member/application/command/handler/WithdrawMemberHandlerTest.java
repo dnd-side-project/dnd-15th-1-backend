@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.member.application.command.handler;
 
-import kr.omong.dulpick.domain.auth.application.AppleAccountRevocationService;
+import kr.omong.dulpick.domain.auth.application.support.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;

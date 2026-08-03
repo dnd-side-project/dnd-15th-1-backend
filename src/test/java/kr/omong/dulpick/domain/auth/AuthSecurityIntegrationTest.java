@@ -1,11 +1,11 @@
 package kr.omong.dulpick.domain.auth;
 
 import com.jayway.jsonpath.JsonPath;
-import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.SocialIdentityVerifierRegistry;
-import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.support.SocialIdentityVerifierRegistry;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import kr.omong.dulpick.domain.member.domain.Member;
