@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.auth.application;
 
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -27,6 +28,9 @@ class RefreshTokenConcurrencyIntegrationTest {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private AuthCommandService authCommandService;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -81,7 +85,7 @@ class RefreshTokenConcurrencyIntegrationTest {
                     .map(IssuedTokens.class::cast)
                     .findFirst()
                     .orElseThrow();
-            assertThatThrownBy(() -> tokenService.rotate(
+            assertThatThrownBy(() -> authCommandService.reissue(
                     successfulRotation.refreshToken()
             )).isInstanceOf(InvalidRefreshTokenException.class);
         } finally {
@@ -99,7 +103,7 @@ class RefreshTokenConcurrencyIntegrationTest {
             ready.countDown();
             start.await();
             try {
-                return tokenService.rotate(refreshToken);
+                return authCommandService.reissue(refreshToken);
             } catch (InvalidRefreshTokenException exception) {
                 return exception;
             }

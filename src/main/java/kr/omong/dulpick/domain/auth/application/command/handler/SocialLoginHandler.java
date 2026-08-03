@@ -1,12 +1,23 @@
-package kr.omong.dulpick.domain.auth.application;
+package kr.omong.dulpick.domain.auth.application.command.handler;
 
+import kr.omong.dulpick.domain.auth.application.AppleAuthorizationService;
+import kr.omong.dulpick.domain.auth.application.AuthenticatedMember;
+import kr.omong.dulpick.domain.auth.application.InvalidSocialLoginRequestException;
+import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.LoginNonceService;
+import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
+import kr.omong.dulpick.domain.auth.application.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.SocialIdentityVerifierRegistry;
+import kr.omong.dulpick.domain.auth.application.SocialLoginCommand;
+import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import org.springframework.dao.DataIntegrityViolationException;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 
-@Service
-public class SocialLoginService {
+@Component
+public class SocialLoginHandler {
 
     private final SocialIdentityVerifierRegistry verifierRegistry;
     private final LoginNonceService loginNonceService;
@@ -14,7 +25,7 @@ public class SocialLoginService {
     private final SocialAccountService socialAccountService;
     private final TokenService tokenService;
 
-    public SocialLoginService(
+    public SocialLoginHandler(
             SocialIdentityVerifierRegistry verifierRegistry,
             LoginNonceService loginNonceService,
             AppleAuthorizationService appleAuthorizationService,
@@ -28,7 +39,7 @@ public class SocialLoginService {
         this.tokenService = tokenService;
     }
 
-    public SocialLoginResult login(SocialLoginCommand command) {
+    public SocialLoginResult handle(SocialLoginCommand command) {
         validateRequiredFields(command);
         SocialIdentity identity = verifierRegistry.verify(command.provider(), command.idToken());
         validateNonce(command, identity);

@@ -1,5 +1,9 @@
-package kr.omong.dulpick.domain.auth.application;
+package kr.omong.dulpick.domain.auth.application.command;
 
+import kr.omong.dulpick.domain.auth.application.ExpiredRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
@@ -20,10 +24,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
-class TokenServiceTest {
+class AuthTokenCommandIntegrationTest {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private AuthCommandService authCommandService;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -54,15 +61,15 @@ class TokenServiceTest {
         Member member = memberRepository.save(Member.create());
         IssuedTokens issuedTokens = tokenService.issue(member);
 
-        IssuedTokens rotatedTokens = tokenService.rotate(issuedTokens.refreshToken());
+        IssuedTokens rotatedTokens = authCommandService.reissue(issuedTokens.refreshToken());
         IssuedTokens otherSessionTokens = tokenService.issue(member);
 
         assertThat(rotatedTokens.refreshToken()).isNotEqualTo(issuedTokens.refreshToken());
-        assertThatThrownBy(() -> tokenService.rotate(issuedTokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(issuedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
-        assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(rotatedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
-        assertThatThrownBy(() -> tokenService.rotate(otherSessionTokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(otherSessionTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
 
@@ -72,11 +79,11 @@ class TokenServiceTest {
         Member otherMember = memberRepository.save(Member.create());
         IssuedTokens issuedTokens = tokenService.issue(owner);
 
-        tokenService.revoke(issuedTokens.refreshToken(), otherMember.getId());
-        IssuedTokens rotatedTokens = tokenService.rotate(issuedTokens.refreshToken());
-        tokenService.revoke(rotatedTokens.refreshToken(), owner.getId());
+        authCommandService.logout(issuedTokens.refreshToken(), otherMember.getId());
+        IssuedTokens rotatedTokens = authCommandService.reissue(issuedTokens.refreshToken());
+        authCommandService.logout(rotatedTokens.refreshToken(), owner.getId());
 
-        assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(rotatedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
 
@@ -89,7 +96,7 @@ class TokenServiceTest {
                 .orElseThrow();
         ReflectionTestUtils.setField(refreshToken, "expiresAt", Instant.EPOCH);
 
-        assertThatThrownBy(() -> tokenService.rotate(tokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
                 .isInstanceOf(ExpiredRefreshTokenException.class);
     }
 }

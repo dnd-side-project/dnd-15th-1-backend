@@ -1,5 +1,16 @@
-package kr.omong.dulpick.domain.auth.application;
+package kr.omong.dulpick.domain.auth.application.command.handler;
 
+import kr.omong.dulpick.domain.auth.application.AppleAuthorizationService;
+import kr.omong.dulpick.domain.auth.application.AuthenticatedMember;
+import kr.omong.dulpick.domain.auth.application.InvalidSocialLoginRequestException;
+import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.LoginNonceService;
+import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
+import kr.omong.dulpick.domain.auth.application.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.SocialIdentityVerifierRegistry;
+import kr.omong.dulpick.domain.auth.application.SocialLoginCommand;
+import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import kr.omong.dulpick.domain.member.domain.Member;
@@ -13,7 +24,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-class SocialLoginServiceTest {
+class SocialLoginHandlerTest {
 
     private final SocialIdentityVerifierRegistry verifierRegistry =
             mock(SocialIdentityVerifierRegistry.class);
@@ -22,7 +33,7 @@ class SocialLoginServiceTest {
             mock(AppleAuthorizationService.class);
     private final SocialAccountService socialAccountService = mock(SocialAccountService.class);
     private final TokenService tokenService = mock(TokenService.class);
-    private final SocialLoginService service = new SocialLoginService(
+    private final SocialLoginHandler handler = new SocialLoginHandler(
             verifierRegistry,
             loginNonceService,
             appleAuthorizationService,
@@ -54,7 +65,7 @@ class SocialLoginServiceTest {
         )).thenReturn(new AuthenticatedMember(member, true));
         when(tokenService.issue(member)).thenReturn(tokens());
 
-        SocialLoginResult result = service.login(command);
+        SocialLoginResult result = handler.handle(command);
 
         assertThat(result.memberId()).isEqualTo(1L);
         assertThat(result.newMember()).isTrue();
@@ -74,7 +85,7 @@ class SocialLoginServiceTest {
                 null
         );
 
-        assertThatThrownBy(() -> service.login(command))
+        assertThatThrownBy(() -> handler.handle(command))
                 .isInstanceOf(InvalidSocialLoginRequestException.class);
         verifyNoInteractions(verifierRegistry, loginNonceService);
     }
@@ -111,7 +122,7 @@ class SocialLoginServiceTest {
         )).thenReturn(new AuthenticatedMember(member, false));
         when(tokenService.issue(member)).thenReturn(tokens());
 
-        service.login(command);
+        handler.handle(command);
 
         verify(loginNonceService).consume(
                 SocialProvider.APPLE,
@@ -145,12 +156,47 @@ class SocialLoginServiceTest {
         )).thenReturn(new AuthenticatedMember(member, false));
         when(tokenService.issue(member)).thenReturn(tokens());
 
-        service.login(command);
+        handler.handle(command);
 
         verify(loginNonceService).consume(
                 SocialProvider.APPLE,
                 "raw-nonce",
                 "hashed-nonce"
+        );
+        verifyNoInteractions(appleAuthorizationService);
+    }
+
+    @Test
+    void verifiesKakaoNonce() {
+        SocialLoginCommand command = new SocialLoginCommand(
+                SocialProvider.KAKAO,
+                "id-token",
+                null,
+                "login-nonce"
+        );
+        SocialIdentity identity = new SocialIdentity(
+                "kakao-subject",
+                "member@example.com",
+                "login-nonce",
+                "kakao-client-id"
+        );
+        Member member = member(4L);
+        when(verifierRegistry.verify(SocialProvider.KAKAO, "id-token"))
+                .thenReturn(identity);
+        when(socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "kakao-subject",
+                "member@example.com",
+                ProviderAuthorization.none()
+        )).thenReturn(new AuthenticatedMember(member, false));
+        when(tokenService.issue(member)).thenReturn(tokens());
+
+        handler.handle(command);
+
+        verify(loginNonceService).consume(
+                SocialProvider.KAKAO,
+                "login-nonce",
+                "login-nonce"
         );
         verifyNoInteractions(appleAuthorizationService);
     }

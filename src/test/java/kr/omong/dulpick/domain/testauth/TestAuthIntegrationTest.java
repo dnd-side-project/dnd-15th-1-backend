@@ -4,6 +4,7 @@ import com.jayway.jsonpath.JsonPath;
 import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
 import kr.omong.dulpick.domain.auth.application.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
@@ -62,6 +63,9 @@ class TestAuthIntegrationTest {
 
     @Autowired
     private TokenService tokenService;
+
+    @Autowired
+    private AuthCommandService authCommandService;
 
     @Test
     void signsUpAsKakaoMemberAndUsesAccessTokenOnProtectedApi() throws Exception {
@@ -160,7 +164,7 @@ class TestAuthIntegrationTest {
                 .andReturn();
         AuthTokens rotatedTokens = tokenResponse(reissueResult);
 
-        assertThatThrownBy(() -> tokenService.rotate(tokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
 
         mockMvc.perform(post("/api/v1/test-auth/logout")
@@ -170,7 +174,7 @@ class TestAuthIntegrationTest {
                         .content(refreshToken(rotatedTokens.refreshToken())))
                 .andExpect(status().isNoContent());
 
-        assertThatThrownBy(() -> tokenService.rotate(rotatedTokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(rotatedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
     }
 

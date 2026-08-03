@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.auth.application.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.application.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
@@ -51,6 +52,9 @@ class MemberControllerIntegrationTest {
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private AuthCommandService authCommandService;
+
     @Test
     void authenticatedMemberCanViewOwnProfile() throws Exception {
         Member member = createSocialMember("profile-subject");
@@ -82,7 +86,7 @@ class MemberControllerIntegrationTest {
         assertThat(withdrawnMember.getLastWithdrawnAt()).isNotNull();
         assertThat(memberRepository.count()).isPositive();
         assertThat(socialAccountRepository.count()).isPositive();
-        assertThatThrownBy(() -> tokenService.rotate(tokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
 
         mockMvc.perform(get("/api/v1/members/me")

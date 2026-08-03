@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.auth.application;
 
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.global.security.Sha256;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,13 +23,16 @@ class LoginNonceServiceTest {
     private LoginNonceService loginNonceService;
 
     @Autowired
+    private AuthCommandService authCommandService;
+
+    @Autowired
     private Clock clock;
 
     @Test
     void issuesNonceWithTenMinuteLifetimeUsingKoreaTimeZone() {
         Instant earliestExpiry = clock.instant().plus(Duration.ofMinutes(10));
 
-        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.KAKAO);
+        IssuedNonce issuedNonce = authCommandService.issueNonce(SocialProvider.KAKAO);
 
         Instant latestExpiry = clock.instant().plus(Duration.ofMinutes(10));
         assertThat(clock.getZone().getId()).isEqualTo("Asia/Seoul");
@@ -38,7 +42,7 @@ class LoginNonceServiceTest {
 
     @Test
     void consumesGoogleNonceOnlyOnce() {
-        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.GOOGLE);
+        IssuedNonce issuedNonce = authCommandService.issueNonce(SocialProvider.GOOGLE);
 
         loginNonceService.consume(
                 SocialProvider.GOOGLE,
@@ -55,7 +59,7 @@ class LoginNonceServiceTest {
 
     @Test
     void consumesAppleNonceOnlyOnce() {
-        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.APPLE);
+        IssuedNonce issuedNonce = authCommandService.issueNonce(SocialProvider.APPLE);
         String tokenNonce = Sha256.hex(issuedNonce.nonce());
 
         loginNonceService.consume(SocialProvider.APPLE, issuedNonce.nonce(), tokenNonce);
@@ -69,7 +73,7 @@ class LoginNonceServiceTest {
 
     @Test
     void rejectsMismatchedKakaoNonce() {
-        IssuedNonce issuedNonce = loginNonceService.issue(SocialProvider.KAKAO);
+        IssuedNonce issuedNonce = authCommandService.issueNonce(SocialProvider.KAKAO);
 
         assertThatThrownBy(() -> loginNonceService.consume(
                 SocialProvider.KAKAO,

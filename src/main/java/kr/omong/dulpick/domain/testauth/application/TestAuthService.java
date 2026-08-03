@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.auth.application.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.application.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
@@ -36,6 +37,7 @@ public class TestAuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final SocialAccountService socialAccountService;
     private final TokenService tokenService;
+    private final AuthCommandService authCommandService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -44,6 +46,7 @@ public class TestAuthService {
             RefreshTokenRepository refreshTokenRepository,
             SocialAccountService socialAccountService,
             TokenService tokenService,
+            AuthCommandService authCommandService,
             PasswordEncoder passwordEncoder,
             Clock clock
     ) {
@@ -51,6 +54,7 @@ public class TestAuthService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.socialAccountService = socialAccountService;
         this.tokenService = tokenService;
+        this.authCommandService = authCommandService;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
@@ -91,7 +95,7 @@ public class TestAuthService {
     @Transactional
     public IssuedTokens reissue(String refreshToken) {
         validateTestAuthRefreshToken(refreshToken);
-        return tokenService.rotate(refreshToken);
+        return authCommandService.reissue(refreshToken);
     }
 
     @Transactional
@@ -99,7 +103,7 @@ public class TestAuthService {
         if (!credentialRepository.existsByMemberId(memberId)) {
             throw new TestAuthAuthenticationException();
         }
-        tokenService.revoke(refreshToken, memberId);
+        authCommandService.logout(refreshToken, memberId);
     }
 
     private void rejectDuplicateEmail(String email) {

@@ -55,28 +55,12 @@ public class TokenService {
         return createIssuedTokens(member, refreshToken);
     }
 
-    @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
-    public IssuedTokens rotate(String rawRefreshToken) {
-        String currentHash = Sha256.hex(rawRefreshToken);
-        RefreshToken currentToken = refreshTokenRepository
-                .findForUpdateByTokenHash(currentHash)
-                .orElseThrow(InvalidRefreshTokenException::new);
-        rejectRotatedTokenReplay(currentToken);
-        validateRefreshToken(currentToken);
-
+    public IssuedTokens issueRotated(RefreshToken currentToken) {
         String newRefreshToken = generateRefreshToken();
         String newTokenHash = Sha256.hex(newRefreshToken);
         currentToken.rotate(newTokenHash);
         saveRefreshToken(currentToken.getMember(), newRefreshToken);
         return createIssuedTokens(currentToken.getMember(), newRefreshToken);
-    }
-
-    @Transactional
-    public void revoke(String rawRefreshToken, Long memberId) {
-        refreshTokenRepository
-                .findForUpdateByTokenHash(Sha256.hex(rawRefreshToken))
-                .filter(token -> token.getMember().getId().equals(memberId))
-                .ifPresent(RefreshToken::revoke);
     }
 
     private IssuedTokens createIssuedTokens(Member member, String refreshToken) {
@@ -116,29 +100,6 @@ public class TokenService {
         byte[] bytes = new byte[REFRESH_TOKEN_BYTES];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
-    }
-
-    private void validateRefreshToken(RefreshToken refreshToken) {
-        if (refreshToken.isRevoked()) {
-            throw new InvalidRefreshTokenException();
-        }
-        if (refreshToken.isExpired(clock.instant())) {
-            throw new ExpiredRefreshTokenException();
-        }
-        if (!refreshToken.getMember().isActive()) {
-            throw new MemberNotActiveException();
-        }
-    }
-
-    private void rejectRotatedTokenReplay(RefreshToken refreshToken) {
-        if (!refreshToken.wasRotated()) {
-            return;
-        }
-        refreshTokenRepository.revokeAllByMemberId(
-                refreshToken.getMember().getId(),
-                clock.instant()
-        );
-        throw new InvalidRefreshTokenException();
     }
 
 }
