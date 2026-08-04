@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.presentation.dto.request.TokenRefreshRequest;
 import kr.omong.dulpick.domain.auth.presentation.dto.response.TokenResponse;
 import kr.omong.dulpick.domain.testauth.application.TestAuthResult;

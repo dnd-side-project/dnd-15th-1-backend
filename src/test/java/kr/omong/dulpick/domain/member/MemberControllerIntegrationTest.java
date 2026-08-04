@@ -1,17 +1,18 @@
 package kr.omong.dulpick.domain.member;
 
-import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
-import kr.omong.dulpick.domain.auth.application.SocialAccountService;
-import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
+import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
-import kr.omong.dulpick.domain.member.application.exception.MemberAlreadyWithdrawnException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
+import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -51,6 +52,9 @@ class MemberControllerIntegrationTest {
     @Autowired
     private TokenService tokenService;
 
+    @Autowired
+    private AuthCommandService authCommandService;
+
     @Test
     void authenticatedMemberCanViewOwnProfile() throws Exception {
         Member member = createSocialMember("profile-subject");
@@ -82,7 +86,7 @@ class MemberControllerIntegrationTest {
         assertThat(withdrawnMember.getLastWithdrawnAt()).isNotNull();
         assertThat(memberRepository.count()).isPositive();
         assertThat(socialAccountRepository.count()).isPositive();
-        assertThatThrownBy(() -> tokenService.rotate(tokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
 
         mockMvc.perform(get("/api/v1/members/me")

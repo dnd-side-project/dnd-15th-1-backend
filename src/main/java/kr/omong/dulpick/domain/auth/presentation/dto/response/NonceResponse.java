@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.auth.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import kr.omong.dulpick.domain.auth.application.IssuedNonce;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
 import kr.omong.dulpick.global.time.ServiceTime;
 
 import java.time.LocalDateTime;

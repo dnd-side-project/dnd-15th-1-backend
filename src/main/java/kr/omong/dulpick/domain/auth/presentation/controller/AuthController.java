@@ -4,12 +4,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import kr.omong.dulpick.domain.auth.application.IssuedNonce;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.LoginNonceService;
-import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
-import kr.omong.dulpick.domain.auth.application.SocialLoginService;
-import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.presentation.dto.request.NonceIssueRequest;
 import kr.omong.dulpick.domain.auth.presentation.dto.request.SocialLoginRequest;
 import kr.omong.dulpick.domain.auth.presentation.dto.request.TokenRefreshRequest;
@@ -29,18 +27,10 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "인증")
 public class AuthController {
 
-    private final LoginNonceService loginNonceService;
-    private final SocialLoginService socialLoginService;
-    private final TokenService tokenService;
+    private final AuthCommandService authCommandService;
 
-    public AuthController(
-            LoginNonceService loginNonceService,
-            SocialLoginService socialLoginService,
-            TokenService tokenService
-    ) {
-        this.loginNonceService = loginNonceService;
-        this.socialLoginService = socialLoginService;
-        this.tokenService = tokenService;
+    public AuthController(AuthCommandService authCommandService) {
+        this.authCommandService = authCommandService;
     }
 
     @Operation(
@@ -60,7 +50,7 @@ public class AuthController {
     public ResponseEntity<NonceResponse> issueNonce(
             @Valid @RequestBody NonceIssueRequest request
     ) {
-        IssuedNonce issuedNonce = loginNonceService.issue(request.provider());
+        IssuedNonce issuedNonce = authCommandService.issueNonce(request.provider());
         return ResponseEntity.ok(NonceResponse.from(issuedNonce));
     }
 
@@ -88,7 +78,7 @@ public class AuthController {
     public ResponseEntity<SocialLoginResponse> socialLogin(
             @Valid @RequestBody SocialLoginRequest request
     ) {
-        SocialLoginResult result = socialLoginService.login(request.toCommand());
+        SocialLoginResult result = authCommandService.socialLogin(request.toCommand());
         return ResponseEntity.ok(SocialLoginResponse.from(result));
     }
 
@@ -104,7 +94,7 @@ public class AuthController {
     public ResponseEntity<TokenResponse> reissue(
             @Valid @RequestBody TokenRefreshRequest request
     ) {
-        IssuedTokens tokens = tokenService.rotate(request.refreshToken());
+        IssuedTokens tokens = authCommandService.reissue(request.refreshToken());
         return ResponseEntity.ok(TokenResponse.from(tokens));
     }
 
@@ -122,7 +112,10 @@ public class AuthController {
             @AuthenticationPrincipal Jwt jwt,
             @Valid @RequestBody TokenRefreshRequest request
     ) {
-        tokenService.revoke(request.refreshToken(), Long.valueOf(jwt.getSubject()));
+        authCommandService.logout(
+                request.refreshToken(),
+                Long.valueOf(jwt.getSubject())
+        );
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.auth.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import kr.omong.dulpick.domain.auth.application.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 
 public record SocialLoginResponse(
         @Schema(description = "둘픽 회원 식별자", example = "1")

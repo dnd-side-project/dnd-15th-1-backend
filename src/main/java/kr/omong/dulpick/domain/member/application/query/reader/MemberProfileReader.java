@@ -2,12 +2,12 @@ package kr.omong.dulpick.domain.member.application.query.reader;
 
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
-import kr.omong.dulpick.domain.member.application.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
 import kr.omong.dulpick.domain.member.application.query.view.MemberSocialAccount;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import org.springframework.stereotype.Component;
 
 import java.util.List;

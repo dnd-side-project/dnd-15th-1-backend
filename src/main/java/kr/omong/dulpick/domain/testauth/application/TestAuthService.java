@@ -1,18 +1,19 @@
 package kr.omong.dulpick.domain.testauth.application;
 
-import kr.omong.dulpick.domain.auth.application.AuthenticatedMember;
-import kr.omong.dulpick.domain.auth.application.InvalidRefreshTokenException;
-import kr.omong.dulpick.domain.auth.application.IssuedTokens;
-import kr.omong.dulpick.domain.auth.application.ProviderAuthorization;
-import kr.omong.dulpick.domain.auth.application.SocialAccountService;
-import kr.omong.dulpick.domain.auth.application.TokenService;
+import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
+import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
+import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMember;
+import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredential;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredentialRepository;
-import kr.omong.dulpick.global.security.Sha256;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +37,7 @@ public class TestAuthService {
     private final RefreshTokenRepository refreshTokenRepository;
     private final SocialAccountService socialAccountService;
     private final TokenService tokenService;
+    private final AuthCommandService authCommandService;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -44,6 +46,7 @@ public class TestAuthService {
             RefreshTokenRepository refreshTokenRepository,
             SocialAccountService socialAccountService,
             TokenService tokenService,
+            AuthCommandService authCommandService,
             PasswordEncoder passwordEncoder,
             Clock clock
     ) {
@@ -51,6 +54,7 @@ public class TestAuthService {
         this.refreshTokenRepository = refreshTokenRepository;
         this.socialAccountService = socialAccountService;
         this.tokenService = tokenService;
+        this.authCommandService = authCommandService;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
@@ -91,7 +95,7 @@ public class TestAuthService {
     @Transactional
     public IssuedTokens reissue(String refreshToken) {
         validateTestAuthRefreshToken(refreshToken);
-        return tokenService.rotate(refreshToken);
+        return authCommandService.reissue(refreshToken);
     }
 
     @Transactional
@@ -99,7 +103,7 @@ public class TestAuthService {
         if (!credentialRepository.existsByMemberId(memberId)) {
             throw new TestAuthAuthenticationException();
         }
-        tokenService.revoke(refreshToken, memberId);
+        authCommandService.logout(refreshToken, memberId);
     }
 
     private void rejectDuplicateEmail(String email) {
