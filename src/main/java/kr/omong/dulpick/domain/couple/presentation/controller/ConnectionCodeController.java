@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.couple.application.query.ConnectionCodeQueryService;
 import kr.omong.dulpick.domain.couple.application.support.IssuedConnectionCode;
 import kr.omong.dulpick.domain.couple.presentation.dto.ConnectionCodeResponse;
+import kr.omong.dulpick.global.config.SwaggerTagNames;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -13,7 +14,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "커플 연결", description = "상대방에게 전달할 내 연결 코드 조회 API")
+@Tag(
+        name = SwaggerTagNames.COUPLE_CONNECTION,
+        description = "상대방에게 전달할 내 연결 코드 조회 API"
+)
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/connection-codes")

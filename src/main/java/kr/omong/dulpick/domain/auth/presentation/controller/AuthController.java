@@ -14,6 +14,7 @@ import kr.omong.dulpick.domain.auth.presentation.dto.request.TokenRefreshRequest
 import kr.omong.dulpick.domain.auth.presentation.dto.response.NonceResponse;
 import kr.omong.dulpick.domain.auth.presentation.dto.response.SocialLoginResponse;
 import kr.omong.dulpick.domain.auth.presentation.dto.response.TokenResponse;
+import kr.omong.dulpick.global.config.SwaggerTagNames;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -24,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "인증")
+@Tag(name = SwaggerTagNames.AUTH)
 public class AuthController {
 
     private final AuthCommandService authCommandService;

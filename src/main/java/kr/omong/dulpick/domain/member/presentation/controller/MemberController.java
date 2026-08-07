@@ -17,6 +17,7 @@ import kr.omong.dulpick.domain.member.presentation.dto.response.InitializedMembe
 import kr.omong.dulpick.domain.member.presentation.dto.response.MemberDatePreferencesResponse;
 import kr.omong.dulpick.domain.member.presentation.dto.response.MemberResponse;
 import kr.omong.dulpick.domain.member.presentation.dto.response.UpdatedMemberProfileResponse;
+import kr.omong.dulpick.global.config.SwaggerTagNames;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -29,7 +30,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "회원", description = "온보딩 프로필 설정과 마이페이지 회원 정보 관리 API")
+@Tag(
+        name = SwaggerTagNames.MEMBER,
+        description = "온보딩 프로필 설정과 마이페이지 회원 정보 관리 API"
+)
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/members")

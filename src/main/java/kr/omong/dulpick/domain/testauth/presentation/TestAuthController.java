@@ -14,6 +14,7 @@ import kr.omong.dulpick.domain.testauth.application.TestAuthService;
 import kr.omong.dulpick.domain.testauth.presentation.dto.TestAuthCredentialsRequest;
 import kr.omong.dulpick.domain.testauth.presentation.dto.TestAuthResponse;
 import kr.omong.dulpick.domain.testauth.security.TestAuthAccessKeyFilter;
+import kr.omong.dulpick.global.config.SwaggerTagNames;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,7 +26,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(
-        name = "인증2",
+        name = SwaggerTagNames.TEST_AUTH,
         description = "Swagger 및 개발 검증에 사용하는 제거 가능한 자체 인증 기능"
 )
 @ApiResponses({
@@ -54,11 +55,7 @@ public class TestAuthController {
 
     @Operation(
             summary = "인증2 회원가입",
-            description = """
-                    이메일과 비밀번호로 인증2 전용 회원을 생성합니다.
-                    생성된 회원은 KAKAO 소셜 계정으로 연결되며 일반 소셜 로그인 회원과 동일한 Member와 토큰을 사용합니다.
-                    응답의 Access Token을 Swagger bearerAuth에 등록하면 보호된 다른 API를 호출할 수 있습니다.
-                    """
+            description = "로컬 개발용 회원을 생성하고 둘픽 인증 토큰을 발급합니다."
     )
     @PostMapping("/signup")
     public ResponseEntity<TestAuthResponse> signUp(
@@ -71,10 +68,7 @@ public class TestAuthController {
 
     @Operation(
             summary = "인증2 로그인",
-            description = """
-                    인증2 회원가입에 사용한 이메일과 비밀번호로 로그인합니다.
-                    응답의 Access Token과 Refresh Token은 소셜 로그인에서 발급되는 둘픽 토큰과 동일하게 동작합니다.
-                    """
+            description = "인증2 회원의 이메일과 비밀번호로 둘픽 인증 토큰을 발급합니다."
     )
     @PostMapping("/login")
     public ResponseEntity<TestAuthResponse> login(
@@ -87,8 +81,8 @@ public class TestAuthController {
     @Operation(
             summary = "인증2 토큰 재발급",
             description = """
-                    인증2 회원에게 발급된 Refresh Token을 회전하여 새 토큰 쌍을 발급합니다.
-                    사용한 Refresh Token은 즉시 폐기되며 소셜 로그인 회원의 Refresh Token은 이 API에서 사용할 수 없습니다.
+                    인증2 Refresh Token으로 새 토큰을 발급합니다.
+                    요청에 사용한 Refresh Token은 다시 사용할 수 없습니다.
                     """
     )
     @PostMapping("/reissue")
@@ -101,10 +95,7 @@ public class TestAuthController {
 
     @Operation(
             summary = "인증2 로그아웃",
-            description = """
-                    인증2 회원의 Access Token을 Authorization: Bearer 헤더에 넣고 해당 회원의 Refresh Token을 전달합니다.
-                    Refresh Token을 폐기하며 현재 Access Token은 만료 시각까지 유효할 수 있습니다.
-                    """
+            description = "현재 인증2 회원에게 발급된 Refresh Token을 폐기합니다."
     )
     @SecurityRequirement(name = "bearerAuth")
     @PostMapping("/logout")

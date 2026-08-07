@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.couple.application.query.view.ConnectionCodePrevi
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionStatus;
 import kr.omong.dulpick.domain.couple.presentation.dto.ConnectionCodePreviewResponse;
 import kr.omong.dulpick.domain.couple.presentation.dto.ConnectionCodeRequest;
+import kr.omong.dulpick.global.config.SwaggerTagNames;
 import kr.omong.dulpick.domain.couple.presentation.dto.CoupleConnectionStatusResponse;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +24,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "커플 연결", description = "연결 코드 확인, 커플 연결 확정 및 현재 연결 상태 조회 API")
+@Tag(
+        name = SwaggerTagNames.COUPLE_CONNECTION,
+        description = "연결 코드 확인, 커플 연결 확정 및 현재 연결 상태 조회 API"
+)
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1")
