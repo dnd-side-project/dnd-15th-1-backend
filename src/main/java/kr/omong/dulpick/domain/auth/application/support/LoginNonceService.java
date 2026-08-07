@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
+import java.time.Instant;
 
 @Service
 public class LoginNonceService {
@@ -33,11 +34,12 @@ public class LoginNonceService {
             throw new InvalidLoginNonceException();
         }
 
+        Instant consumedAt = clock.instant();
         LoginNonce nonce = loginNonceRepository
                 .findByProviderAndNonceHash(provider, Sha256.hex(rawNonce))
-                .filter(savedNonce -> savedNonce.isUsable(clock.instant()))
+                .filter(savedNonce -> savedNonce.isUsable(consumedAt))
                 .orElseThrow(InvalidLoginNonceException::new);
-        nonce.use();
+        nonce.use(consumedAt);
     }
 
     private String expectedTokenNonce(SocialProvider provider, String rawNonce) {

@@ -51,16 +51,18 @@ public class TokenService {
         if (!member.isActive()) {
             throw new MemberNotActiveException();
         }
+        Instant issuedAt = clock.instant();
         String refreshToken = generateRefreshToken();
-        saveRefreshToken(member, refreshToken);
+        saveRefreshToken(member, refreshToken, issuedAt);
         return createIssuedTokens(member, refreshToken);
     }
 
     public IssuedTokens issueRotated(RefreshToken currentToken) {
+        Instant issuedAt = clock.instant();
         String newRefreshToken = generateRefreshToken();
         String newTokenHash = Sha256.hex(newRefreshToken);
-        currentToken.rotate(newTokenHash);
-        saveRefreshToken(currentToken.getMember(), newRefreshToken);
+        currentToken.rotate(newTokenHash, issuedAt);
+        saveRefreshToken(currentToken.getMember(), newRefreshToken, issuedAt);
         return createIssuedTokens(currentToken.getMember(), newRefreshToken);
     }
 
@@ -88,11 +90,16 @@ public class TokenService {
         return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
     }
 
-    private void saveRefreshToken(Member member, String rawRefreshToken) {
+    private void saveRefreshToken(
+            Member member,
+            String rawRefreshToken,
+            Instant issuedAt
+    ) {
         RefreshToken refreshToken = RefreshToken.create(
                 member,
                 Sha256.hex(rawRefreshToken),
-                clock.instant().plus(properties.refreshTokenTtl())
+                issuedAt.plus(properties.refreshTokenTtl()),
+                issuedAt
         );
         refreshTokenRepository.save(refreshToken);
     }

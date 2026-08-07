@@ -33,6 +33,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
     implementation 'org.springframework.boot:spring-boot-starter-flyway'
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
+    implementation 'com.google.firebase:firebase-admin:9.10.0'
     implementation "io.github.openfeign.querydsl:querydsl-jpa:${querydslVersion}"
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
@@ -56,6 +57,7 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'notification.fcm.enabled', 'false'
     jvmArgs += '-Xshare:off'
     jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 }

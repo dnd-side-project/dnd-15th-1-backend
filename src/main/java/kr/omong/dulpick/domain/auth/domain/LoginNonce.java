@@ -38,22 +38,32 @@ public class LoginNonce {
     protected LoginNonce() {
     }
 
-    private LoginNonce(SocialProvider provider, String nonceHash, Instant expiresAt) {
+    private LoginNonce(
+            SocialProvider provider,
+            String nonceHash,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
         this.provider = provider;
         this.nonceHash = nonceHash;
         this.expiresAt = expiresAt;
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
     }
 
-    public static LoginNonce create(SocialProvider provider, String nonceHash, Instant expiresAt) {
-        return new LoginNonce(provider, nonceHash, expiresAt);
+    public static LoginNonce create(
+            SocialProvider provider,
+            String nonceHash,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
+        return new LoginNonce(provider, nonceHash, expiresAt, createdAt);
     }
 
     public boolean isUsable(Instant now) {
         return usedAt == null && expiresAt.isAfter(now);
     }
 
-    public void use() {
-        usedAt = Instant.now();
+    public void use(Instant usedAt) {
+        this.usedAt = usedAt;
     }
 }

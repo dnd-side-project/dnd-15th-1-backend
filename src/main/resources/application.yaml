@@ -11,16 +11,62 @@ spring:
   jpa:
     open-in-view: false
 
+server:
+  forward-headers-strategy: native
+
 springdoc:
   api-docs:
     enabled: false
   swagger-ui:
     enabled: false
 
+couple:
+  public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+  code-encryption-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+  code-encryption:
+    active-key-id: ${CONNECTION_CODE_KEY_VERSION:v1}
+    active-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+    previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
+    previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
+  abuse:
+    preview-per-minute: 5
+    preview-per-hour: 20
+    connect-per-minute: 3
+    connect-per-day: 10
+    state-changes-per-day: 10
+    code-failures-per-ten-minutes: 5
+    ip-failures-per-hour: 50
+    ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
+    failure-block-duration: 15m
+    retention: 30d
+    cleanup-delay: 1h
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}
     access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
+
+notification:
+  marketing:
+    consent-version: ${MARKETING_CONSENT_VERSION:2026-08-07}
+  push:
+    registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:}
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+    process-delay: ${FCM_PROCESS_DELAY:10s}
+    batch-size: ${FCM_BATCH_SIZE:50}
+    initial-retry-delay: ${FCM_INITIAL_RETRY_DELAY:1m}
+    max-retry-delay: ${FCM_MAX_RETRY_DELAY:1h}
+    sending-timeout: ${FCM_SENDING_TIMEOUT:10m}
+    max-attempts: ${FCM_MAX_ATTEMPTS:5}
+  maintenance:
+    fixed-delay: ${NOTIFICATION_CLEANUP_DELAY:1h}
+    notification-retention: ${NOTIFICATION_RETENTION:90d}
+    feedback-retention: ${FEEDBACK_RETENTION:365d}
+    batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
+    max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 
 auth:
   jwt:

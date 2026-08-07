@@ -7,11 +7,13 @@ import java.util.HexFormat;
 
 public final class Sha256 {
 
+    private static final HexFormat HEX_FORMAT = HexFormat.of();
+
     private Sha256() {
     }
 
     public static String hex(String value) {
-        return HexFormat.of().formatHex(digest(value));
+        return HEX_FORMAT.formatHex(digest(value));
     }
 
     private static byte[] digest(String value) {

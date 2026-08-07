@@ -22,7 +22,7 @@ class MemberAccessTokenValidatorTest {
 
     @Test
     void acceptsActiveMemberWithCurrentTokenVersion() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
 
         OAuth2TokenValidatorResult result = validator.validate(jwt(1L, 0));
@@ -32,12 +32,25 @@ class MemberAccessTokenValidatorTest {
 
     @Test
     void rejectsTokenIssuedBeforeWithdrawal() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         member.withdraw(Instant.parse("2026-07-27T00:00:00Z"));
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
 
         OAuth2TokenValidatorResult result = validator.validate(jwt(1L, 0));
 
+        assertThat(result.hasErrors()).isTrue();
+    }
+
+    @Test
+    void rejectsStaleTokenVersionForActiveRejoinedMember() {
+        Member member = Member.create(Instant.EPOCH);
+        member.withdraw(Instant.parse("2026-07-27T00:00:00Z"));
+        member.rejoin(Instant.parse("2026-07-28T00:00:00Z"));
+        when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
+
+        OAuth2TokenValidatorResult result = validator.validate(jwt(1L, 0));
+
+        assertThat(member.isActive()).isTrue();
         assertThat(result.hasErrors()).isTrue();
     }
 

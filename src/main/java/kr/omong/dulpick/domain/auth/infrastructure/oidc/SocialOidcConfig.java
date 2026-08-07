@@ -18,6 +18,8 @@ import java.time.Duration;
 @EnableConfigurationProperties(SocialProviderProperties.class)
 public class SocialOidcConfig {
 
+    private static final Duration CLOCK_SKEW = Duration.ofSeconds(60);
+
     @Bean
     public SocialIdentityVerifier googleSocialIdentityVerifier(
             SocialProviderProperties properties
@@ -58,7 +60,7 @@ public class SocialOidcConfig {
                 .build();
         decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
                 new RequiredExpirationValidator(),
-                new JwtTimestampValidator(),
+                new JwtTimestampValidator(CLOCK_SKEW),
                 new IssuerAudienceValidator(properties.issuers(), properties.audiences())
         ));
         return decoder;

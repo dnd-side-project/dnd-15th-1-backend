@@ -8,13 +8,13 @@ import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.global.security.config.JwtProperties;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -41,9 +41,12 @@ class AuthTokenCommandIntegrationTest {
     @Autowired
     private JwtDecoder jwtDecoder;
 
+    @Autowired
+    private JwtProperties jwtProperties;
+
     @Test
     void issuesAccessAndRefreshTokens() {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
 
         IssuedTokens tokens = tokenService.issue(member);
         Jwt jwt = jwtDecoder.decode(tokens.accessToken());
@@ -53,12 +56,13 @@ class AuthTokenCommandIntegrationTest {
         Number tokenVersion = jwt.getClaim("tokenVersion");
         assertThat(tokenVersion.longValue()).isZero();
         assertThat(tokens.refreshToken()).isNotBlank();
-        assertThat(tokens.accessTokenExpiresIn()).isEqualTo(900);
+        assertThat(tokens.accessTokenExpiresIn())
+                .isEqualTo(jwtProperties.accessTokenTtl().toSeconds());
     }
 
     @Test
     void revokesTokenFamilyWhenRotatedTokenIsReplayed() {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens issuedTokens = tokenService.issue(member);
 
         IssuedTokens rotatedTokens = authCommandService.reissue(issuedTokens.refreshToken());
@@ -75,8 +79,8 @@ class AuthTokenCommandIntegrationTest {
 
     @Test
     void revokesOnlyTokenOwnedByAuthenticatedMember() {
-        Member owner = memberRepository.save(Member.create());
-        Member otherMember = memberRepository.save(Member.create());
+        Member owner = memberRepository.save(Member.create(Instant.EPOCH));
+        Member otherMember = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens issuedTokens = tokenService.issue(owner);
 
         authCommandService.logout(issuedTokens.refreshToken(), otherMember.getId());
@@ -89,14 +93,17 @@ class AuthTokenCommandIntegrationTest {
 
     @Test
     void distinguishesExpiredRefreshToken() {
-        Member member = memberRepository.save(Member.create());
-        IssuedTokens tokens = tokenService.issue(member);
-        RefreshToken refreshToken = refreshTokenRepository
-                .findByTokenHash(Sha256.hex(tokens.refreshToken()))
-                .orElseThrow();
-        ReflectionTestUtils.setField(refreshToken, "expiresAt", Instant.EPOCH);
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
+        String rawRefreshToken = "expired-refresh-token";
+        RefreshToken refreshToken = RefreshToken.create(
+                member,
+                Sha256.hex(rawRefreshToken),
+                Instant.EPOCH,
+                Instant.EPOCH
+        );
+        refreshTokenRepository.saveAndFlush(refreshToken);
 
-        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
+        assertThatThrownBy(() -> authCommandService.reissue(rawRefreshToken))
                 .isInstanceOf(ExpiredRefreshTokenException.class);
     }
 }

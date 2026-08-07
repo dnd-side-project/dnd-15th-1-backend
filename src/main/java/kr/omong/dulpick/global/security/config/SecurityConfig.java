@@ -25,6 +25,8 @@ public class SecurityConfig {
             "/privacy.html",
             "/terms",
             "/terms.html",
+            "/connect",
+            "/.well-known/apple-app-site-association",
             "/assets/**",
             "/favicon.ico",
             "/favicon.svg",
