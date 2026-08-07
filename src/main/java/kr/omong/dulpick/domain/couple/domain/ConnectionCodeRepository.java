@@ -11,8 +11,15 @@ public interface ConnectionCodeRepository extends JpaRepository<ConnectionCode, 
 
     boolean existsByCodeDigest(String codeDigest);
 
+    List<ConnectionCode> findAllByMemberId(Long memberId);
+
     Optional<ConnectionCode> findByMemberIdAndStatus(
             Long memberId,
+            ConnectionCodeStatus status
+    );
+
+    Optional<ConnectionCode> findByCodeDigestAndStatus(
+            String codeDigest,
             ConnectionCodeStatus status
     );
 

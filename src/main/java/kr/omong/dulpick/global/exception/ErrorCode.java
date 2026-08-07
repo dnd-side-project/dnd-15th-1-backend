@@ -26,6 +26,10 @@ public enum ErrorCode {
 
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),
+    INVALID_CONNECTION_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 연결 코드입니다"),
+    SELF_CONNECTION_NOT_ALLOWED(HttpStatus.CONFLICT, "자기 자신과 연결할 수 없습니다"),
+    MEMBER_ALREADY_CONNECTED(HttpStatus.CONFLICT, "이미 커플로 연결된 회원입니다"),
+    CONNECTION_CONFLICT(HttpStatus.CONFLICT, "다른 연결 요청으로 상태가 변경되었습니다"),
 
     // 소셜 로그인
     ALREADY_LINKED_OAUTH(HttpStatus.CONFLICT, "이미 소셜 계정이 연결된 회원입니다"),

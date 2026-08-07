@@ -1,0 +1,214 @@
+package kr.omong.dulpick.domain.couple;
+
+import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
+import kr.omong.dulpick.domain.auth.application.support.TokenService;
+import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
+import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
+import kr.omong.dulpick.domain.couple.domain.CoupleRepository;
+import kr.omong.dulpick.domain.couple.domain.event.CoupleConnectedEvent;
+import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
+import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
+import kr.omong.dulpick.domain.member.application.command.UpdateMemberProfileCommand;
+import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
+import kr.omong.dulpick.domain.member.domain.DatePreferences;
+import kr.omong.dulpick.domain.member.domain.Member;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest
+@AutoConfigureMockMvc
+@RecordApplicationEvents
+@Transactional
+class CoupleConnectionIntegrationTest {
+
+    private static final DatePreferences PREFERENCES = new DatePreferences(
+            DatePreferenceOption.INDOOR,
+            DatePreferenceOption.ACTIVE,
+            DatePreferenceOption.NIGHT,
+            DatePreferenceOption.FOOD
+    );
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private SocialAccountService socialAccountService;
+
+    @Autowired
+    private TokenService tokenService;
+
+    @Autowired
+    private MemberCommandService memberCommandService;
+
+    @Autowired
+    private CoupleRepository coupleRepository;
+
+    @Autowired
+    private ActiveCoupleMemberRepository activeCoupleMemberRepository;
+
+    @Autowired
+    private ApplicationEvents applicationEvents;
+
+    @Test
+    void previewsAndConnectsTwoMembersWithOneStatusContract() throws Exception {
+        TestMember inviter = createProfileMember("초대자", 3);
+        TestMember requester = createProfileMember("요청자", 1);
+
+        mockMvc.perform(post("/api/v1/couple-connections/preview")
+                        .header("Authorization", bearer(requester))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(inviter.connectionCode().toLowerCase())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.nickname").value("초대자"))
+                .andExpect(jsonPath("$.profileIcon").value(3));
+
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(requester))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(inviter.connectionCode())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.connected").value(true))
+                .andExpect(jsonPath("$.me.nickname").value("요청자"))
+                .andExpect(jsonPath("$.partner.nickname").value("초대자"))
+                .andExpect(jsonPath("$.connectedAt").isNotEmpty())
+                .andExpect(jsonPath("$.daysTogether").value(1));
+
+        assertThat(coupleRepository.count()).isEqualTo(1);
+        assertThat(activeCoupleMemberRepository.count()).isEqualTo(2);
+        assertThat(applicationEvents.stream(CoupleConnectedEvent.class)).hasSize(1);
+
+        mockMvc.perform(get("/api/v1/couples/me")
+                        .header("Authorization", bearer(inviter)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connected").value(true))
+                .andExpect(jsonPath("$.me.nickname").value("초대자"))
+                .andExpect(jsonPath("$.partner.nickname").value("요청자"))
+                .andExpect(jsonPath("$.daysTogether").value(1));
+
+        mockMvc.perform(get("/api/v1/connection-codes/me")
+                        .header("Authorization", bearer(requester)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEMBER_ALREADY_CONNECTED"));
+    }
+
+    @Test
+    void returnsDisconnectedStatusWithOnlyMyProfile() throws Exception {
+        TestMember member = createProfileMember("미연결", 2);
+
+        mockMvc.perform(get("/api/v1/couples/me")
+                        .header("Authorization", bearer(member)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.connected").value(false))
+                .andExpect(jsonPath("$.me.nickname").value("미연결"))
+                .andExpect(jsonPath("$.me.profileIcon").value(2))
+                .andExpect(jsonPath("$.partner").doesNotExist())
+                .andExpect(jsonPath("$.connectedAt").doesNotExist())
+                .andExpect(jsonPath("$.daysTogether").doesNotExist());
+    }
+
+    @Test
+    void reflectsLatestPartnerProfileAfterConnection() throws Exception {
+        TestMember inviter = createProfileMember("수정전", 1);
+        TestMember requester = createProfileMember("요청자", 2);
+        connect(requester, inviter.connectionCode());
+
+        memberCommandService.updateProfile(
+                inviter.member().getId(),
+                new UpdateMemberProfileCommand("수정후", 5)
+        );
+
+        mockMvc.perform(get("/api/v1/couples/me")
+                        .header("Authorization", bearer(requester)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.partner.nickname").value("수정후"))
+                .andExpect(jsonPath("$.partner.profileIcon").value(5));
+    }
+
+    @Test
+    void rejectsSelfInvalidAndAlreadyConnectedRequests() throws Exception {
+        TestMember first = createProfileMember("첫번째", 1);
+        TestMember second = createProfileMember("두번째", 2);
+        TestMember third = createProfileMember("세번째", 3);
+
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(first))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(first.connectionCode())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("SELF_CONNECTION_NOT_ALLOWED"));
+
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(first))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest("12!")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CONNECTION_CODE"));
+
+        connect(first, second.connectionCode());
+
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(first))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(third.connectionCode())))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("MEMBER_ALREADY_CONNECTED"));
+    }
+
+    private void connect(TestMember requester, String code) throws Exception {
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(requester))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(code)))
+                .andExpect(status().isCreated());
+    }
+
+    private TestMember createProfileMember(String nickname, int profileIcon) {
+        String subject = "couple-" + UUID.randomUUID();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                subject,
+                subject + "@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        IssuedTokens tokens = tokenService.issue(member);
+        String code = memberCommandService.initializeProfile(
+                member.getId(),
+                new InitializeMemberProfileCommand(nickname, profileIcon, PREFERENCES)
+        ).connectionCode().code();
+        return new TestMember(member, tokens, code);
+    }
+
+    private String connectionRequest(String code) {
+        return """
+                {"connectionCode":"%s"}
+                """.formatted(code);
+    }
+
+    private String bearer(TestMember member) {
+        return "Bearer " + member.tokens().accessToken();
+    }
+
+    private record TestMember(
+            Member member,
+            IssuedTokens tokens,
+            String connectionCode
+    ) {
+    }
+}

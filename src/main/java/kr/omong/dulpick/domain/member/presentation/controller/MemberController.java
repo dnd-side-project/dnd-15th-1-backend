@@ -3,8 +3,9 @@ package kr.omong.dulpick.domain.member.presentation.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
+import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.member.application.command.InitializedMemberProfile;
+import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.application.command.UpdatedMemberProfile;
 import kr.omong.dulpick.domain.member.application.query.MemberQueryService;
 import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
@@ -16,7 +17,6 @@ import kr.omong.dulpick.domain.member.presentation.dto.response.InitializedMembe
 import kr.omong.dulpick.domain.member.presentation.dto.response.MemberDatePreferencesResponse;
 import kr.omong.dulpick.domain.member.presentation.dto.response.MemberResponse;
 import kr.omong.dulpick.domain.member.presentation.dto.response.UpdatedMemberProfileResponse;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
