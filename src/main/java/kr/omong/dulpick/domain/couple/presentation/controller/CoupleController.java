@@ -15,6 +15,7 @@ import kr.omong.dulpick.domain.couple.presentation.dto.CoupleConnectionStatusRes
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -102,6 +103,24 @@ public class CoupleController {
     ) {
         CoupleConnectionStatus status = coupleQueryService.getMyStatus(memberId(jwt));
         return ResponseEntity.ok(CoupleConnectionStatusResponse.from(status));
+    }
+
+    @Operation(
+            summary = "커플 연결 해제",
+            description = """
+                    연결 화면 또는 마이페이지에서 사용자가 상대방과의 연결 해제를 최종 확인한 뒤 사용합니다.
+
+                    한 명의 요청만으로 현재 활성 커플 관계를 종료하며 상대방 승인은 필요하지 않습니다.
+                    커플 이력은 DISCONNECTED 상태로 남기고 현재 멤버십을 제거해 상대방 데이터 접근을 즉시 차단합니다.
+                    양쪽 활성 회원에게는 과거 코드를 재사용하지 않고 새로운 영문 대문자 6자리 코드를 발급합니다.
+                    새 코드는 연결 해제 성공 후 내 활성 연결 코드 조회 API에서 가져옵니다.
+                    활성 커플 관계가 없는 상태에서 반복 호출하면 404를 반환하고 코드를 다시 발급하지 않습니다.
+                    """
+    )
+    @DeleteMapping("/couples/me")
+    public ResponseEntity<Void> disconnect(@AuthenticationPrincipal Jwt jwt) {
+        coupleCommandService.disconnect(memberId(jwt));
+        return ResponseEntity.noContent().build();
     }
 
     private Long memberId(Jwt jwt) {

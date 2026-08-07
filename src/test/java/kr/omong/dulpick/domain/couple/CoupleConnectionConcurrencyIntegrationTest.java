@@ -6,8 +6,10 @@ import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionSta
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
+import kr.omong.dulpick.domain.couple.domain.ConnectionCodeStatus;
 import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.couple.domain.CoupleRepository;
+import kr.omong.dulpick.domain.couple.domain.CoupleStatus;
 import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
@@ -67,15 +69,14 @@ class CoupleConnectionConcurrencyIntegrationTest {
     private CoupleCommandService coupleCommandService;
 
     private final List<Long> testMemberIds = new ArrayList<>();
+    private final List<Long> testCoupleIds = new ArrayList<>();
 
     @AfterEach
     @Transactional
     void cleanUp() {
-        List<Couple> couples = testMemberIds.stream()
-                .map(activeCoupleMemberRepository::findByMemberId)
+        List<Couple> couples = testCoupleIds.stream()
+                .map(coupleRepository::findById)
                 .flatMap(Optional::stream)
-                .map(ActiveCoupleMember::getCouple)
-                .distinct()
                 .toList();
         testMemberIds.forEach(activeCoupleMemberRepository::deleteById);
         activeCoupleMemberRepository.flush();
@@ -136,12 +137,80 @@ class CoupleConnectionConcurrencyIntegrationTest {
             ActiveCoupleMember inviterMembership = activeCoupleMemberRepository
                     .findByMemberId(inviter.memberId())
                     .orElseThrow();
+            testCoupleIds.add(inviterMembership.getCouple().getId());
             assertThat(activeCoupleMemberRepository.findAllByCoupleId(
                     inviterMembership.getCouple().getId()
             )).hasSize(2);
         } finally {
             executor.shutdownNow();
         }
+    }
+
+    @Test
+    @Timeout(15)
+    void keepsWithdrawalStateConsistentDuringConcurrentDisconnection() throws Exception {
+        ProfileMember withdrawing = createMember("탈퇴자", 1);
+        ProfileMember partner = createMember("상대방", 2);
+        coupleCommandService.connect(
+                withdrawing.memberId(),
+                new ConnectCoupleCommand(partner.connectionCode())
+        );
+        Long coupleId = activeCoupleMemberRepository.findByMemberId(withdrawing.memberId())
+                .orElseThrow()
+                .getCouple()
+                .getId();
+        testCoupleIds.add(coupleId);
+        ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
+        CountDownLatch ready = new CountDownLatch(CONCURRENT_REQUESTS);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try {
+            List<Future<Object>> futures = List.of(
+                    submitAction(executor, ready, start, () ->
+                            coupleCommandService.disconnect(withdrawing.memberId())),
+                    submitAction(executor, ready, start, () ->
+                            memberCommandService.withdraw(withdrawing.memberId()))
+            );
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+            futures.forEach(this::getResult);
+
+            assertThat(memberRepository.findById(withdrawing.memberId()).orElseThrow().isActive())
+                    .isFalse();
+            assertThat(activeCoupleMemberRepository.findByMemberId(withdrawing.memberId()))
+                    .isEmpty();
+            assertThat(activeCoupleMemberRepository.findByMemberId(partner.memberId()))
+                    .isEmpty();
+            assertThat(connectionCodeRepository.findByMemberIdAndStatus(
+                    withdrawing.memberId(),
+                    ConnectionCodeStatus.ACTIVE
+            )).isEmpty();
+            assertThat(connectionCodeRepository.findAllByMemberId(partner.memberId()))
+                    .filteredOn(code -> code.getStatus() == ConnectionCodeStatus.ACTIVE)
+                    .hasSize(1);
+            assertThat(coupleRepository.findById(coupleId).orElseThrow().getStatus())
+                    .isEqualTo(CoupleStatus.DISCONNECTED);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private Future<Object> submitAction(
+            ExecutorService executor,
+            CountDownLatch ready,
+            CountDownLatch start,
+            Runnable action
+    ) {
+        return executor.submit(() -> {
+            ready.countDown();
+            start.await();
+            try {
+                action.run();
+                return Boolean.TRUE;
+            } catch (BusinessException exception) {
+                return exception;
+            }
+        });
     }
 
     private Future<Object> submitConnection(

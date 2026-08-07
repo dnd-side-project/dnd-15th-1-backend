@@ -134,7 +134,11 @@ public class MemberController {
     @Operation(
             summary = "회원 탈퇴",
             description = """
-                    회원을 비활성화하고 발급된 Refresh Token을 모두 폐기합니다.
+                    마이페이지에서 사용자가 회원 탈퇴를 최종 확인한 뒤 계정을 비활성화할 때 사용합니다.
+
+                    발급된 Refresh Token을 모두 폐기하고 tokenVersion을 변경해 기존 Access Token을 차단합니다.
+                    커플 연결 중이라면 같은 트랜잭션에서 관계를 해제하고 상대방 데이터 접근을 즉시 차단합니다.
+                    탈퇴 회원에게는 새 연결 코드를 발급하지 않으며, 활성 상태로 남은 상대방에게만 새 코드를 발급합니다.
                     Apple 철회 정보가 저장된 경우 로컬 탈퇴를 먼저 완료한 뒤 서버가 Apple 연결 해제를 비동기로 재시도합니다.
                     """
     )
