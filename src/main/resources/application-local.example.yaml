@@ -19,6 +19,10 @@ features:
     enabled: ${TEST_AUTH_ENABLED:false}
     access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
 
+couple:
+  public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+  code-encryption-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY}}
+
 auth:
   jwt:
     secret: ${JWT_SECRET}

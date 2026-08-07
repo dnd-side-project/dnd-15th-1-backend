@@ -3,9 +3,10 @@ package kr.omong.dulpick.domain.member.application.query.reader;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -21,9 +22,12 @@ class MemberProfileReaderTest {
     private final MemberRepository memberRepository = mock(MemberRepository.class);
     private final SocialAccountRepository socialAccountRepository =
             mock(SocialAccountRepository.class);
+    private final MemberProfileRepository memberProfileRepository =
+            mock(MemberProfileRepository.class);
     private final MemberProfileReader reader = new MemberProfileReader(
             memberRepository,
-            socialAccountRepository
+            socialAccountRepository,
+            memberProfileRepository
     );
 
     @Test
@@ -40,10 +44,12 @@ class MemberProfileReaderTest {
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
         when(socialAccountRepository.findAllByMemberId(1L)).thenReturn(List.of(account));
 
-        MemberProfile profile = reader.read(1L);
+        MemberProfileView profile = reader.read(1L);
 
         assertThat(profile.memberId()).isEqualTo(1L);
         assertThat(profile.status()).isEqualTo(member.getStatus());
+        assertThat(profile.onboardingCompleted()).isFalse();
+        assertThat(profile.nickname()).isNull();
         assertThat(profile.socialAccounts()).singleElement()
                 .satisfies(socialAccount -> {
                     assertThat(socialAccount.provider()).isEqualTo(SocialProvider.APPLE);

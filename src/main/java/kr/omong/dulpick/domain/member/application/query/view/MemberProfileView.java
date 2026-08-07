@@ -5,9 +5,13 @@ import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import java.time.Instant;
 import java.util.List;
 
-public record MemberProfile(
+public record MemberProfileView(
         Long memberId,
         MemberStatus status,
+        boolean onboardingCompleted,
+        String nickname,
+        Integer profileIcon,
+        MemberDatePreferences datePreferences,
         Instant createdAt,
         Instant updatedAt,
         Instant lastWithdrawnAt,

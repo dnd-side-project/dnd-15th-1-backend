@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.member.application.query;
 
 import kr.omong.dulpick.domain.member.application.query.reader.MemberProfileReader;
-import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,7 @@ public class MemberQueryService {
         this.memberProfileReader = memberProfileReader;
     }
 
-    public MemberProfile getMyProfile(Long memberId) {
+    public MemberProfileView getMyProfile(Long memberId) {
         return memberProfileReader.read(memberId);
     }
 }

@@ -17,6 +17,10 @@ springdoc:
   swagger-ui:
     enabled: false
 
+couple:
+  public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+  code-encryption-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}

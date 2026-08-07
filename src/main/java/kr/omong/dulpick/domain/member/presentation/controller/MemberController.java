@@ -5,13 +5,25 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.application.query.MemberQueryService;
-import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
+import kr.omong.dulpick.domain.member.domain.DatePreferences;
+import kr.omong.dulpick.domain.member.presentation.dto.request.DatePreferencesRequest;
+import kr.omong.dulpick.domain.member.presentation.dto.request.InitializeMemberProfileRequest;
+import kr.omong.dulpick.domain.member.presentation.dto.request.UpdateMemberProfileRequest;
+import kr.omong.dulpick.domain.member.presentation.dto.response.InitializedMemberProfileResponse;
+import kr.omong.dulpick.domain.member.presentation.dto.response.MemberDatePreferencesResponse;
 import kr.omong.dulpick.domain.member.presentation.dto.response.MemberResponse;
+import kr.omong.dulpick.domain.member.presentation.dto.response.UpdatedMemberProfileResponse;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,8 +47,44 @@ public class MemberController {
     @Operation(summary = "내 정보 조회")
     @GetMapping("/me")
     public ResponseEntity<MemberResponse> me(@AuthenticationPrincipal Jwt jwt) {
-        MemberProfile profile = memberQueryService.getMyProfile(memberId(jwt));
+        MemberProfileView profile = memberQueryService.getMyProfile(memberId(jwt));
         return ResponseEntity.ok(MemberResponse.from(profile));
+    }
+
+    @Operation(summary = "최초 프로필과 데이트 성향 설정")
+    @PostMapping("/me/profile")
+    public ResponseEntity<InitializedMemberProfileResponse> initializeProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody InitializeMemberProfileRequest request
+    ) {
+        var profile = memberCommandService.initializeProfile(
+                memberId(jwt),
+                request.toCommand()
+        );
+        return ResponseEntity.status(201).body(InitializedMemberProfileResponse.from(profile));
+    }
+
+    @Operation(summary = "마이페이지 기본 프로필 수정")
+    @PatchMapping("/me/profile")
+    public ResponseEntity<UpdatedMemberProfileResponse> updateProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateMemberProfileRequest request
+    ) {
+        var profile = memberCommandService.updateProfile(memberId(jwt), request.toCommand());
+        return ResponseEntity.ok(UpdatedMemberProfileResponse.from(profile));
+    }
+
+    @Operation(summary = "마이페이지 데이트 성향 수정")
+    @PutMapping("/me/date-preferences")
+    public ResponseEntity<MemberDatePreferencesResponse> updateDatePreferences(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody DatePreferencesRequest request
+    ) {
+        DatePreferences preferences = memberCommandService.updateDatePreferences(
+                memberId(jwt),
+                request.toDomain()
+        );
+        return ResponseEntity.ok(MemberDatePreferencesResponse.from(preferences));
     }
 
     @Operation(

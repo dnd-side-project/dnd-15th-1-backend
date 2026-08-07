@@ -1,7 +1,7 @@
 package kr.omong.dulpick.domain.member.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import kr.omong.dulpick.global.time.ServiceTime;
 
@@ -16,6 +16,13 @@ public record MemberResponse(
                 example = "ACTIVE"
         )
         MemberStatus status,
+        @Schema(description = "최초 프로필과 데이트 성향 설정 완료 여부", example = "true")
+        boolean onboardingCompleted,
+        @Schema(description = "회원 닉네임. 온보딩 전에는 null입니다.", example = "둘픽이")
+        String nickname,
+        @Schema(description = "iOS 내장 프로필 에셋 번호. 온보딩 전에는 null입니다.", example = "1")
+        Integer profileIcon,
+        MemberDatePreferencesResponse datePreferences,
         @Schema(description = "회원 생성 시각. 대한민국 표준시(UTC+9, Asia/Seoul) 기준입니다.")
         LocalDateTime createdAt,
         @Schema(description = "회원 정보 수정 시각. 대한민국 표준시(UTC+9, Asia/Seoul) 기준입니다.")
@@ -27,7 +34,7 @@ public record MemberResponse(
         List<MemberSocialAccountResponse> socialAccounts
 ) {
 
-    public static MemberResponse from(MemberProfile profile) {
+    public static MemberResponse from(MemberProfileView profile) {
         List<MemberSocialAccountResponse> accounts = profile.socialAccounts()
                 .stream()
                 .map(MemberSocialAccountResponse::from)
@@ -35,6 +42,10 @@ public record MemberResponse(
         return new MemberResponse(
                 profile.memberId(),
                 profile.status(),
+                profile.onboardingCompleted(),
+                profile.nickname(),
+                profile.profileIcon(),
+                MemberDatePreferencesResponse.from(profile.datePreferences()),
                 ServiceTime.toLocalDateTime(profile.createdAt()),
                 ServiceTime.toLocalDateTime(profile.updatedAt()),
                 ServiceTime.toLocalDateTime(profile.lastWithdrawnAt()),
