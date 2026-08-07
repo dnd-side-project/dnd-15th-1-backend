@@ -13,6 +13,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.Duration;
 
 @Entity
 @Table(name = "notification_deliveries")
@@ -88,5 +89,107 @@ public class NotificationDelivery {
 
     public Long getId() {
         return id;
+    }
+
+    public boolean canClaim(Instant now, Duration sendingTimeout) {
+        if (status == NotificationDeliveryStatus.PENDING
+                || status == NotificationDeliveryStatus.RETRY_PENDING) {
+            return !nextAttemptAt.isAfter(now);
+        }
+        return status == NotificationDeliveryStatus.SENDING
+                && lastAttemptedAt != null
+                && !lastAttemptedAt.isAfter(now.minus(sendingTimeout));
+    }
+
+    public void claim(Instant claimedAt) {
+        status = NotificationDeliveryStatus.SENDING;
+        attemptCount++;
+        lastAttemptedAt = claimedAt;
+        updatedAt = claimedAt;
+    }
+
+    public void markSent(String providerMessageId, Instant sentAt) {
+        if (status != NotificationDeliveryStatus.SENDING) {
+            return;
+        }
+        status = NotificationDeliveryStatus.SENT;
+        this.providerMessageId = providerMessageId;
+        this.sentAt = sentAt;
+        this.lastErrorCode = null;
+        this.updatedAt = sentAt;
+    }
+
+    public void handleFailure(
+            String errorCode,
+            boolean retryable,
+            boolean invalidRegistration,
+            Instant failedAt,
+            int maxAttempts,
+            Duration initialRetryDelay,
+            Duration maxRetryDelay
+    ) {
+        if (status != NotificationDeliveryStatus.SENDING) {
+            return;
+        }
+        this.lastErrorCode = errorCode;
+        if (invalidRegistration) {
+            pushDevice.invalidate(failedAt);
+        }
+        if (!retryable || attemptCount >= maxAttempts) {
+            status = NotificationDeliveryStatus.FAILED;
+            updatedAt = failedAt;
+            return;
+        }
+        status = NotificationDeliveryStatus.RETRY_PENDING;
+        nextAttemptAt = failedAt.plus(retryDelay(
+                initialRetryDelay,
+                maxRetryDelay
+        ));
+        updatedAt = failedAt;
+    }
+
+    public String getEncryptedRegistrationId() {
+        return pushDevice.getEncryptedRegistrationId();
+    }
+
+    public NotificationDeliveryStatus getStatus() {
+        return status;
+    }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public Instant getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public String getProviderMessageId() {
+        return providerMessageId;
+    }
+
+    public String getLastErrorCode() {
+        return lastErrorCode;
+    }
+
+    public PushDeviceStatus getPushDeviceStatus() {
+        return pushDevice.getStatus();
+    }
+
+    public Notification getNotification() {
+        return notification;
+    }
+
+    private Duration retryDelay(
+            Duration initialRetryDelay,
+            Duration maxRetryDelay
+    ) {
+        long multiplier = 1L << Math.min(attemptCount - 1, 30);
+        try {
+            Duration delay = initialRetryDelay.multipliedBy(multiplier);
+            return delay.compareTo(maxRetryDelay) > 0 ? maxRetryDelay : delay;
+        } catch (ArithmeticException exception) {
+            return maxRetryDelay;
+        }
     }
 }

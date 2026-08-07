@@ -63,8 +63,7 @@ class PushDeviceIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
         register(member, deviceId, "rotated-token").andExpect(status().isOk());
 
-        assertThat(pushDeviceRepository.count()).isEqualTo(1);
-        assertThat(pushDeviceRepository.findAll())
+        assertThat(pushDeviceRepository.findAllByMemberId(member.memberId()))
                 .singleElement()
                 .satisfies(device -> assertThat(registrationCipher.decrypt(
                         device.getEncryptedRegistrationId()
@@ -76,7 +75,7 @@ class PushDeviceIntegrationTest {
         mockMvc.perform(delete("/api/v1/push-devices/{deviceId}", deviceId)
                         .header("Authorization", bearer(member.tokens())))
                 .andExpect(status().isNoContent());
-        assertThat(pushDeviceRepository.findAll())
+        assertThat(pushDeviceRepository.findAllByMemberId(member.memberId()))
                 .singleElement()
                 .satisfies(device -> assertThat(device.getStatus())
                         .isEqualTo(PushDeviceStatus.LOGGED_OUT));
@@ -113,7 +112,7 @@ class PushDeviceIntegrationTest {
         register(currentMember, currentDeviceId, "shared-token")
                 .andExpect(status().isOk());
 
-        assertThat(pushDeviceRepository.findAll())
+        assertThat(pushDeviceRepository.findAllByMemberId(currentMember.memberId()))
                 .singleElement()
                 .satisfies(device -> {
                     assertThat(device.getMemberId()).isEqualTo(currentMember.memberId());

@@ -53,4 +53,12 @@ public interface PushDeviceRepository extends JpaRepository<PushDevice, Long> {
             @Param("memberId") Long memberId,
             @Param("status") PushDeviceStatus status
     );
+
+    @Query("""
+            SELECT device
+            FROM PushDevice device
+            WHERE device.member.id = :memberId
+            ORDER BY device.id
+            """)
+    List<PushDevice> findAllByMemberId(@Param("memberId") Long memberId);
 }

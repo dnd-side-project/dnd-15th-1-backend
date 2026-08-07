@@ -51,6 +51,16 @@ notification:
     consent-version: ${MARKETING_CONSENT_VERSION:2026-08-07}
   push:
     registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+  fcm:
+    enabled: ${FCM_ENABLED:false}
+    project-id: ${FIREBASE_PROJECT_ID:}
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+    process-delay: ${FCM_PROCESS_DELAY:10s}
+    batch-size: ${FCM_BATCH_SIZE:50}
+    initial-retry-delay: ${FCM_INITIAL_RETRY_DELAY:1m}
+    max-retry-delay: ${FCM_MAX_RETRY_DELAY:1h}
+    sending-timeout: ${FCM_SENDING_TIMEOUT:10m}
+    max-attempts: ${FCM_MAX_ATTEMPTS:5}
 
 auth:
   jwt:
