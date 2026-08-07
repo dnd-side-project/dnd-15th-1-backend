@@ -11,6 +11,9 @@ spring:
   jpa:
     open-in-view: false
 
+server:
+  forward-headers-strategy: native
+
 springdoc:
   api-docs:
     enabled: false
@@ -20,6 +23,17 @@ springdoc:
 couple:
   public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
   code-encryption-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+  abuse:
+    preview-per-minute: 5
+    preview-per-hour: 20
+    connect-per-minute: 3
+    connect-per-day: 10
+    state-changes-per-day: 10
+    code-failures-per-ten-minutes: 5
+    ip-failures-per-hour: 50
+    failure-block-duration: 15m
+    retention: 30d
+    cleanup-delay: 1h
 
 features:
   test-auth:

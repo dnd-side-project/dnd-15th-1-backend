@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.couple.presentation.controller;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.couple.application.command.ConnectCoupleCommand;
 import kr.omong.dulpick.domain.couple.application.command.CoupleCommandService;
@@ -48,16 +49,19 @@ public class CoupleController {
                     영문 6자리 코드는 소문자로 입력해도 대문자로 정규화합니다.
                     자기 코드, 사용·무효 코드, 이미 연결된 회원의 요청은 거부합니다.
                     미리보기 성공 후 사용자가 확인 버튼을 누르면 커플 연결 확정 API를 호출합니다.
+                    기본 설정 기준 회원별 분당 5회·시간당 20회를 초과하거나 반복 코드 실패로 차단되면 429를 반환합니다.
                     """
     )
     @PostMapping("/couple-connections/preview")
     public ResponseEntity<ConnectionCodePreviewResponse> preview(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ConnectionCodeRequest request
+            @Valid @RequestBody ConnectionCodeRequest request,
+            HttpServletRequest httpRequest
     ) {
         ConnectionCodePreview preview = coupleQueryService.preview(
                 memberId(jwt),
-                request.connectionCode()
+                request.connectionCode(),
+                httpRequest.getRemoteAddr()
         );
         return ResponseEntity.ok(ConnectionCodePreviewResponse.from(preview));
     }
@@ -71,16 +75,19 @@ public class CoupleController {
                     양쪽 회원 모두 최초 프로필 설정을 완료해야 하며 한 회원은 동시에 하나의 활성 커플에만 속할 수 있습니다.
                     성공하면 양쪽 기존 연결 코드는 즉시 무효화되고 연결일을 1일째로 한 상태 응답을 반환합니다.
                     같은 코드를 동시에 사용하더라도 하나의 요청만 성공하도록 트랜잭션과 제약 조건으로 보호합니다.
+                    기본 설정 기준 회원별 분당 3회·일일 10회 또는 연결/해제 합산 일일 10회를 초과하면 429를 반환합니다.
                     """
     )
     @PostMapping("/couples")
     public ResponseEntity<CoupleConnectionStatusResponse> connect(
             @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ConnectionCodeRequest request
+            @Valid @RequestBody ConnectionCodeRequest request,
+            HttpServletRequest httpRequest
     ) {
         CoupleConnectionStatus status = coupleCommandService.connect(
                 memberId(jwt),
-                new ConnectCoupleCommand(request.connectionCode())
+                new ConnectCoupleCommand(request.connectionCode()),
+                httpRequest.getRemoteAddr()
         );
         return ResponseEntity.status(201).body(CoupleConnectionStatusResponse.from(status));
     }
@@ -115,11 +122,15 @@ public class CoupleController {
                     양쪽 활성 회원에게는 과거 코드를 재사용하지 않고 새로운 영문 대문자 6자리 코드를 발급합니다.
                     새 코드는 연결 해제 성공 후 내 활성 연결 코드 조회 API에서 가져옵니다.
                     활성 커플 관계가 없는 상태에서 반복 호출하면 404를 반환하고 코드를 다시 발급하지 않습니다.
+                    기본 설정 기준 연결/해제 상태 변경을 합산해 회원별 일일 10회를 초과하면 429를 반환합니다.
                     """
     )
     @DeleteMapping("/couples/me")
-    public ResponseEntity<Void> disconnect(@AuthenticationPrincipal Jwt jwt) {
-        coupleCommandService.disconnect(memberId(jwt));
+    public ResponseEntity<Void> disconnect(
+            @AuthenticationPrincipal Jwt jwt,
+            HttpServletRequest httpRequest
+    ) {
+        coupleCommandService.disconnect(memberId(jwt), httpRequest.getRemoteAddr());
         return ResponseEntity.noContent().build();
     }
 

@@ -178,7 +178,7 @@ class CoupleConnectionIntegrationTest {
         connect(first, second.connectionCode());
 
         mockMvc.perform(post("/api/v1/couples")
-                        .header("Authorization", bearer(first))
+                        .header("Authorization", bearer(second))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(connectionRequest(third.connectionCode())))
                 .andExpect(status().isConflict())

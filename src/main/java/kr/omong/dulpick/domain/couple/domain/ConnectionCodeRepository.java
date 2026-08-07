@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.couple.domain;
 
 import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 
@@ -18,6 +19,7 @@ public interface ConnectionCodeRepository extends JpaRepository<ConnectionCode, 
             ConnectionCodeStatus status
     );
 
+    @EntityGraph(attributePaths = "member")
     Optional<ConnectionCode> findByCodeDigestAndStatus(
             String codeDigest,
             ConnectionCodeStatus status

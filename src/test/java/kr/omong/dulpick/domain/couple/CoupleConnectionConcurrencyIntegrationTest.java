@@ -5,11 +5,13 @@ import kr.omong.dulpick.domain.couple.application.command.CoupleCommandService;
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionStatus;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
+import kr.omong.dulpick.domain.couple.domain.ConnectionAttemptRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeStatus;
 import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.couple.domain.CoupleRepository;
 import kr.omong.dulpick.domain.couple.domain.CoupleStatus;
+import kr.omong.dulpick.domain.couple.domain.ConnectionRateLimitSubjectRepository;
 import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
@@ -57,6 +59,12 @@ class CoupleConnectionConcurrencyIntegrationTest {
     private ConnectionCodeRepository connectionCodeRepository;
 
     @Autowired
+    private ConnectionAttemptRepository connectionAttemptRepository;
+
+    @Autowired
+    private ConnectionRateLimitSubjectRepository rateLimitSubjectRepository;
+
+    @Autowired
     private CoupleRepository coupleRepository;
 
     @Autowired
@@ -88,6 +96,10 @@ class CoupleConnectionConcurrencyIntegrationTest {
         memberProfileRepository.flush();
         coupleRepository.deleteAll(couples);
         coupleRepository.flush();
+        testMemberIds.forEach(connectionAttemptRepository::deleteAllByMemberId);
+        connectionAttemptRepository.flush();
+        testMemberIds.forEach(rateLimitSubjectRepository::deleteById);
+        rateLimitSubjectRepository.flush();
         testMemberIds.forEach(memberRepository::deleteById);
     }
 
