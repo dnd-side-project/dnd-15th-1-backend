@@ -32,7 +32,7 @@ public class ConnectionCodeController {
     @Operation(
             summary = "내 활성 연결 코드 조회",
             description = """
-                    상대방에게 전달할 영문 대문자 6자리 연결 코드와 공유 URL을 조회합니다.
+                    상대방에게 전달할 영문 대문자 5자리 연결 코드와 공유 URL을 조회합니다.
                     연결 코드가 없는 회원은 조회할 수 없습니다.
                     """
     )

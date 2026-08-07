@@ -19,6 +19,13 @@ public interface ConnectionCodeRepository extends JpaRepository<ConnectionCode, 
             ConnectionCodeStatus status
     );
 
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @EntityGraph(attributePaths = "member")
+    Optional<ConnectionCode> findForUpdateByMemberIdAndStatus(
+            Long memberId,
+            ConnectionCodeStatus status
+    );
+
     @EntityGraph(attributePaths = "member")
     Optional<ConnectionCode> findByCodeDigestAndStatus(
             String codeDigest,

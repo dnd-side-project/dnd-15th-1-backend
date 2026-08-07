@@ -2,8 +2,10 @@ package kr.omong.dulpick.domain.couple.application.support;
 
 import kr.omong.dulpick.domain.couple.application.exception.ConnectionCodeGenerationException;
 import kr.omong.dulpick.domain.couple.config.CoupleProperties;
+import kr.omong.dulpick.domain.couple.domain.ConnectionCode;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeIssuedReason;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
+import kr.omong.dulpick.domain.couple.domain.ConnectionCodeStatus;
 import kr.omong.dulpick.domain.couple.infrastructure.crypto.ConnectionCodeCipher;
 import kr.omong.dulpick.domain.member.domain.Member;
 import org.junit.jupiter.api.Test;
@@ -15,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ConnectionCodeIssuerTest {
@@ -32,7 +35,7 @@ class ConnectionCodeIssuerTest {
 
     @Test
     void failsWithStableExceptionAfterUniqueCodeAttemptsAreExhausted() {
-        when(generator.generate()).thenReturn("AAAAAA");
+        when(generator.generate()).thenReturn("AAAAA");
         when(repository.existsByCodeDigest(anyString())).thenReturn(true);
 
         assertThatThrownBy(() -> issuer.issue(
@@ -43,15 +46,37 @@ class ConnectionCodeIssuerTest {
 
     @Test
     void normalizesShareBaseUrlOnce() {
-        when(generator.generate()).thenReturn("ABCDEF");
+        when(generator.generate()).thenReturn("ABCDE");
         when(repository.existsByCodeDigest(anyString())).thenReturn(false);
-        when(cipher.encrypt("ABCDEF")).thenReturn("encrypted");
+        when(cipher.encrypt("ABCDE")).thenReturn("encrypted");
 
         IssuedConnectionCode issued = issuer.issue(
                 Member.create(Instant.EPOCH),
                 ConnectionCodeIssuedReason.ONBOARDING
         );
 
-        assertThat(issued.shareUrl()).isEqualTo("https://dulpick.app/connect?code=ABCDEF");
+        assertThat(issued.shareUrl()).isEqualTo("https://dulpick.app/connect?code=ABCDE");
+    }
+
+    @Test
+    void replacesLegacyCodeWithCurrentFormatWhenRead() {
+        Member member = Member.create(Instant.EPOCH);
+        ConnectionCode legacyCode = ConnectionCode.issue(
+                member,
+                "legacy-digest",
+                "legacy-encrypted",
+                ConnectionCodeIssuedReason.ONBOARDING,
+                Instant.EPOCH
+        );
+        when(cipher.decrypt("legacy-encrypted")).thenReturn("ABCDEF");
+        when(generator.generate()).thenReturn("ABCDE");
+        when(repository.existsByCodeDigest(anyString())).thenReturn(false);
+        when(cipher.encrypt("ABCDE")).thenReturn("current-encrypted");
+
+        IssuedConnectionCode issued = issuer.readCurrent(legacyCode);
+
+        assertThat(legacyCode.getStatus()).isEqualTo(ConnectionCodeStatus.REVOKED);
+        assertThat(issued.code()).isEqualTo("ABCDE");
+        verify(repository).flush();
     }
 }

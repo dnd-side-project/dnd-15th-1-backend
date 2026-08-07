@@ -18,10 +18,10 @@ class ConnectionCodeCipherTest {
                 new SecureRandom()
         );
 
-        String encrypted = cipher.encrypt("ABCDEF");
+        String encrypted = cipher.encrypt("ABCDE");
 
-        assertThat(encrypted).isNotEqualTo("ABCDEF");
-        assertThat(cipher.decrypt(encrypted)).isEqualTo("ABCDEF");
+        assertThat(encrypted).isNotEqualTo("ABCDE");
+        assertThat(cipher.decrypt(encrypted)).isEqualTo("ABCDE");
     }
 
     @Test
@@ -33,7 +33,7 @@ class ConnectionCodeCipherTest {
                 null,
                 null
         );
-        String encrypted = previousCipher.encrypt("ABCDEF");
+        String encrypted = previousCipher.encrypt("ABCDE");
         ConnectionCodeCipher rotatedCipher = cipher(
                 "v2",
                 key(),
@@ -42,7 +42,7 @@ class ConnectionCodeCipherTest {
         );
 
         assertThat(encrypted).startsWith("v1.");
-        assertThat(rotatedCipher.decrypt(encrypted)).isEqualTo("ABCDEF");
+        assertThat(rotatedCipher.decrypt(encrypted)).isEqualTo("ABCDE");
     }
 
     @Test

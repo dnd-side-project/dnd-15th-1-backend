@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.couple.application.support;
 import kr.omong.dulpick.domain.couple.application.exception.ConnectionCodeGenerationException;
 import kr.omong.dulpick.domain.couple.config.CoupleProperties;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCode;
+import kr.omong.dulpick.domain.couple.domain.ConnectionCodeFormat;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeIssuedReason;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
 import kr.omong.dulpick.domain.couple.infrastructure.crypto.ConnectionCodeCipher;
@@ -60,9 +61,21 @@ public class ConnectionCodeIssuer {
         throw new ConnectionCodeGenerationException();
     }
 
-    public IssuedConnectionCode read(ConnectionCode connectionCode) {
+    public IssuedConnectionCode readCurrent(ConnectionCode connectionCode) {
         String code = connectionCodeCipher.decrypt(connectionCode.getEncryptedCode());
+        if (!ConnectionCodeFormat.isCurrent(code)) {
+            return replaceLegacyCode(connectionCode);
+        }
         return new IssuedConnectionCode(code, createShareUrl(code));
+    }
+
+    private IssuedConnectionCode replaceLegacyCode(ConnectionCode connectionCode) {
+        connectionCode.revoke(clock.instant());
+        connectionCodeRepository.flush();
+        return issue(
+                connectionCode.getMember(),
+                ConnectionCodeIssuedReason.FORMAT_MIGRATION
+        );
     }
 
     private String createShareUrl(String code) {

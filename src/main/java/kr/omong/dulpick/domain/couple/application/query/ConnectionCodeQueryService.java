@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-@Transactional(readOnly = true)
 public class ConnectionCodeQueryService {
 
     private final MemberProfileRepository memberProfileRepository;
@@ -34,6 +33,7 @@ public class ConnectionCodeQueryService {
         this.connectionCodeIssuer = connectionCodeIssuer;
     }
 
+    @Transactional
     public IssuedConnectionCode getMyActiveCode(Long memberId) {
         if (!memberProfileRepository.existsById(memberId)) {
             throw new MemberProfileRequiredException();
@@ -41,10 +41,10 @@ public class ConnectionCodeQueryService {
         if (activeCoupleMemberRepository.findByMemberId(memberId).isPresent()) {
             throw new MemberAlreadyConnectedException();
         }
-        ConnectionCode code = connectionCodeRepository.findByMemberIdAndStatus(
+        ConnectionCode code = connectionCodeRepository.findForUpdateByMemberIdAndStatus(
                 memberId,
                 ConnectionCodeStatus.ACTIVE
         ).orElseThrow(ConnectionCodeNotAvailableException::new);
-        return connectionCodeIssuer.read(code);
+        return connectionCodeIssuer.readCurrent(code);
     }
 }

@@ -67,7 +67,7 @@ public class MemberController {
             summary = "최초 프로필과 데이트 성향 설정",
             description = """
                     최초 프로필과 네 가지 데이트 성향을 저장합니다.
-                    완료되면 영문 대문자 6자리 연결 코드를 함께 반환합니다.
+                    완료되면 영문 대문자 5자리 연결 코드를 함께 반환합니다.
                     """
     )
     @PostMapping("/me/profile")

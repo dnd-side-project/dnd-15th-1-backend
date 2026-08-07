@@ -62,8 +62,8 @@ class MemberProfileControllerIntegrationTest {
                 .andExpect(jsonPath("$.nickname").value("둘픽이"))
                 .andExpect(jsonPath("$.profileIcon").value(1))
                 .andExpect(jsonPath("$.datePreferences.indoorOutdoor").value("INDOOR"))
-                .andExpect(jsonPath("$.connectionCode", matchesPattern("^[A-Z]{6}$")))
-                .andExpect(jsonPath("$.shareUrl", matchesPattern(".+[A-Z]{6}$")));
+                .andExpect(jsonPath("$.connectionCode", matchesPattern("^[A-Z]{5}$")))
+                .andExpect(jsonPath("$.shareUrl", matchesPattern(".+[A-Z]{5}$")));
 
         MemberProfile profile = memberProfileRepository.findById(
                 testMember.member().getId()
@@ -84,7 +84,7 @@ class MemberProfileControllerIntegrationTest {
         mockMvc.perform(get("/api/v1/connection-codes/me")
                         .header("Authorization", bearer(testMember.tokens())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.code", matchesPattern("^[A-Z]{6}$")));
+                .andExpect(jsonPath("$.code", matchesPattern("^[A-Z]{5}$")));
     }
 
     @Test

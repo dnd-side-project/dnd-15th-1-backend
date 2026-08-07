@@ -12,9 +12,9 @@ class ConnectionCodeGeneratorTest {
             new ConnectionCodeGenerator(new SecureRandom());
 
     @Test
-    void generatesSixUppercaseLetters() {
+    void generatesFiveUppercaseLetters() {
         for (int count = 0; count < 100; count++) {
-            assertThat(generator.generate()).matches("^[A-Z]{6}$");
+            assertThat(generator.generate()).matches("^[A-Z]{5}$");
         }
     }
 }
