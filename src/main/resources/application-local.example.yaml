@@ -21,10 +21,13 @@ features:
 
 notification:
   fcm:
+    # 서비스 계정 JSON은 저장소에 넣지 않고 안전한 경로에 별도로 전달합니다.
+    # FIREBASE_SERVICE_ACCOUNT_BASE64를 받았다면 JSON 파일로 디코딩한 뒤 그 경로를 지정합니다.
     enabled: ${FCM_ENABLED:false}
-    project-id: ${FIREBASE_PROJECT_ID:}
-    credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
+    project-id: ${FIREBASE_PROJECT_ID:gen-lang-client-0028689995}
+    credentials-path: ${FIREBASE_CREDENTIALS_PATH:/absolute/path/to/firebase-service-account.json}
   push:
+    # openssl rand -base64 32로 생성하며 Firebase 서비스 계정 키와 분리합니다.
     registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:}
 
 couple:
