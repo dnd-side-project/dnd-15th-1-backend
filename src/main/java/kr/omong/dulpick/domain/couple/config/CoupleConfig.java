@@ -8,14 +8,20 @@ import org.springframework.context.annotation.Configuration;
 import java.security.SecureRandom;
 
 @Configuration
-@EnableConfigurationProperties(CoupleProperties.class)
+@EnableConfigurationProperties({
+        CoupleProperties.class,
+        ConnectionCodeEncryptionProperties.class
+})
 public class CoupleConfig {
 
     @Bean
     public ConnectionCodeCipher connectionCodeCipher(
-            CoupleProperties properties,
+            CoupleProperties coupleProperties,
+            ConnectionCodeEncryptionProperties encryptionProperties,
             SecureRandom secureRandom
     ) {
-        return new ConnectionCodeCipher(properties.codeEncryptionKey(), secureRandom);
+        ConnectionCodeEncryptionProperties resolvedProperties = encryptionProperties
+                .withFallbackKey(coupleProperties.codeEncryptionKey());
+        return new ConnectionCodeCipher(resolvedProperties, secureRandom);
     }
 }

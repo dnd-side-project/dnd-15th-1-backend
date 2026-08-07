@@ -23,6 +23,11 @@ springdoc:
 couple:
   public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
   code-encryption-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+  code-encryption:
+    active-key-id: ${CONNECTION_CODE_KEY_VERSION:v1}
+    active-key: ${CONNECTION_CODE_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
+    previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
+    previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
     preview-per-minute: 5
     preview-per-hour: 20
