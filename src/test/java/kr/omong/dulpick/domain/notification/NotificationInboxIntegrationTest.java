@@ -14,14 +14,18 @@ import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
 import kr.omong.dulpick.domain.notification.domain.PushPlatform;
 import kr.omong.dulpick.domain.notification.domain.PushProviderType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -36,6 +40,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 )
 @AutoConfigureMockMvc
 class NotificationInboxIntegrationTest {
+
+    private final List<Long> testMemberIds = new ArrayList<>();
 
     @Autowired
     private MockMvc mockMvc;
@@ -60,6 +66,14 @@ class NotificationInboxIntegrationTest {
 
     @Autowired
     private NotificationDeliveryRepository deliveryRepository;
+
+    @Autowired
+    private NamedParameterJdbcTemplate jdbcTemplate;
+
+    @AfterEach
+    void cleanUp() {
+        new NotificationTestDataCleaner(jdbcTemplate).clean(testMemberIds, List.of());
+    }
 
     @Test
     void createsNotificationsBeforeCommitAndSupportsInboxReadContract() throws Exception {
@@ -145,6 +159,7 @@ class NotificationInboxIntegrationTest {
                 subject + "@example.com",
                 ProviderAuthorization.none()
         ).member();
+        testMemberIds.add(member.getId());
         return new TestMember(member.getId(), tokenService.issue(member));
     }
 

@@ -19,13 +19,16 @@ import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
 import kr.omong.dulpick.domain.notification.domain.PushPlatform;
 import kr.omong.dulpick.domain.notification.domain.PushProviderType;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -42,6 +45,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SelectiveNotificationIntegrationTest {
 
     private static final Instant OCCURRED_AT = Instant.parse("2026-08-07T10:00:00Z");
+
+    private final List<Long> testMemberIds = new ArrayList<>();
+    private final List<Long> testCoupleIds = new ArrayList<>();
 
     @Autowired
     private SocialAccountService socialAccountService;
@@ -70,11 +76,23 @@ class SelectiveNotificationIntegrationTest {
     @Autowired
     private NotificationDeliveryRepository deliveryRepository;
 
+    @Autowired
+    private NamedParameterJdbcTemplate jdbcTemplate;
+
+    @AfterEach
+    void cleanUp() {
+        new NotificationTestDataCleaner(jdbcTemplate).clean(
+                testMemberIds,
+                testCoupleIds
+        );
+    }
+
     @Test
     void createsEveryTenthContentNotificationWithoutPushWhenSettingIsOff() {
         Member saver = createMember();
         Member partner = createMember();
         Couple couple = coupleRepository.save(Couple.connect(OCCURRED_AT));
+        testCoupleIds.add(couple.getId());
         registerDevice(partner.getId());
         settingsService.update(partner.getId(), new NotificationSettingsCommand(
                 false,
@@ -138,6 +156,7 @@ class SelectiveNotificationIntegrationTest {
         Member saver = createMember();
         Member partner = createMember();
         Couple couple = coupleRepository.save(Couple.connect(OCCURRED_AT));
+        testCoupleIds.add(couple.getId());
         CountDownLatch ready = new CountDownLatch(10);
         CountDownLatch start = new CountDownLatch(1);
         ExecutorService executor = Executors.newFixedThreadPool(10);
@@ -192,11 +211,13 @@ class SelectiveNotificationIntegrationTest {
 
     private Member createMember() {
         String subject = "selective-notification-" + UUID.randomUUID();
-        return socialAccountService.getOrCreate(
+        Member member = socialAccountService.getOrCreate(
                 SocialProvider.KAKAO,
                 subject,
                 subject + "@example.com",
                 ProviderAuthorization.none()
         ).member();
+        testMemberIds.add(member.getId());
+        return member;
     }
 }
