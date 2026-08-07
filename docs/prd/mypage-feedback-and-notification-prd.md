@@ -5,7 +5,7 @@
 - 상태: Draft
 - 기준일: 2026-08-07
 - 대상: 둘픽 iOS 앱 및 백엔드
-- 구현 기준 브랜치: `feat/#8`
+- 구현 기준 브랜치: `feat/#11` (`feat/#8` 기반 stacked branch)
 - 목적: 마이페이지의 서비스 피드백, 법적 문서 조회, 알림 설정과 FCM 기반 알림·알림함을 일관된 계약으로 정의한다.
 
 이 문서는 현재 백엔드 구현 상태를 기준으로 작성한다. 현재 저장소에는 인증, 회원, 커플 연결 도메인이 존재하며 `/terms`, `/privacy` 공개 페이지와 `CoupleConnectedEvent`, `CoupleDisconnectedEvent` 이벤트 지점이 구현되어 있다. 피드백, 푸시 디바이스, 알림 설정, 알림함, 콘텐츠 저장, 데이트 일정 도메인은 아직 구현되어 있지 않다.
@@ -145,7 +145,8 @@ FCM 기반 iOS 푸시는 Firebase에 APNs 인증 키를 설정해야 한다. 직
 - 작성자 회원 ID와 생성 시각은 서버가 기록한다.
 - 초기 상태는 `RECEIVED`이다.
 - 회원에게 운영자 답변을 전송하는 기능은 이번 범위에 포함하지 않는다.
-- 반복·자동 제출 방지를 위한 회원별 요청 제한을 적용한다. 구체적인 횟수는 구현 전 확정한다.
+- 반복·자동 제출 방지를 위해 회원별 최근 24시간 10회 제한을 적용한다.
+- 피드백은 생성일로부터 1년간 보관한 뒤 삭제한다.
 
 ### FR-02. 이용약관과 개인정보처리방침 조회
 
@@ -178,7 +179,8 @@ FCM 기반 iOS 푸시는 Firebase에 APNs 인증 키를 설정해야 한다. 직
 
 - 한 회원은 여러 디바이스를 등록할 수 있다.
 - 클라이언트는 앱 설치 단위의 `deviceId`를 안정적으로 생성해 전달한다.
-- 서버 모델은 FCM 토큰이라는 이름에 고정하지 않고 `providerRegistrationId`로 저장한다. FCM 등록 토큰과 Firebase Installation ID 전환을 수용하기 위함이다.
+- P1 iOS 클라이언트는 FCM 등록 토큰을 서버의 `providerRegistrationId`로 전달한다.
+- 서버 필드명은 향후 직접 APNs Provider를 추가할 수 있도록 공급자에 종속되지 않게 유지한다.
 - 등록 식별자는 복원이 가능한 암호화 값과 조회·중복 검사용 해시를 함께 저장한다.
 - 등록 식별자 원문을 로그, 오류 응답, Swagger 예시에 노출하지 않는다.
 - 같은 `deviceId`의 재등록은 갱신으로 처리한다.
@@ -192,12 +194,17 @@ FCM 기반 iOS 푸시는 Firebase에 APNs 인증 키를 설정해야 한다. 직
 ### FR-05. 알림 생성과 FCM 발송
 
 - 알림 생성과 FCM 발송을 분리한다.
-- 도메인 상태 변경과 알림/Outbox 저장은 같은 트랜잭션으로 처리한다.
+- 도메인 상태 변경과 알림/Delivery 저장은 같은 트랜잭션으로 처리한다.
 - 실제 외부 FCM 호출은 트랜잭션 커밋 이후 비동기 Worker가 수행한다.
-- FCM HTTP v1 또는 Firebase Admin SDK를 사용하며 Legacy API는 사용하지 않는다.
+- Java Firebase Admin SDK를 사용하며 Legacy API와 직접 OAuth2 토큰 관리 방식은 사용하지 않는다.
 - 일시적 오류는 지수 백오프로 제한된 횟수만 재시도한다.
 - 영구적인 등록 식별자 오류는 디바이스를 `INVALIDATED`로 변경한다.
-- 동일한 도메인 이벤트로 같은 회원에게 알림이 중복 생성되지 않도록 멱등성 키를 둔다.
+- 동일한 도메인 이벤트로 같은 회원에게 알림이 중복 생성되지 않도록 아래 멱등성 키를 둔다.
+  - 커플 연결: `COUPLE_CONNECTED:{coupleId}:{receiverMemberId}`
+  - 커플 해제: `COUPLE_DISCONNECTED:{coupleId}:{receiverMemberId}`
+  - 콘텐츠 마일스톤: `CONTENT_MILESTONE:{coupleId}:{saverMemberId}:{milestone}:{receiverMemberId}`
+  - 일정 리마인드: `DATE_REMINDER:{scheduleId}:{reminderAt}:{receiverMemberId}`
+  - 마케팅: `MARKETING:{campaignId}:{receiverMemberId}`
 - 한 회원의 여러 활성 디바이스에는 각각 전송하되 알림함 레코드는 회원당 하나만 생성한다.
 - FCM 전송 실패가 원본 도메인 트랜잭션을 롤백시키지 않아야 한다.
 - 실제 서비스 계정 JSON, 개인키, APNs 인증 키는 저장소와 로그에 포함하지 않는다.
@@ -208,8 +215,9 @@ FCM 기반 iOS 푸시는 Firebase에 APNs 인증 키를 설정해야 한다. 직
 - 연결 완료 알림은 연결된 두 회원에게 회원별 알림 한 건씩 생성한다.
 - 사용자 요청으로 연결이 해제되면 요청자가 아닌 상대방에게 연결 해제 알림을 생성한다.
 - 회원 탈퇴로 연결이 해제되면 남아 있는 활성 상대방에게만 알림을 생성한다.
-- 이벤트 Listener는 FCM을 직접 호출하지 않고 알림과 Outbox를 생성한다.
-- 트랜잭션이 롤백되면 알림과 Outbox도 생성되지 않아야 한다.
+- 이벤트 Listener는 `@TransactionalEventListener(phase = BEFORE_COMMIT)`으로 실행하여 현재 도메인 트랜잭션 안에서 알림과 디바이스별 Delivery를 저장한다.
+- Listener는 FCM을 직접 호출하지 않는다. 실제 발송 Worker는 커밋 이후 실행한다.
+- 트랜잭션이 롤백되면 알림과 Delivery도 생성되지 않아야 한다.
 
 ### FR-07. 내가 받은 알림 목록
 
@@ -217,12 +225,16 @@ FCM 기반 iOS 푸시는 Firebase에 APNs 인증 키를 설정해야 한다. 직
 - 최신 알림부터 커서 기반으로 조회한다.
 - 기본 조회 크기는 20건, 최대 50건으로 제한한다.
 - 응답에는 알림 ID, 유형, 제목, 본문, 이동 정보, 읽음 여부, 생성 시각을 포함한다.
-- 응답에는 `unreadCount`를 함께 제공한다.
+- 응답에는 현재 페이지가 아닌 회원 전체 알림의 미확인 개수인 `unreadCount`를 함께 제공한다.
 - 단건 읽음 처리는 멱등해야 한다.
 - 전체 읽음 처리를 지원한다.
-- 알림 이동 정보는 임의 URL이 아닌 서버가 정의한 `route`와 필요한 식별자로 제한한다.
+- 알림 이동 정보는 임의 URL이 아닌 다음 `route` 코드와 필요한 식별자로 제한한다.
+  - `COUPLE_STATUS`: 커플 연결 상태
+  - `SAVED_CONTENTS`: 저장 콘텐츠 목록
+  - `DATE_SCHEDULE`: 데이트 일정
+  - `NOTICE`: 별도 이동 없는 공지
 - 알림 본문에 연결 코드, FCM 등록 식별자, 이메일 등 민감 정보를 포함하지 않는다.
-- 알림 보관 기간이 지나면 정리 작업으로 삭제한다. 구체적인 기간은 구현 전 확정한다.
+- 알림은 생성일로부터 90일간 보관한 뒤 정리 작업으로 삭제한다.
 
 ### FR-08. 콘텐츠 저장 10건 단위 알림
 
@@ -343,9 +355,14 @@ PENDING -> SKIPPED
   "contentSavedEnabled": true,
   "dateScheduleEnabled": true,
   "marketingEnabled": false,
+  "marketingConsentVersion": null,
+  "availableMarketingConsentVersion": "2026-08-07",
   "updatedAt": "2026-08-07T18:20:00"
 }
 ```
+
+- `marketingConsentVersion`: 회원의 현재 마케팅 동의에 적용된 버전이며 미동의 상태에서는 `null`
+- `availableMarketingConsentVersion`: 마케팅 알림을 켤 때 요청에 넣어야 하는 서버의 최신 버전
 
 ### 9.4 알림 설정 수정
 
@@ -389,7 +406,8 @@ PENDING -> SKIPPED
 
 `DELETE /api/v1/push-devices/{deviceId}`
 
-- 성공 및 이미 해제된 경우 모두 `204 No Content`
+- 자신이 등록한 디바이스는 성공 및 이미 해제된 경우 모두 `204 No Content`
+- 존재하지 않거나 다른 회원이 소유한 디바이스는 `404 Not Found`
 - 다른 회원의 디바이스 ID에는 접근할 수 없음
 
 ### 9.7 알림 목록 조회
@@ -410,11 +428,13 @@ PENDING -> SKIPPED
       "createdAt": "2026-08-07T18:20:00"
     }
   ],
-  "nextCursor": "opaque-cursor",
+  "nextCursor": "AAAAAAAAAGc",
   "hasNext": false,
   "unreadCount": 1
 }
 ```
+
+`nextCursor`는 마지막 알림 ID를 8바이트 big-endian 값으로 변환한 뒤 padding 없는 Base64URL로 인코딩한다. 서버는 다음 페이지에서 `id < decodedCursor` 조건을 사용하므로 별도 서버 상태가 없고 다중 인스턴스에서도 동일하게 동작한다. 클라이언트는 커서를 해석하거나 생성하지 않고 응답 값을 그대로 전달한다.
 
 ### 9.8 알림 읽음 처리
 
@@ -469,6 +489,7 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 | `content_saved_enabled` | 콘텐츠 저장 푸시 설정 |
 | `date_schedule_enabled` | 일정 푸시 설정 |
 | `marketing_enabled` | 마케팅 동의 상태 |
+| `marketing_consent_version` | 현재 활성 마케팅 동의 버전, 미동의 시 null |
 | `created_at`, `updated_at` | 생성·수정 시각 |
 
 ### 11.3 `marketing_consent_histories`
@@ -498,8 +519,8 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 | `invalidated_at` | 무효화 시각 |
 | `created_at`, `updated_at` | 생성·수정 시각 |
 
-- UNIQUE `(provider, registration_hash)`
-- UNIQUE `(member_id, device_id, provider)` 또는 전역 `device_id` 정책을 구현 전 확정
+- UNIQUE `(provider, registration_hash)` — 같은 공급자의 등록 식별자가 여러 회원에게 동시에 귀속되는 것을 방지하며 APNs 확장을 고려함
+- UNIQUE `(provider, device_id)` — 앱 설치 단위 디바이스는 한 회원에게만 귀속하며 재로그인 시 소유권을 원자적으로 이전함
 - INDEX `(member_id, status)`
 
 ### 11.5 `notifications`
@@ -521,19 +542,22 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 - INDEX `(receiver_member_id, id DESC)`
 - INDEX `(receiver_member_id, read_at)`
 
-### 11.6 `notification_outbox`
+알림 유형 코드:
 
-| 컬럼 | 설명 |
-| --- | --- |
-| `id` | PK |
-| `notification_id` | 알림 FK |
-| `status` | `PENDING`, `SENDING`, `RETRY_PENDING`, `SENT`, `FAILED`, `SKIPPED` |
-| `next_attempt_at` | 다음 시도 시각 |
-| `attempt_count` | 시도 횟수 |
-| `last_error_code` | 정규화한 공급자 오류 코드 |
-| `created_at`, `updated_at` | 생성·수정 시각 |
+- `COUPLE_CONNECTED`
+- `COUPLE_DISCONNECTED`
+- `CONTENT_SAVE_MILESTONE`
+- `DATE_SCHEDULE_REMINDER`
+- `MARKETING`
 
-### 11.7 `notification_deliveries`
+알림 route 코드:
+
+- `COUPLE_STATUS`
+- `SAVED_CONTENTS`
+- `DATE_SCHEDULE`
+- `NOTICE`
+
+### 11.6 `notification_deliveries`
 
 | 컬럼 | 설명 |
 | --- | --- |
@@ -541,12 +565,17 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 | `notification_id` | 알림 FK |
 | `push_device_id` | 디바이스 FK |
 | `provider` | `FCM`, 향후 `APNS` |
-| `status` | 디바이스별 발송 상태 |
+| `status` | `PENDING`, `SENDING`, `RETRY_PENDING`, `SENT`, `FAILED` |
 | `provider_message_id` | 성공 시 공급자 메시지 ID |
 | `attempt_count` | 시도 횟수 |
+| `next_attempt_at` | 다음 시도 시각 |
+| `last_error_code` | 정규화한 공급자 오류 코드 |
 | `last_attempted_at` | 마지막 시도 시각 |
+| `created_at`, `updated_at` | 생성·수정 시각 |
 
-### 11.8 `couple_content_save_counters`
+`notification_deliveries`가 디바이스별 Outbox 역할을 함께 담당한다. 재시도 단위는 알림 전체가 아니라 개별 Delivery이며 한 디바이스의 실패가 다른 디바이스의 성공 상태를 되돌리지 않는다. Apple 철회 Outbox와 동일하게 `attempt_count`, `next_attempt_at` 기반 백오프를 사용하되 서로 다른 도메인 payload를 억지로 공통 Entity로 추상화하지 않는다.
+
+### 11.7 `couple_content_save_counters`
 
 | 컬럼 | 설명 |
 | --- | --- |
@@ -554,6 +583,7 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 | `saver_member_id` | 저장 회원 FK |
 | `save_count` | 멱등 저장 이벤트 누적 건수 |
 | `last_notified_milestone` | 마지막 알림 기준 건수 |
+| `created_at` | 카운터 생성 시각 |
 | `updated_at` | 변경 시각 |
 
 - PK `(couple_id, saver_member_id)`
@@ -576,14 +606,14 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 ```text
 도메인 상태 변경
 -> 도메인 이벤트 발행
--> 같은 트랜잭션에서 알림/Outbox 저장
+-> BEFORE_COMMIT Listener가 같은 트랜잭션에서 알림/Delivery 저장
 -> 커밋
--> Outbox Worker가 수신 설정과 활성 디바이스 확인
+-> Delivery Worker가 재시도 가능한 디바이스별 Delivery 선점
 -> FCM 전송
 -> 디바이스별 결과 기록
 ```
 
-`PushProvider` 인터페이스를 두고 P1에서는 `FcmPushProvider`만 구현한다. 향후 직접 APNs가 필요하면 `ApnsPushProvider`를 추가하고 알림 생성 로직은 유지한다.
+`PushProvider` 인터페이스를 두고 P1에서는 Firebase Admin SDK 기반 `FcmPushProvider`만 구현한다. 향후 직접 APNs가 필요하면 `ApnsPushProvider`를 추가하고 알림 생성 로직은 유지한다.
 
 ---
 
@@ -593,8 +623,8 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 - 디바이스 등록 식별자 귀속 변경은 해당 등록 행을 잠그고 원자적으로 처리한다.
 - 회원 탈퇴와 디바이스 재등록이 경합하면 탈퇴 상태가 최종 우선하며 활성 디바이스가 남지 않아야 한다.
 - 마케팅 설정 변경과 캠페인 대상자 확정이 경합하면 실제 발송 직전에 최신 동의 상태를 다시 검사한다.
-- 알림 생성은 원본 도메인 상태와 같은 트랜잭션에서 처리하거나 동일한 보장 수준의 Transactional Outbox를 사용한다.
-- 여러 Worker가 같은 Outbox를 처리하지 않도록 조건부 상태 전이 또는 행 잠금을 사용한다.
+- 알림과 Delivery는 `BEFORE_COMMIT` Listener가 원본 도메인 상태와 같은 트랜잭션에서 저장한다.
+- 여러 Worker가 같은 Delivery를 처리하지 않도록 조건부 상태 전이 또는 행 잠금을 사용한다.
 - 콘텐츠 저장 카운터 증가는 원자적이어야 하며 동시에 10번째 저장이 처리되어도 마일스톤 알림은 한 번만 생성되어야 한다.
 - 읽음 처리와 전체 읽음 처리는 반복 호출해도 동일한 결과를 반환해야 한다.
 - 외부 FCM 호출은 DB 트랜잭션과 분리하고 긴 네트워크 호출 동안 도메인 행 잠금을 유지하지 않는다.
@@ -648,8 +678,8 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 
 ### AC-05 알림함과 발송
 
-- 대상 이벤트가 커밋되면 회원별 알림과 Outbox가 생성된다.
-- 원본 트랜잭션이 롤백되면 알림과 Outbox가 남지 않는다.
+- 대상 이벤트가 커밋되면 회원별 알림과 디바이스별 Delivery가 생성된다.
+- 원본 트랜잭션이 롤백되면 알림과 Delivery가 남지 않는다.
 - 동일 이벤트를 재처리해도 같은 회원에게 알림이 중복 생성되지 않는다.
 - 푸시 실패와 무관하게 생성된 알림은 알림함에서 조회된다.
 - 회원은 다른 회원의 알림을 조회하거나 읽음 처리할 수 없다.
@@ -688,8 +718,8 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 - 실제 MySQL 제약조건을 사용한 피드백 중복 등록
 - 같은 등록 식별자를 서로 다른 회원이 동시에 등록하는 경합
 - 로그아웃·탈퇴와 디바이스 재등록 경합
-- 도메인 롤백 시 알림/Outbox 미생성
-- 여러 Worker의 동일 Outbox 선점 경합
+- 도메인 롤백 시 알림/Delivery 미생성
+- 여러 Worker의 동일 Delivery 선점 경합
 - 콘텐츠 10번째 동시 저장 시 알림 한 건 생성
 - 마케팅 동의 변경과 발송 경합
 - 알림 목록 커서 페이지네이션과 소유권 검증
@@ -706,7 +736,7 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 
 ## 17. 관측성과 운영
 
-- Outbox 대기 건수와 가장 오래된 대기 시간을 모니터링한다.
+- Delivery 대기 건수와 가장 오래된 대기 시간을 모니터링한다.
 - 알림 유형별 생성 건수, FCM 성공·재시도·영구 실패·설정 OFF 생략 건수를 집계한다.
 - 무효 디바이스 비율과 마지막 갱신 시각 분포를 확인한다.
 - 피드백 등록 요청 제한 초과와 비정상 반복 제출을 집계한다.
@@ -723,7 +753,7 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 - 기존 법적 문서 URL iOS 연결
 - 알림 설정과 마케팅 동의 이력
 - 푸시 디바이스 등록·해제
-- 알림함과 Outbox
+- 알림함과 디바이스별 Delivery Outbox
 - FCM 개발 환경 연동
 
 ### 2단계: 기존 이벤트 연결
@@ -746,20 +776,18 @@ FCM의 상세 오류 메시지, 서비스 계정 정보와 등록 식별자는 �
 
 ---
 
-## 19. 구현 전 확정이 필요한 제품 결정
+## 19. 확정된 제품·기술 결정
 
-1. 콘텐츠·일정 설정 OFF가 FCM만 끄는지, 앱 알림함 생성도 막는지
-2. 커플 연결·해제 시스템 알림을 강제 푸시할지
-3. 피드백 등록 제한 횟수와 보관 기간
-4. 피드백에 운영자 답변이 필요한지, 필요하면 답변 채널이 무엇인지
-5. 알림함 보관 기간과 최대 보관 건수
-6. 콘텐츠 저장 10건의 기준이 현재 Couple 연결 이후 저장 이벤트인지, 회원의 전체 누적 저장 수인지
-7. 데이트 일정 리마인드 시각을 사용자가 선택하는지, 서비스가 기본값을 제공하는지
-8. 마케팅 동의 문구와 버전 관리 주체
-9. 시스템 알림과 마케팅 알림의 제목·본문 문구
-10. FCM 등록 토큰 방식과 Firebase Installation ID 방식 중 iOS 프로젝트가 사용할 현재 방식
-
-권장안은 이 문서에 정의한 대로 현재 Couple 관계 안의 저장 이벤트만 집계하고, 콘텐츠·일정 설정은 FCM만 제어하며, 마케팅 설정은 알림함과 FCM을 모두 제어하는 방식이다.
+1. 콘텐츠·일정 설정 OFF는 FCM만 끄고 앱 알림함에는 저장한다.
+2. 커플 연결·해제 시스템 알림은 앱 알림함과 FCM을 모두 사용한다.
+3. 피드백은 최근 24시간 10회로 제한하고 1년 보관한다.
+4. 피드백 운영자 답변은 이번 범위에 포함하지 않는다.
+5. 알림함은 90일 보관하며 별도 최대 건수 제한은 두지 않는다.
+6. 콘텐츠 저장 10건은 현재 Couple 연결 이후의 멱등 저장 이벤트를 기준으로 한다.
+7. 데이트 일정 리마인드 시각은 일정 기능에서 사용자가 선택하며 이 PRD는 확정된 이벤트를 소비한다.
+8. 마케팅 동의 문구 버전은 `MARKETING_CONSENT_VERSION` 운영 설정으로 관리하고 API 응답으로 공개한다.
+9. 제목·본문은 서버의 알림 유형별 Template에서 관리하며 개인정보와 연결 코드를 포함하지 않는다.
+10. P1 iOS는 FCM 등록 토큰을 사용하고 Firebase Admin SDK로 발송한다.
 
 ---
 
