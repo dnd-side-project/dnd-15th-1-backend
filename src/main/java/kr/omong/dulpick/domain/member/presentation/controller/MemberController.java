@@ -106,6 +106,10 @@ public class MemberController {
             description = """
                     저장된 네 가지 데이트 성향을 교체합니다.
                     요청에는 네 필드를 모두 포함해야 합니다.
+                    indoorOutdoor: INDOOR(실내), OUTDOOR(실외)
+                    activityLevel: ACTIVE(액티비티), STATIC(정적)
+                    dateTime: DAY(낮 데이트), NIGHT(밤 데이트)
+                    dateFocus: FOOD(식사 중심), SIGHTSEEING(볼거리 중심)
                     """
     )
     @PutMapping("/me/date-preferences")
