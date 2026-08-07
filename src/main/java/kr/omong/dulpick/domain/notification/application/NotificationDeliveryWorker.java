@@ -51,7 +51,7 @@ public class NotificationDeliveryWorker {
             PushSendException failure = new PushSendException(
                     "TOKEN_DECRYPTION_FAILED",
                     false,
-                    false,
+                    true,
                     exception
             );
             resultService.markFailed(task.deliveryId(), failure);

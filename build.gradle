@@ -57,6 +57,7 @@ dependencies {
 
 tasks.named('test') {
     useJUnitPlatform()
+    systemProperty 'notification.fcm.enabled', 'false'
     jvmArgs += '-Xshare:off'
     jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 }

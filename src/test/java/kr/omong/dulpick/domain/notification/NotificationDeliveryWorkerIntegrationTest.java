@@ -10,6 +10,7 @@ import kr.omong.dulpick.domain.notification.application.NotificationDeliveryResu
 import kr.omong.dulpick.domain.notification.application.NotificationDeliveryWorker;
 import kr.omong.dulpick.domain.notification.application.PushDeviceService;
 import kr.omong.dulpick.domain.notification.application.RegisterPushDeviceCommand;
+import kr.omong.dulpick.domain.notification.config.PushProperties;
 import kr.omong.dulpick.domain.notification.domain.NotificationDelivery;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryStatus;
@@ -29,8 +30,11 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.UUID;
 
@@ -119,6 +123,29 @@ class NotificationDeliveryWorkerIntegrationTest {
                 .isEqualTo(PushDeviceStatus.INVALIDATED);
     }
 
+    @Test
+    void invalidatesDeviceWhenRegistrationTokenCannotBeDecrypted() {
+        Long memberId = createDelivery();
+        PushRegistrationCipher mismatchedCipher = new PushRegistrationCipher(
+                new PushProperties(differentEncryptionKey()),
+                new SecureRandom()
+        );
+        NotificationDeliveryWorker worker = worker(
+                mismatchedCipher,
+                (registrationId, message) -> {
+                    throw new AssertionError("Push provider must not be called");
+                }
+        );
+
+        worker.process(delivery(memberId).getId());
+
+        NotificationDelivery delivery = delivery(memberId);
+        assertThat(delivery.getStatus()).isEqualTo(NotificationDeliveryStatus.FAILED);
+        assertThat(delivery.getLastErrorCode()).isEqualTo("TOKEN_DECRYPTION_FAILED");
+        assertThat(delivery.getPushDeviceStatus())
+                .isEqualTo(PushDeviceStatus.INVALIDATED);
+    }
+
     private Long createDelivery() {
         Member receiver = createMember();
         Member partner = createMember();
@@ -158,12 +185,25 @@ class NotificationDeliveryWorkerIntegrationTest {
     }
 
     private NotificationDeliveryWorker worker(PushMessageProvider provider) {
+        return worker(registrationCipher, provider);
+    }
+
+    private NotificationDeliveryWorker worker(
+            PushRegistrationCipher cipher,
+            PushMessageProvider provider
+    ) {
         return new NotificationDeliveryWorker(
                 claimService,
                 resultService,
-                registrationCipher,
+                cipher,
                 provider
         );
+    }
+
+    private String differentEncryptionKey() {
+        byte[] key = "12345678901234567890123456789012"
+                .getBytes(StandardCharsets.UTF_8);
+        return Base64.getEncoder().encodeToString(key);
     }
 
     private static class TransactionCheckingProvider implements PushMessageProvider {
