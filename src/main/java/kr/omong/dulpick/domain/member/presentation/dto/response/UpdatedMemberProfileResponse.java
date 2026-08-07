@@ -7,7 +7,7 @@ public record UpdatedMemberProfileResponse(
         @Schema(description = "앞뒤 공백이 제거되어 저장된 최신 닉네임", example = "둘픽이")
         String nickname,
         @Schema(
-                description = "저장된 최신 iOS 내장 프로필 에셋 번호",
+                description = "iOS 프로필 에셋 번호(1~5)",
                 minimum = "1",
                 maximum = "5",
                 example = "3"

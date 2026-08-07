@@ -6,7 +6,7 @@ import kr.omong.dulpick.domain.couple.application.query.view.ConnectionCodePrevi
 public record ConnectionCodePreviewResponse(
         @Schema(description = "연결 확정 전에 표시할 상대방 닉네임", example = "상대방")
         String nickname,
-        @Schema(description = "iOS가 내장 에셋에 매핑할 상대방 프로필 아이콘 번호", example = "3", minimum = "1", maximum = "5")
+        @Schema(description = "iOS 프로필 에셋 번호(1~5)", example = "3", minimum = "1", maximum = "5")
         int profileIcon
 ) {
 

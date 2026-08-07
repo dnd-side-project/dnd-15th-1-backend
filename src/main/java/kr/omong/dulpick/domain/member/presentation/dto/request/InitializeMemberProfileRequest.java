@@ -11,7 +11,7 @@ import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfil
 public record InitializeMemberProfileRequest(
         @NotBlank
         @Schema(
-                description = "최초 닉네임. 앞뒤 공백 제거 후 사용자 인식 문자 기준 1~6자이며, 공백만 또는 제어 문자는 허용하지 않습니다.",
+                description = "닉네임. 앞뒤 공백을 제외한 사용자 인식 문자 기준 1~6자",
                 minLength = 1,
                 maxLength = 6,
                 example = "둘픽이"
@@ -21,7 +21,7 @@ public record InitializeMemberProfileRequest(
         @Min(1)
         @Max(5)
         @Schema(
-                description = "프로필 아이콘 번호(1~5). iOS가 번호에 맞는 내장 에셋을 표시하며 서버는 이미지 URL을 제공하지 않습니다.",
+                description = "iOS 프로필 에셋 번호(1~5)",
                 minimum = "1",
                 maximum = "5",
                 example = "1"

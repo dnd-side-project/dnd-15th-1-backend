@@ -49,11 +49,8 @@ public class MemberController {
     @Operation(
             summary = "내 정보 조회",
             description = """
-                    로그인 직후 또는 마이페이지 진입 시 현재 회원 상태와 프로필을 조회할 때 사용합니다.
-
-                    onboardingCompleted가 false이면 아직 최초 프로필 설정 전이므로 nickname, profileIcon,
-                    datePreferences가 null이며, 프론트는 온보딩 화면으로 이동할 수 있습니다.
-                    true이면 서버에 저장된 최신 프로필과 4가지 데이트 성향을 반환합니다.
+                    현재 회원 상태와 프로필을 조회합니다.
+                    onboardingCompleted가 false이면 프로필과 데이트 성향은 null입니다.
                     """
     )
     @GetMapping("/me")
@@ -65,13 +62,8 @@ public class MemberController {
     @Operation(
             summary = "최초 프로필과 데이트 성향 설정",
             description = """
-                    소셜 로그인 후 최초 온보딩에서 닉네임, 프로필 아이콘, 데이트 성향을 처음 저장할 때 사용합니다.
-
-                    닉네임은 앞뒤 공백 제거 후 사용자 인식 문자 기준 1~6자이며 공백만 또는 제어 문자는 허용하지 않습니다.
-                    profileIcon은 1~5 중 하나이고, iOS가 이 번호를 앱 내장 그래픽 에셋과 매핑합니다.
-                    데이트 성향은 네 범주에서 각각 하나씩 모두 선택해야 합니다.
-                    설정 완료 시 상대방에게 공유할 영문 대문자 6자리 연결 코드도 함께 자동 발급됩니다.
-                    이미 최초 설정을 완료한 회원은 이 API 대신 마이페이지 프로필/데이트 성향 수정 API를 사용합니다.
+                    최초 프로필과 네 가지 데이트 성향을 저장합니다.
+                    완료되면 영문 대문자 6자리 연결 코드를 함께 반환합니다.
                     """
     )
     @PostMapping("/me/profile")
@@ -89,11 +81,8 @@ public class MemberController {
     @Operation(
             summary = "마이페이지 기본 프로필 수정",
             description = """
-                    온보딩 완료 후 마이페이지에서 닉네임 또는 프로필 아이콘을 변경할 때 사용합니다.
-
-                    nickname과 profileIcon 중 적어도 하나를 전달해야 하며, 생략한 값은 기존 값을 유지합니다.
-                    닉네임은 앞뒤 공백 제거 후 사용자 인식 문자 기준 1~6자이고 profileIcon은 1~5입니다.
-                    커플 연결 중 수정해도 상대방이 연결 상태를 다시 조회하면 변경된 최신 프로필이 반환됩니다.
+                    닉네임 또는 프로필 아이콘을 변경합니다.
+                    두 필드 중 하나 이상 필요하며 생략한 값은 유지됩니다.
                     """
     )
     @PatchMapping("/me/profile")
@@ -111,12 +100,8 @@ public class MemberController {
     @Operation(
             summary = "마이페이지 데이트 성향 수정",
             description = """
-                    온보딩 완료 후 마이페이지에서 나의 데이트 성향을 다시 선택할 때 사용합니다.
-
-                    네 범주를 부분 수정하지 않고 항상 모두 전달합니다.
-                    indoorOutdoor는 INDOOR/OUTDOOR, activityLevel은 ACTIVE/STATIC,
-                    dateTime은 DAY/NIGHT, dateFocus는 FOOD/SIGHTSEEING 중 하나만 허용합니다.
-                    각 필드에 다른 범주의 값을 넣으면 유효하지 않은 프로필 요청으로 거부합니다.
+                    저장된 네 가지 데이트 성향을 교체합니다.
+                    요청에는 네 필드를 모두 포함해야 합니다.
                     """
     )
     @PutMapping("/me/date-preferences")
@@ -134,12 +119,8 @@ public class MemberController {
     @Operation(
             summary = "회원 탈퇴",
             description = """
-                    마이페이지에서 사용자가 회원 탈퇴를 최종 확인한 뒤 계정을 비활성화할 때 사용합니다.
-
-                    발급된 Refresh Token을 모두 폐기하고 tokenVersion을 변경해 기존 Access Token을 차단합니다.
-                    커플 연결 중이라면 같은 트랜잭션에서 관계를 해제하고 상대방 데이터 접근을 즉시 차단합니다.
-                    탈퇴 회원에게는 새 연결 코드를 발급하지 않으며, 활성 상태로 남은 상대방에게만 새 코드를 발급합니다.
-                    Apple 철회 정보가 저장된 경우 로컬 탈퇴를 먼저 완료한 뒤 서버가 Apple 연결 해제를 비동기로 재시도합니다.
+                    현재 회원을 탈퇴 처리하고 발급된 인증 토큰을 무효화합니다.
+                    활성 커플이 있으면 연결도 함께 해제됩니다.
                     """
     )
     @DeleteMapping("/me")

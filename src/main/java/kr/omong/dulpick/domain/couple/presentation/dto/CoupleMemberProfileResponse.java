@@ -11,7 +11,7 @@ public record CoupleMemberProfileResponse(
                 maxLength = 6
         )
         String nickname,
-        @Schema(description = "iOS가 내장 에셋에 매핑할 프로필 아이콘 번호", example = "1", minimum = "1", maximum = "5")
+        @Schema(description = "iOS 프로필 에셋 번호(1~5)", example = "1", minimum = "1", maximum = "5")
         int profileIcon
 ) {
 
