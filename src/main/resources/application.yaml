@@ -61,6 +61,12 @@ notification:
     max-retry-delay: ${FCM_MAX_RETRY_DELAY:1h}
     sending-timeout: ${FCM_SENDING_TIMEOUT:10m}
     max-attempts: ${FCM_MAX_ATTEMPTS:5}
+  maintenance:
+    fixed-delay: ${NOTIFICATION_CLEANUP_DELAY:1h}
+    notification-retention: ${NOTIFICATION_RETENTION:90d}
+    feedback-retention: ${FEEDBACK_RETENTION:365d}
+    batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
+    max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 
 auth:
   jwt:

@@ -69,4 +69,15 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
             @Param("memberId") Long memberId,
             @Param("readAt") Instant readAt
     );
+
+    @Query("""
+            SELECT notification.id
+            FROM Notification notification
+            WHERE notification.createdAt < :retainedAfter
+            ORDER BY notification.id
+            """)
+    List<Long> findExpiredIds(
+            @Param("retainedAfter") Instant retainedAfter,
+            Pageable pageable
+    );
 }
