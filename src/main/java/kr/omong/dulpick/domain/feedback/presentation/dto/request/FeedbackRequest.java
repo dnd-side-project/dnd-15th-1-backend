@@ -11,7 +11,14 @@ import java.util.UUID;
 
 public record FeedbackRequest(
         @NotNull
-        @Schema(description = "중복 접수 방지를 위해 iOS가 생성한 요청 UUID")
+        @Schema(
+                description = """
+                        iOS가 피드백 전송 전에 생성하는 요청 UUID입니다.
+                        동일한 피드백 전송을 재시도할 때는 같은 UUID를 사용하고,
+                        새로운 피드백에는 새로운 UUID를 생성합니다.
+                        """,
+                example = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+        )
         UUID clientRequestId,
         @NotNull
         @Schema(
