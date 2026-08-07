@@ -1,9 +1,9 @@
 package kr.omong.dulpick.domain.notification;
 
 import kr.omong.dulpick.domain.couple.domain.event.CoupleDisconnectedEvent;
-import kr.omong.dulpick.domain.notification.application.CoupleNotificationEventListener;
-import kr.omong.dulpick.domain.notification.application.NotificationCreationService;
-import kr.omong.dulpick.domain.notification.application.NotificationRequest;
+import kr.omong.dulpick.domain.notification.application.command.NotificationCreationService;
+import kr.omong.dulpick.domain.notification.application.command.NotificationRequest;
+import kr.omong.dulpick.domain.notification.application.event.CoupleNotificationEventListener;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 

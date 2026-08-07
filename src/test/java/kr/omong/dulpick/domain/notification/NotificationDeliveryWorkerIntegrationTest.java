@@ -5,11 +5,11 @@ import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorizat
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.couple.domain.event.CoupleConnectedEvent;
 import kr.omong.dulpick.domain.member.domain.Member;
-import kr.omong.dulpick.domain.notification.application.NotificationDeliveryClaimService;
-import kr.omong.dulpick.domain.notification.application.NotificationDeliveryResultService;
-import kr.omong.dulpick.domain.notification.application.NotificationDeliveryWorker;
-import kr.omong.dulpick.domain.notification.application.PushDeviceService;
-import kr.omong.dulpick.domain.notification.application.RegisterPushDeviceCommand;
+import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
+import kr.omong.dulpick.domain.notification.application.command.RegisterPushDeviceCommand;
+import kr.omong.dulpick.domain.notification.application.support.NotificationDeliveryClaimService;
+import kr.omong.dulpick.domain.notification.application.support.NotificationDeliveryResultService;
+import kr.omong.dulpick.domain.notification.application.support.NotificationDeliveryWorker;
 import kr.omong.dulpick.domain.notification.config.PushProperties;
 import kr.omong.dulpick.domain.notification.domain.NotificationDelivery;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;

@@ -7,8 +7,8 @@ import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorizat
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.couple.domain.event.CoupleConnectedEvent;
 import kr.omong.dulpick.domain.member.domain.Member;
-import kr.omong.dulpick.domain.notification.application.PushDeviceService;
-import kr.omong.dulpick.domain.notification.application.RegisterPushDeviceCommand;
+import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
+import kr.omong.dulpick.domain.notification.application.command.RegisterPushDeviceCommand;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;
 import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
 import kr.omong.dulpick.domain.notification.domain.PushPlatform;

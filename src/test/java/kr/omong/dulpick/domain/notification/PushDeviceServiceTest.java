@@ -2,8 +2,8 @@ package kr.omong.dulpick.domain.notification;
 
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
-import kr.omong.dulpick.domain.notification.application.PushDeviceService;
-import kr.omong.dulpick.domain.notification.application.RegisterPushDeviceCommand;
+import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
+import kr.omong.dulpick.domain.notification.application.command.RegisterPushDeviceCommand;
 import kr.omong.dulpick.domain.notification.application.exception.PushRegistrationUnavailableException;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceRepository;
 import kr.omong.dulpick.domain.notification.domain.PushPlatform;

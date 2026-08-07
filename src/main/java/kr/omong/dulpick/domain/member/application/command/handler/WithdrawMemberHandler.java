@@ -4,7 +4,7 @@ import kr.omong.dulpick.domain.auth.application.support.AppleAccountRevocationSe
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.couple.application.support.CoupleDisconnectionService;
 import kr.omong.dulpick.domain.member.domain.Member;
-import kr.omong.dulpick.domain.notification.application.PushDeviceService;
+import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 

@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.notification;
 
-import kr.omong.dulpick.domain.notification.application.NotificationCursorCodec;
+import kr.omong.dulpick.domain.notification.application.support.NotificationCursorCodec;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
