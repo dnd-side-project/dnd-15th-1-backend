@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.support.AppleAccountRevocationSe
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.couple.application.support.CoupleDisconnectionService;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.notification.application.PushDeviceService;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,17 +17,20 @@ public class WithdrawMemberHandler {
     private final RefreshTokenRepository refreshTokenRepository;
     private final AppleAccountRevocationService appleAccountRevocationService;
     private final CoupleDisconnectionService coupleDisconnectionService;
+    private final PushDeviceService pushDeviceService;
     private final Clock clock;
 
     public WithdrawMemberHandler(
             RefreshTokenRepository refreshTokenRepository,
             AppleAccountRevocationService appleAccountRevocationService,
             CoupleDisconnectionService coupleDisconnectionService,
+            PushDeviceService pushDeviceService,
             Clock clock
     ) {
         this.refreshTokenRepository = refreshTokenRepository;
         this.appleAccountRevocationService = appleAccountRevocationService;
         this.coupleDisconnectionService = coupleDisconnectionService;
+        this.pushDeviceService = pushDeviceService;
         this.clock = clock;
     }
 
@@ -38,6 +42,7 @@ public class WithdrawMemberHandler {
                 withdrawnAt
         );
         withdraw(member, memberId, withdrawnAt);
+        pushDeviceService.disableAllForWithdrawal(memberId, withdrawnAt);
         appleAccountRevocationService.enqueueForMember(memberId);
     }
 

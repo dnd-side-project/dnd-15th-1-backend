@@ -49,6 +49,8 @@ features:
 notification:
   marketing:
     consent-version: ${MARKETING_CONSENT_VERSION:2026-08-07}
+  push:
+    registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY:}}
 
 auth:
   jwt:

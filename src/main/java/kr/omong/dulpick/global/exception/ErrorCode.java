@@ -40,6 +40,8 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "최신 마케팅 수신 동의가 필요합니다"
     ),
+    PUSH_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "푸시 디바이스를 찾을 수 없습니다"),
+    PUSH_DEVICE_CONFLICT(HttpStatus.CONFLICT, "푸시 디바이스 등록 상태가 변경되었습니다"),
 
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),

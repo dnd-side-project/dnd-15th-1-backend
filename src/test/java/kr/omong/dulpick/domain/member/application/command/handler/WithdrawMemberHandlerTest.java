@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.couple.application.support.CoupleDisconnectionService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
+import kr.omong.dulpick.domain.notification.application.PushDeviceService;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -28,10 +29,12 @@ class WithdrawMemberHandlerTest {
             mock(AppleAccountRevocationService.class);
     private final CoupleDisconnectionService coupleDisconnectionService =
             mock(CoupleDisconnectionService.class);
+    private final PushDeviceService pushDeviceService = mock(PushDeviceService.class);
     private final WithdrawMemberHandler handler = new WithdrawMemberHandler(
             refreshTokenRepository,
             appleAccountRevocationService,
             coupleDisconnectionService,
+            pushDeviceService,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
 
@@ -46,6 +49,7 @@ class WithdrawMemberHandlerTest {
         verify(appleAccountRevocationService).enqueueForMember(1L);
         verify(coupleDisconnectionService).disconnectForWithdrawal(1L, NOW);
         verify(refreshTokenRepository).revokeAllByMemberId(1L, NOW);
+        verify(pushDeviceService).disableAllForWithdrawal(1L, NOW);
         assertThat(member.isActive()).isFalse();
         assertThat(member.getTokenVersion()).isEqualTo(1);
         assertThat(member.getLastWithdrawnAt()).isEqualTo(NOW);
@@ -61,6 +65,10 @@ class WithdrawMemberHandlerTest {
         assertThatThrownBy(() -> handler.handle(1L))
                 .isInstanceOf(MemberAlreadyWithdrawnException.class);
 
-        verifyNoInteractions(appleAccountRevocationService, refreshTokenRepository);
+        verifyNoInteractions(
+                appleAccountRevocationService,
+                refreshTokenRepository,
+                pushDeviceService
+        );
     }
 }
