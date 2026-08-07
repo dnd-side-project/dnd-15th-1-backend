@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
+import kr.omong.dulpick.domain.couple.domain.ConnectionCode;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeStatus;
 import kr.omong.dulpick.domain.couple.domain.CoupleRepository;
@@ -31,6 +32,7 @@ import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -103,6 +105,9 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.partner.nickname").value("초대자"))
                 .andExpect(jsonPath("$.connectedAt").isNotEmpty())
                 .andExpect(jsonPath("$.daysTogether").value(1));
+
+        assertConnectionCodeStatus(inviter, ConnectionCodeStatus.USED);
+        assertConnectionCodeStatus(requester, ConnectionCodeStatus.REVOKED);
 
         Long coupleId = activeCoupleMemberRepository
                 .findByMemberId(inviter.member().getId())
@@ -349,6 +354,24 @@ class CoupleConnectionIntegrationTest {
                 )
                 .map(code -> code.getCodeDigest())
                 .orElseThrow();
+    }
+
+    private void assertConnectionCodeStatus(
+            TestMember member,
+            ConnectionCodeStatus expectedStatus
+    ) {
+        List<ConnectionCode> codes = connectionCodeRepository.findAllByMemberId(
+                member.member().getId()
+        );
+        assertThat(codes)
+                .filteredOn(code -> code.getStatus() == ConnectionCodeStatus.ACTIVE)
+                .isEmpty();
+        assertThat(codes)
+                .filteredOn(code -> code.getCodeDigest().equals(
+                        Sha256.hex(member.connectionCode())
+                ))
+                .singleElement()
+                .satisfies(code -> assertThat(code.getStatus()).isEqualTo(expectedStatus));
     }
 
     private record TestMember(
