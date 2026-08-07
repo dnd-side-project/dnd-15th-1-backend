@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
+import kr.omong.dulpick.domain.auth.application.exception.ConcurrentSocialAccountCreationException;
 import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
 import kr.omong.dulpick.domain.auth.application.support.LoginNonceService;
 import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
@@ -13,7 +14,6 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -98,7 +98,7 @@ public class SocialLoginHandler {
                     identity.email(),
                     providerAuthorization
             );
-        } catch (DataIntegrityViolationException exception) {
+        } catch (ConcurrentSocialAccountCreationException exception) {
             return socialAccountService.getExisting(provider, identity.providerSubject());
         }
     }

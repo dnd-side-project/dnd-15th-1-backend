@@ -6,6 +6,8 @@ import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 
@@ -26,6 +28,7 @@ public class AppleAccountRevocationService {
         this.clock = clock;
     }
 
+    @Transactional(propagation = Propagation.MANDATORY)
     public void enqueueForMember(Long memberId) {
         socialAccountRepository.findAllByMemberId(memberId).stream()
                 .filter(this::hasAppleRefreshToken)

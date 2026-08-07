@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.auth.application.support;
 
+import kr.omong.dulpick.domain.auth.application.exception.ConcurrentSocialAccountCreationException;
 import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMember;
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
@@ -7,6 +8,8 @@ import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -14,6 +17,9 @@ import java.time.Clock;
 
 @Service
 public class SocialAccountService {
+
+    private static final String PROVIDER_SUBJECT_CONSTRAINT =
+            "uk_social_accounts_provider_subject";
 
     private final SocialAccountRepository socialAccountRepository;
     private final MemberRepository memberRepository;
@@ -96,8 +102,32 @@ public class SocialAccountService {
         Member member = memberRepository.save(Member.create());
         SocialAccount account = SocialAccount.create(member, provider, providerSubject, email);
         updateProviderAuthorization(account, providerAuthorization);
-        socialAccountRepository.saveAndFlush(account);
+        saveNewAccount(account);
         return new AuthenticatedMember(member, true);
+    }
+
+    private void saveNewAccount(SocialAccount account) {
+        try {
+            socialAccountRepository.saveAndFlush(account);
+        } catch (DataIntegrityViolationException exception) {
+            if (isProviderSubjectConflict(exception)) {
+                throw new ConcurrentSocialAccountCreationException(exception);
+            }
+            throw exception;
+        }
+    }
+
+    private boolean isProviderSubjectConflict(DataIntegrityViolationException exception) {
+        Throwable cause = exception;
+        while (cause != null) {
+            if (cause instanceof ConstraintViolationException constraintViolation) {
+                return PROVIDER_SUBJECT_CONSTRAINT.equalsIgnoreCase(
+                        constraintViolation.getConstraintName()
+                );
+            }
+            cause = cause.getCause();
+        }
+        return false;
     }
 
     private AuthenticatedMember authenticateExisting(SocialAccount account) {

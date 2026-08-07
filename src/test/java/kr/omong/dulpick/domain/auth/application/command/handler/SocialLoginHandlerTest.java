@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.auth.application.command.handler;
 import kr.omong.dulpick.domain.auth.application.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
+import kr.omong.dulpick.domain.auth.application.exception.ConcurrentSocialAccountCreationException;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
 import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
 import kr.omong.dulpick.domain.auth.application.support.LoginNonceService;
@@ -15,6 +16,7 @@ import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import kr.omong.dulpick.domain.member.domain.Member;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -199,6 +201,68 @@ class SocialLoginHandlerTest {
                 "login-nonce"
         );
         verifyNoInteractions(appleAuthorizationService);
+    }
+
+    @Test
+    void recoversOnlyConcurrentProviderSubjectCreation() {
+        SocialLoginCommand command = new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "id-token",
+                null,
+                "login-nonce"
+        );
+        SocialIdentity identity = new SocialIdentity(
+                "subject",
+                "member@example.com",
+                "login-nonce",
+                "google-client-id"
+        );
+        Member member = member(5L);
+        when(verifierRegistry.verify(SocialProvider.GOOGLE, "id-token")).thenReturn(identity);
+        when(socialAccountService.getOrCreate(
+                SocialProvider.GOOGLE,
+                "subject",
+                "member@example.com",
+                ProviderAuthorization.none()
+        )).thenThrow(new ConcurrentSocialAccountCreationException(
+                new DataIntegrityViolationException("provider subject conflict")
+        ));
+        when(socialAccountService.getExisting(SocialProvider.GOOGLE, "subject"))
+                .thenReturn(new AuthenticatedMember(member, false));
+        when(tokenService.issue(member)).thenReturn(tokens());
+
+        SocialLoginResult result = handler.handle(command);
+
+        assertThat(result.memberId()).isEqualTo(5L);
+        assertThat(result.newMember()).isFalse();
+    }
+
+    @Test
+    void propagatesUnexpectedIntegrityViolation() {
+        SocialLoginCommand command = new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "id-token",
+                null,
+                "login-nonce"
+        );
+        SocialIdentity identity = new SocialIdentity(
+                "subject",
+                "member@example.com",
+                "login-nonce",
+                "google-client-id"
+        );
+        DataIntegrityViolationException unexpected =
+                new DataIntegrityViolationException("foreign key violation");
+        when(verifierRegistry.verify(SocialProvider.GOOGLE, "id-token")).thenReturn(identity);
+        when(socialAccountService.getOrCreate(
+                SocialProvider.GOOGLE,
+                "subject",
+                "member@example.com",
+                ProviderAuthorization.none()
+        )).thenThrow(unexpected);
+
+        assertThatThrownBy(() -> handler.handle(command)).isSameAs(unexpected);
+        verifyNoInteractions(tokenService);
     }
 
     private Member member(Long id) {
