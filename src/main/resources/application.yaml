@@ -46,6 +46,10 @@ features:
     enabled: ${TEST_AUTH_ENABLED:false}
     access-key: ${TEST_AUTH_ACCESS_KEY:dulpick-local-test-auth-access-key}
 
+notification:
+  marketing:
+    consent-version: ${MARKETING_CONSENT_VERSION:2026-08-07}
+
 auth:
   jwt:
     issuer: dulpick

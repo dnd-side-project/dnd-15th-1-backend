@@ -31,6 +31,16 @@ public enum ErrorCode {
             "피드백 등록 횟수 제한을 초과했습니다"
     ),
 
+    // 알림
+    MARKETING_CONSENT_VERSION_REQUIRED(
+            HttpStatus.BAD_REQUEST,
+            "마케팅 수신 동의 버전이 필요합니다"
+    ),
+    MARKETING_CONSENT_VERSION_OUTDATED(
+            HttpStatus.CONFLICT,
+            "최신 마케팅 수신 동의가 필요합니다"
+    ),
+
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),
     INVALID_CONNECTION_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 연결 코드입니다"),
