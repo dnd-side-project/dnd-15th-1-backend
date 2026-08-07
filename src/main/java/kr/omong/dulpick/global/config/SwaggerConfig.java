@@ -28,6 +28,7 @@ public class SwaggerConfig {
                         new Tag().name(SwaggerTagNames.AUTH),
                         new Tag().name(SwaggerTagNames.MEMBER),
                         new Tag().name(SwaggerTagNames.COUPLE_CONNECTION),
+                        new Tag().name(SwaggerTagNames.FEEDBACK),
                         new Tag().name(SwaggerTagNames.SERVER)
                 ));
     }
