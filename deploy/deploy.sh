@@ -8,6 +8,7 @@ readonly FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 readonly APP_DIR="${APP_DIR:-/home/ubuntu/dulpick}"
 readonly ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 readonly APPLE_PRIVATE_KEY_FILE="${APP_DIR}/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+readonly FIREBASE_CREDENTIALS_FILE="${APP_DIR}/secrets/firebase-service-account.json"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-dulpick-backend}"
 readonly DOCKER_NETWORK="${DOCKER_NETWORK:-short-net}"
 readonly HOST_PORT="${HOST_PORT:-8083}"
@@ -43,6 +44,21 @@ fi
 
 run_container() {
     local image="$1"
+    local -a secret_volumes=(
+        --volume
+        "${APPLE_PRIVATE_KEY_FILE}:/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8:ro"
+    )
+
+    if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
+        if [[ ! -f "${FIREBASE_CREDENTIALS_FILE}" ]]; then
+            echo "Firebase credentials not found: ${FIREBASE_CREDENTIALS_FILE}" >&2
+            return 1
+        fi
+        secret_volumes+=(
+            --volume
+            "${FIREBASE_CREDENTIALS_FILE}:/run/secrets/firebase-service-account.json:ro"
+        )
+    fi
 
     docker run --detach \
         --name "${CONTAINER_NAME}" \
@@ -50,7 +66,7 @@ run_container() {
         --network "${DOCKER_NETWORK}" \
         --env-file "${ENV_FILE}" \
         --env SPRING_PROFILES_ACTIVE=prod \
-        --volume "${APPLE_PRIVATE_KEY_FILE}:/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8:ro" \
+        "${secret_volumes[@]}" \
         --publish "127.0.0.1:${HOST_PORT}:8080" \
         "${image}"
 }
