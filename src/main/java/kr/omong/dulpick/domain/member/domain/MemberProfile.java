@@ -97,7 +97,11 @@ public class MemberProfile {
 
     public void updateBasicProfile(String nickname, Integer profileIcon, Instant updatedAt) {
         if (nickname == null && profileIcon == null) {
-            throw new InvalidMemberProfileException();
+            throw new InvalidMemberProfileException(
+                    "profile",
+                    "AT_LEAST_ONE_REQUIRED",
+                    "닉네임과 프로필 아이콘 중 하나 이상 입력해야 합니다"
+            );
         }
         if (nickname != null) {
             this.nickname = normalizeNickname(nickname);
@@ -135,7 +139,11 @@ public class MemberProfile {
 
     private void updatePreferences(DatePreferences preferences) {
         if (preferences == null) {
-            throw new InvalidMemberProfileException();
+            throw new InvalidMemberProfileException(
+                    "datePreferences",
+                    "REQUIRED",
+                    "데이트 성향을 입력해야 합니다"
+            );
         }
         indoorOutdoor = preferences.indoorOutdoor();
         activityLevel = preferences.activityLevel();
@@ -145,11 +153,11 @@ public class MemberProfile {
 
     private static String normalizeNickname(String nickname) {
         if (nickname == null) {
-            throw new InvalidMemberProfileException();
+            throw invalidNickname();
         }
         String normalized = nickname.strip();
         if (normalized.isBlank() || CONTROL_PATTERN.matcher(normalized).find()) {
-            throw new InvalidMemberProfileException();
+            throw invalidNickname();
         }
         Matcher matcher = GRAPHEME_PATTERN.matcher(normalized);
         int length = 0;
@@ -157,14 +165,18 @@ public class MemberProfile {
             length++;
         }
         if (length < MIN_NICKNAME_LENGTH || length > MAX_NICKNAME_LENGTH) {
-            throw new InvalidMemberProfileException();
+            throw invalidNickname();
         }
         return normalized;
     }
 
     private static byte validateProfileIcon(int profileIcon) {
         if (profileIcon < MIN_PROFILE_ICON || profileIcon > MAX_PROFILE_ICON) {
-            throw new InvalidMemberProfileException();
+            throw new InvalidMemberProfileException(
+                    "profileIcon",
+                    "OUT_OF_RANGE",
+                    "프로필 아이콘은 1~5 사이여야 합니다"
+            );
         }
         return (byte) profileIcon;
     }
@@ -174,5 +186,13 @@ public class MemberProfile {
             throw new InvalidMemberProfileException();
         }
         return updatedAt;
+    }
+
+    private static InvalidMemberProfileException invalidNickname() {
+        return new InvalidMemberProfileException(
+                "nickname",
+                "INVALID_NICKNAME",
+                "닉네임은 앞뒤 공백을 제외한 1~6자여야 합니다"
+        );
     }
 }

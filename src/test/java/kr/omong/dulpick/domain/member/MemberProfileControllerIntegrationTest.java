@@ -96,7 +96,9 @@ class MemberProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(initializationRequest(0)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("profileIcon"))
+                .andExpect(jsonPath("$.fieldErrors[0].reason").value("Min"));
 
         assertThat(memberProfileRepository.existsById(
                 invalidIconMember.member().getId()
@@ -118,7 +120,10 @@ class MemberProfileControllerIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.fieldErrors[0].field")
+                        .value("datePreferences.dateFocus"))
+                .andExpect(jsonPath("$.fieldErrors[0].reason").value("NotNull"));
     }
 
     @Test
@@ -141,7 +146,10 @@ class MemberProfileControllerIntegrationTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("indoorOutdoor"))
+                .andExpect(jsonPath("$.fieldErrors[0].reason")
+                        .value("INVALID_DATE_PREFERENCE"));
 
         assertThat(memberProfileRepository.existsById(testMember.member().getId())).isFalse();
     }
@@ -208,7 +216,10 @@ class MemberProfileControllerIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.fieldErrors[0].field").value("profile"))
+                .andExpect(jsonPath("$.fieldErrors[0].reason")
+                        .value("AT_LEAST_ONE_REQUIRED"));
     }
 
     private void initialize(AuthenticatedTestMember testMember) throws Exception {
