@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.testauth.application;
 
 import kr.omong.dulpick.domain.auth.application.command.AuthCommandService;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
+import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidRefreshTokenException;
 import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.support.TokenService;
@@ -11,6 +12,7 @@ import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredential;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredentialRepository;
 import kr.omong.dulpick.global.security.crypto.Sha256;
@@ -36,6 +38,7 @@ public class TestAuthService {
     private final TestAuthCredentialRepository credentialRepository;
     private final RefreshTokenRepository refreshTokenRepository;
     private final SocialAccountService socialAccountService;
+    private final MemberProfileRepository memberProfileRepository;
     private final TokenService tokenService;
     private final AuthCommandService authCommandService;
     private final PasswordEncoder passwordEncoder;
@@ -45,6 +48,7 @@ public class TestAuthService {
             TestAuthCredentialRepository credentialRepository,
             RefreshTokenRepository refreshTokenRepository,
             SocialAccountService socialAccountService,
+            MemberProfileRepository memberProfileRepository,
             TokenService tokenService,
             AuthCommandService authCommandService,
             PasswordEncoder passwordEncoder,
@@ -53,6 +57,7 @@ public class TestAuthService {
         this.credentialRepository = credentialRepository;
         this.refreshTokenRepository = refreshTokenRepository;
         this.socialAccountService = socialAccountService;
+        this.memberProfileRepository = memberProfileRepository;
         this.tokenService = tokenService;
         this.authCommandService = authCommandService;
         this.passwordEncoder = passwordEncoder;
@@ -60,7 +65,7 @@ public class TestAuthService {
     }
 
     @Transactional
-    public TestAuthResult signUp(String email, String password) {
+    public SocialLoginResult signUp(String email, String password) {
         String normalizedEmail = normalizeEmail(email);
         rejectDuplicateEmail(normalizedEmail);
 
@@ -73,14 +78,14 @@ public class TestAuthService {
             );
             rejectExistingSocialAccount(authenticatedMember);
             saveCredential(authenticatedMember.member(), normalizedEmail, password);
-            return issue(authenticatedMember.member());
+            return issue(authenticatedMember.member(), true);
         } catch (DataIntegrityViolationException exception) {
             throw new TestAuthEmailAlreadyExistsException(exception);
         }
     }
 
     @Transactional
-    public TestAuthResult login(String email, String password) {
+    public SocialLoginResult login(String email, String password) {
         TestAuthCredential credential = credentialRepository
                 .findByEmail(normalizeEmail(email))
                 .filter(saved -> passwordEncoder.matches(password, saved.getPasswordHash()))
@@ -89,7 +94,7 @@ public class TestAuthService {
         if (!member.isActive()) {
             member.rejoin(clock.instant());
         }
-        return issue(member);
+        return issue(member, false);
     }
 
     @Transactional
@@ -128,8 +133,15 @@ public class TestAuthService {
         credentialRepository.saveAndFlush(credential);
     }
 
-    private TestAuthResult issue(Member member) {
-        return new TestAuthResult(member.getId(), tokenService.issue(member));
+    private SocialLoginResult issue(Member member, boolean isNewMember) {
+        boolean isOnboardingCompleted = !isNewMember
+                && memberProfileRepository.existsById(member.getId());
+        return new SocialLoginResult(
+                member.getId(),
+                isNewMember,
+                isOnboardingCompleted,
+                tokenService.issue(member)
+        );
     }
 
     private void validateTestAuthRefreshToken(String rawRefreshToken) {
