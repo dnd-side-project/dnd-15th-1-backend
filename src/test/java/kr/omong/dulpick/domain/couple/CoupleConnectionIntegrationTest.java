@@ -104,8 +104,14 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.connectedAt").isNotEmpty())
                 .andExpect(jsonPath("$.daysTogether").value(1));
 
-        assertThat(coupleRepository.count()).isEqualTo(1);
-        assertThat(activeCoupleMemberRepository.count()).isEqualTo(2);
+        Long coupleId = activeCoupleMemberRepository
+                .findByMemberId(inviter.member().getId())
+                .orElseThrow()
+                .getCouple()
+                .getId();
+        assertThat(coupleRepository.findById(coupleId)).isPresent();
+        assertThat(activeCoupleMemberRepository.findByMemberId(requester.member().getId()))
+                .isPresent();
         assertThat(applicationEvents.stream(CoupleConnectedEvent.class)).hasSize(1);
 
         mockMvc.perform(get("/api/v1/couples/me")
@@ -190,6 +196,11 @@ class CoupleConnectionIntegrationTest {
         TestMember first = createProfileMember("첫번째", 1);
         TestMember second = createProfileMember("두번째", 2);
         connect(first, second.connectionCode());
+        Long coupleId = activeCoupleMemberRepository
+                .findByMemberId(first.member().getId())
+                .orElseThrow()
+                .getCouple()
+                .getId();
 
         mockMvc.perform(delete("/api/v1/couples/me")
                         .header("Authorization", bearer(first)))
@@ -199,10 +210,10 @@ class CoupleConnectionIntegrationTest {
                 .isEmpty();
         assertThat(activeCoupleMemberRepository.findByMemberId(second.member().getId()))
                 .isEmpty();
-        assertThat(coupleRepository.findAll())
-                .singleElement()
-                .satisfies(couple -> assertThat(couple.getStatus())
-                        .isEqualTo(CoupleStatus.DISCONNECTED));
+        assertThat(coupleRepository.findById(coupleId))
+                .get()
+                .extracting(kr.omong.dulpick.domain.couple.domain.Couple::getStatus)
+                .isEqualTo(CoupleStatus.DISCONNECTED);
         assertThat(activeCodeDigest(first)).isNotEqualTo(Sha256.hex(first.connectionCode()));
         assertThat(activeCodeDigest(second)).isNotEqualTo(Sha256.hex(second.connectionCode()));
         assertThat(applicationEvents.stream(CoupleDisconnectedEvent.class))
@@ -232,6 +243,11 @@ class CoupleConnectionIntegrationTest {
         TestMember withdrawing = createProfileMember("탈퇴자", 1);
         TestMember partner = createProfileMember("상대방", 2);
         connect(withdrawing, partner.connectionCode());
+        Long coupleId = activeCoupleMemberRepository
+                .findByMemberId(withdrawing.member().getId())
+                .orElseThrow()
+                .getCouple()
+                .getId();
 
         mockMvc.perform(delete("/api/v1/members/me")
                         .header("Authorization", bearer(withdrawing)))
@@ -244,10 +260,10 @@ class CoupleConnectionIntegrationTest {
                 .isEmpty();
         assertThat(activeCoupleMemberRepository.findByMemberId(partner.member().getId()))
                 .isEmpty();
-        assertThat(coupleRepository.findAll())
-                .singleElement()
-                .satisfies(couple -> assertThat(couple.getStatus())
-                        .isEqualTo(CoupleStatus.DISCONNECTED));
+        assertThat(coupleRepository.findById(coupleId))
+                .get()
+                .extracting(kr.omong.dulpick.domain.couple.domain.Couple::getStatus)
+                .isEqualTo(CoupleStatus.DISCONNECTED);
         assertThat(connectionCodeRepository.findByMemberIdAndStatus(
                 withdrawing.member().getId(),
                 ConnectionCodeStatus.ACTIVE

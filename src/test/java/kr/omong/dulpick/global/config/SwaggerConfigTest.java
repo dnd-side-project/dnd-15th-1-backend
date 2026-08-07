@@ -36,6 +36,8 @@ class SwaggerConfigTest {
                         SwaggerTagNames.AUTH,
                         SwaggerTagNames.MEMBER,
                         SwaggerTagNames.COUPLE_CONNECTION,
+                        SwaggerTagNames.FEEDBACK,
+                        SwaggerTagNames.NOTIFICATION,
                         SwaggerTagNames.SERVER
                 );
     }
