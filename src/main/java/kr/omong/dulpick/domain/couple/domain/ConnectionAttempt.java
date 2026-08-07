@@ -22,7 +22,7 @@ public class ConnectionAttempt {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
-    @Column(name = "ip_hash", nullable = false, length = 64)
+    @Column(name = "ip_hash", length = 64)
     private String ipHash;
 
     @Enumerated(EnumType.STRING)

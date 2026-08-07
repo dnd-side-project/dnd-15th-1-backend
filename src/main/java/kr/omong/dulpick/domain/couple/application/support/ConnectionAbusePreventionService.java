@@ -9,7 +9,7 @@ import kr.omong.dulpick.domain.couple.domain.ConnectionRateLimitSubjectRepositor
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
-import kr.omong.dulpick.global.security.crypto.Sha256;
+import kr.omong.dulpick.global.security.crypto.HmacSha256;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -58,7 +58,7 @@ public class ConnectionAbusePreventionService {
     ) {
         Instant now = clock.instant();
         ConnectionRateLimitSubject subject = findOrCreateSubject(memberId, now);
-        String ipHash = Sha256.hex(normalizeClientAddress(clientAddress));
+        String ipHash = hashClientAddress(clientAddress);
         boolean allowed = !isRateLimited(memberId, ipHash, action, subject, now);
         ConnectionAttempt attempt = ConnectionAttempt.start(
                 memberId,
@@ -148,7 +148,7 @@ public class ConnectionAbusePreventionService {
         if (subject.isBlocked(now)) {
             return true;
         }
-        return connectionAttemptRepository
+        return ipHash != null && connectionAttemptRepository
                 .countByIpHashAndOutcomeAndCreatedAtGreaterThanEqual(
                         ipHash,
                         ConnectionAttempt.Outcome.CODE_FAILURE,
@@ -219,11 +219,11 @@ public class ConnectionAbusePreventionService {
         subject.blockUntil(now.plus(properties.failureBlockDuration()), now);
     }
 
-    private String normalizeClientAddress(String clientAddress) {
+    private String hashClientAddress(String clientAddress) {
         if (clientAddress == null || clientAddress.isBlank()) {
-            return "unknown";
+            return null;
         }
-        return clientAddress.strip();
+        return HmacSha256.hex(properties.ipHashKey(), clientAddress.strip());
     }
 
     public record AttemptPermit(Long attemptId, boolean allowed) {

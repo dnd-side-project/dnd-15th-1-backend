@@ -31,6 +31,7 @@ couple:
     state-changes-per-day: 10
     code-failures-per-ten-minutes: 5
     ip-failures-per-hour: 50
+    ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
     failure-block-duration: 15m
     retention: 30d
     cleanup-delay: 1h

@@ -119,6 +119,31 @@ class ConnectionAbusePreventionIntegrationTest {
         assertThat(denied.allowed()).isFalse();
     }
 
+    @Test
+    void doesNotShareIpFailureLimitWhenClientAddressIsUnknown() {
+        Long firstMemberId = createMember();
+        Long secondMemberId = createMember();
+        Long thirdMemberId = createMember();
+        completeCodeFailure(firstMemberId, beginAllowed(
+                firstMemberId,
+                null,
+                ConnectionAttempt.Action.PREVIEW
+        ));
+        completeCodeFailure(secondMemberId, beginAllowed(
+                secondMemberId,
+                " ",
+                ConnectionAttempt.Action.PREVIEW
+        ));
+
+        AttemptPermit permit = abusePreventionService.begin(
+                thirdMemberId,
+                null,
+                ConnectionAttempt.Action.PREVIEW
+        );
+
+        assertThat(permit.allowed()).isTrue();
+    }
+
     private AttemptPermit beginAllowed(
             Long memberId,
             String clientAddress,

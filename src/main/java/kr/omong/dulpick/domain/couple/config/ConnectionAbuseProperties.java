@@ -13,6 +13,7 @@ public record ConnectionAbuseProperties(
         int stateChangesPerDay,
         int codeFailuresPerTenMinutes,
         int ipFailuresPerHour,
+        String ipHashKey,
         Duration failureBlockDuration,
         Duration retention
 ) {
@@ -36,6 +37,11 @@ public record ConnectionAbuseProperties(
         }
         if (retention == null || retention.isZero() || retention.isNegative()) {
             throw new IllegalArgumentException("couple.abuse.retention must be positive");
+        }
+        if (ipHashKey == null || ipHashKey.isBlank()) {
+            throw new IllegalArgumentException(
+                    "couple.abuse.ip-hash-key must not be blank"
+            );
         }
     }
 }
