@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.couple.application.query.reader;
 
+import kr.omong.dulpick.domain.couple.application.exception.CoupleStateInvalidException;
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionStatus;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -68,6 +70,23 @@ class CoupleConnectionReaderTest {
         assertThat(status.connected()).isTrue();
         assertThat(status.daysTogether()).isEqualTo(2);
         assertThat(status.partner().nickname()).isEqualTo("상대");
+    }
+
+    @Test
+    void rejectsCoupleWithMissingPartnerMembership() {
+        Member me = member(1L);
+        Couple couple = Couple.connect(CONNECTED_AT);
+        ReflectionTestUtils.setField(couple, "id", 10L);
+        ActiveCoupleMember myMembership = ActiveCoupleMember.join(me, couple, CONNECTED_AT);
+        ReflectionTestUtils.setField(myMembership, "memberId", 1L);
+        when(profileRepository.findById(1L)).thenReturn(Optional.of(profile(me, "나", 1)));
+        when(membershipRepository.findByMemberId(1L))
+                .thenReturn(Optional.of(myMembership));
+        when(membershipRepository.findAllByCoupleId(10L))
+                .thenReturn(List.of(myMembership));
+
+        assertThatThrownBy(() -> reader.read(1L))
+                .isInstanceOf(CoupleStateInvalidException.class);
     }
 
     private Member member(Long id) {

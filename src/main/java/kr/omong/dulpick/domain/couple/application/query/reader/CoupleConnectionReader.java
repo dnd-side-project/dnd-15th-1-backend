@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.couple.application.query.reader;
 
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionStatus;
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleMemberProfile;
+import kr.omong.dulpick.domain.couple.application.exception.CoupleStateInvalidException;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.application.exception.MemberProfileRequiredException;
@@ -48,11 +49,12 @@ public class CoupleConnectionReader {
         List<ActiveCoupleMember> members = activeCoupleMemberRepository.findAllByCoupleId(
                 membership.getCouple().getId()
         );
+        validateMembers(memberId, members);
         Long partnerId = members.stream()
                 .map(ActiveCoupleMember::getMemberId)
                 .filter(id -> !id.equals(memberId))
                 .findFirst()
-                .orElseThrow(IllegalStateException::new);
+                .orElseThrow(CoupleStateInvalidException::new);
         Instant connectedAt = membership.getCouple().getConnectedAt();
         return CoupleConnectionStatus.connected(
                 me,
@@ -66,6 +68,14 @@ public class CoupleConnectionReader {
         MemberProfile profile = memberProfileRepository.findById(memberId)
                 .orElseThrow(MemberProfileRequiredException::new);
         return new CoupleMemberProfile(profile.getNickname(), profile.getProfileIcon());
+    }
+
+    private void validateMembers(Long memberId, List<ActiveCoupleMember> members) {
+        boolean requesterIncluded = members.stream()
+                .anyMatch(member -> member.getMemberId().equals(memberId));
+        if (members.size() != 2 || !requesterIncluded) {
+            throw new CoupleStateInvalidException();
+        }
     }
 
     private long calculateDaysTogether(Instant connectedAt) {

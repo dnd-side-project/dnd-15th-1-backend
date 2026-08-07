@@ -32,6 +32,14 @@ public enum ErrorCode {
     MEMBER_ALREADY_CONNECTED(HttpStatus.CONFLICT, "이미 커플로 연결된 회원입니다"),
     CONNECTION_CONFLICT(HttpStatus.CONFLICT, "다른 연결 요청으로 상태가 변경되었습니다"),
     COUPLE_NOT_FOUND(HttpStatus.NOT_FOUND, "활성 커플 관계를 찾을 수 없습니다"),
+    COUPLE_STATE_INVALID(
+            HttpStatus.INTERNAL_SERVER_ERROR,
+            "커플 관계 상태를 확인할 수 없습니다"
+    ),
+    CONNECTION_CODE_GENERATION_FAILED(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "연결 코드를 발급할 수 없습니다. 잠시 후 다시 시도해 주세요"
+    ),
     RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, "요청 횟수 제한을 초과했습니다"),
 
     // 소셜 로그인

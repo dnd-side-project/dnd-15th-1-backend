@@ -1,6 +1,8 @@
 package kr.omong.dulpick.domain.couple.application.support;
 
 import kr.omong.dulpick.domain.couple.application.exception.CoupleNotFoundException;
+import kr.omong.dulpick.domain.couple.application.exception.ConnectionConflictException;
+import kr.omong.dulpick.domain.couple.application.exception.CoupleStateInvalidException;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
@@ -96,6 +98,7 @@ public class CoupleDisconnectionService {
         if (lockedMembership.isEmpty()) {
             return contextWithoutCouple(members, coupleRequired);
         }
+        validateUnchangedCouple(coupleId, lockedMembership.get());
         Couple couple = coupleRepository.findForUpdateById(coupleId)
                 .orElseThrow(CoupleNotFoundException::new);
         List<ActiveCoupleMember> memberships = activeCoupleMemberRepository
@@ -146,12 +149,23 @@ public class CoupleDisconnectionService {
         }
     }
 
+    private void validateUnchangedCouple(
+            Long expectedCoupleId,
+            ActiveCoupleMember lockedMembership
+    ) {
+        Long actualCoupleId = lockedMembership.getCouple().getId();
+        if (!expectedCoupleId.equals(actualCoupleId)) {
+            throw new ConnectionConflictException();
+        }
+    }
+
     private void disconnect(
             DisconnectionContext context,
             Long requestedByMemberId,
             CoupleDisconnectedEvent.Reason reason,
             Instant disconnectedAt
     ) {
+        validateContext(context, requestedByMemberId);
         Member requestedBy = findMember(context.members(), requestedByMemberId);
         context.couple().disconnect(requestedBy, disconnectedAt);
         activeCoupleMemberRepository.deleteAll(context.memberships());
@@ -186,6 +200,23 @@ public class CoupleDisconnectionService {
                 .filter(member -> member.getId().equals(memberId))
                 .findFirst()
                 .orElseThrow(MemberNotFoundException::new);
+    }
+
+    private void validateContext(
+            DisconnectionContext context,
+            Long requestedByMemberId
+    ) {
+        List<Long> memberIds = context.members().stream().map(Member::getId).toList();
+        List<Long> membershipIds = context.memberships().stream()
+                .map(ActiveCoupleMember::getMemberId)
+                .toList();
+        boolean sameMembers = memberIds.size() == 2
+                && membershipIds.size() == 2
+                && memberIds.containsAll(membershipIds)
+                && memberIds.contains(requestedByMemberId);
+        if (!sameMembers) {
+            throw new CoupleStateInvalidException();
+        }
     }
 
     private void publishEvent(

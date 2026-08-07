@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.couple.application.support;
 
+import kr.omong.dulpick.domain.couple.application.exception.ConnectionCodeGenerationException;
 import kr.omong.dulpick.domain.couple.config.CoupleProperties;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCode;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeIssuedReason;
@@ -19,7 +20,7 @@ public class ConnectionCodeIssuer {
     private final ConnectionCodeRepository connectionCodeRepository;
     private final ConnectionCodeGenerator connectionCodeGenerator;
     private final ConnectionCodeCipher connectionCodeCipher;
-    private final CoupleProperties properties;
+    private final String publicBaseUrl;
     private final Clock clock;
 
     public ConnectionCodeIssuer(
@@ -32,7 +33,7 @@ public class ConnectionCodeIssuer {
         this.connectionCodeRepository = connectionCodeRepository;
         this.connectionCodeGenerator = connectionCodeGenerator;
         this.connectionCodeCipher = connectionCodeCipher;
-        this.properties = properties;
+        this.publicBaseUrl = normalizeBaseUrl(properties.publicBaseUrl());
         this.clock = clock;
     }
 
@@ -56,7 +57,7 @@ public class ConnectionCodeIssuer {
             connectionCodeRepository.save(connectionCode);
             return new IssuedConnectionCode(code, createShareUrl(code));
         }
-        throw new IllegalStateException("Failed to generate a unique connection code");
+        throw new ConnectionCodeGenerationException();
     }
 
     public IssuedConnectionCode read(ConnectionCode connectionCode) {
@@ -65,7 +66,10 @@ public class ConnectionCodeIssuer {
     }
 
     private String createShareUrl(String code) {
-        String baseUrl = properties.publicBaseUrl().replaceAll("/+$", "");
-        return baseUrl + "/connect?code=" + code;
+        return publicBaseUrl + "/connect?code=" + code;
+    }
+
+    private String normalizeBaseUrl(String baseUrl) {
+        return baseUrl.replaceAll("/+$", "");
     }
 }
