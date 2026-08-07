@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.member.application.query.view;
 
+import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
 
 import java.time.Instant;
@@ -11,7 +12,7 @@ public record MemberProfileView(
         boolean onboardingCompleted,
         String nickname,
         Integer profileIcon,
-        MemberDatePreferences datePreferences,
+        DatePreferences datePreferences,
         Instant createdAt,
         Instant updatedAt,
         Instant lastWithdrawnAt,

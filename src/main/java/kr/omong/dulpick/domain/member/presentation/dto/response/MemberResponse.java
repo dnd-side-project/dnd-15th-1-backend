@@ -18,10 +18,21 @@ public record MemberResponse(
         MemberStatus status,
         @Schema(description = "최초 프로필과 데이트 성향 설정 완료 여부", example = "true")
         boolean onboardingCompleted,
-        @Schema(description = "회원 닉네임. 온보딩 전에는 null입니다.", example = "둘픽이")
+        @Schema(
+                description = "회원 닉네임. 사용자 인식 문자 기준 1~6자이며 온보딩 전에는 null입니다.",
+                example = "둘픽이",
+                minLength = 1,
+                maxLength = 6
+        )
         String nickname,
-        @Schema(description = "iOS 내장 프로필 에셋 번호. 온보딩 전에는 null입니다.", example = "1")
+        @Schema(
+                description = "iOS 내장 프로필 에셋 번호(1~5). 온보딩 전에는 null입니다.",
+                example = "1",
+                minimum = "1",
+                maximum = "5"
+        )
         Integer profileIcon,
+        @Schema(description = "4가지 데이트 성향. 온보딩 전에는 null입니다.")
         MemberDatePreferencesResponse datePreferences,
         @Schema(description = "회원 생성 시각. 대한민국 표준시(UTC+9, Asia/Seoul) 기준입니다.")
         LocalDateTime createdAt,

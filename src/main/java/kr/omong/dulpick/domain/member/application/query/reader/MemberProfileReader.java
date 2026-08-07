@@ -3,7 +3,6 @@ package kr.omong.dulpick.domain.member.application.query.reader;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
-import kr.omong.dulpick.domain.member.application.query.view.MemberDatePreferences;
 import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
 import kr.omong.dulpick.domain.member.application.query.view.MemberSocialAccount;
 import kr.omong.dulpick.domain.member.domain.Member;
@@ -67,7 +66,7 @@ public class MemberProfileReader {
                 profile != null,
                 profile == null ? null : profile.getNickname(),
                 profile == null ? null : profile.getProfileIcon(),
-                toDatePreferences(profile),
+                profile == null ? null : profile.getDatePreferences(),
                 member.getCreatedAt(),
                 member.getUpdatedAt(),
                 member.getLastWithdrawnAt(),
@@ -76,16 +75,4 @@ public class MemberProfileReader {
         );
     }
 
-    private MemberDatePreferences toDatePreferences(MemberProfile profile) {
-        if (profile == null) {
-            return null;
-        }
-        var preferences = profile.getDatePreferences();
-        return new MemberDatePreferences(
-                preferences.indoorOutdoor(),
-                preferences.activityLevel(),
-                preferences.dateTime(),
-                preferences.dateFocus()
-        );
-    }
 }

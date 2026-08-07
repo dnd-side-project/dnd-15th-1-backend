@@ -44,19 +44,19 @@ public class MemberProfile {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "indoor_outdoor", nullable = false, length = 20)
-    private IndoorOutdoor indoorOutdoor;
+    private DatePreferenceOption indoorOutdoor;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "activity_level", nullable = false, length = 20)
-    private ActivityLevel activityLevel;
+    private DatePreferenceOption activityLevel;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "date_time", nullable = false, length = 20)
-    private DateTimePreference dateTime;
+    private DatePreferenceOption dateTime;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "date_focus", nullable = false, length = 20)
-    private DateFocus dateFocus;
+    private DatePreferenceOption dateFocus;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;

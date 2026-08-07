@@ -7,10 +7,7 @@ import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorizat
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeRepository;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeStatus;
-import kr.omong.dulpick.domain.member.domain.ActivityLevel;
-import kr.omong.dulpick.domain.member.domain.DateFocus;
-import kr.omong.dulpick.domain.member.domain.DateTimePreference;
-import kr.omong.dulpick.domain.member.domain.IndoorOutdoor;
+import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberProfile;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
@@ -125,6 +122,31 @@ class MemberProfileControllerIntegrationTest {
     }
 
     @Test
+    void rejectsDatePreferenceFromAnotherCategory() throws Exception {
+        AuthenticatedTestMember testMember = createMember();
+
+        mockMvc.perform(post("/api/v1/members/me/profile")
+                        .header("Authorization", bearer(testMember.tokens()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname":"둘픽이",
+                                  "profileIcon":1,
+                                  "datePreferences":{
+                                    "indoorOutdoor":"ACTIVE",
+                                    "activityLevel":"INDOOR",
+                                    "dateTime":"FOOD",
+                                    "dateFocus":"NIGHT"
+                                  }
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        assertThat(memberProfileRepository.existsById(testMember.member().getId())).isFalse();
+    }
+
+    @Test
     void updatesMyPageProfileAndAllDatePreferences() throws Exception {
         AuthenticatedTestMember testMember = createMember();
         initialize(testMember);
@@ -160,13 +182,13 @@ class MemberProfileControllerIntegrationTest {
         assertThat(profile.getNickname()).isEqualTo("새닉네임");
         assertThat(profile.getProfileIcon()).isEqualTo(5);
         assertThat(profile.getDatePreferences().indoorOutdoor())
-                .isEqualTo(IndoorOutdoor.OUTDOOR);
+                .isEqualTo(DatePreferenceOption.OUTDOOR);
         assertThat(profile.getDatePreferences().activityLevel())
-                .isEqualTo(ActivityLevel.STATIC);
+                .isEqualTo(DatePreferenceOption.STATIC);
         assertThat(profile.getDatePreferences().dateTime())
-                .isEqualTo(DateTimePreference.DAY);
+                .isEqualTo(DatePreferenceOption.DAY);
         assertThat(profile.getDatePreferences().dateFocus())
-                .isEqualTo(DateFocus.SIGHTSEEING);
+                .isEqualTo(DatePreferenceOption.SIGHTSEEING);
     }
 
     @Test

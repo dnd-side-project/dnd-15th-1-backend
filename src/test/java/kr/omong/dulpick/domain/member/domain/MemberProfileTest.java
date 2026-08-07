@@ -12,10 +12,10 @@ class MemberProfileTest {
 
     private static final Instant NOW = Instant.parse("2026-08-07T00:00:00Z");
     private static final DatePreferences PREFERENCES = new DatePreferences(
-            IndoorOutdoor.INDOOR,
-            ActivityLevel.ACTIVE,
-            DateTimePreference.NIGHT,
-            DateFocus.FOOD
+            DatePreferenceOption.INDOOR,
+            DatePreferenceOption.ACTIVE,
+            DatePreferenceOption.NIGHT,
+            DatePreferenceOption.FOOD
     );
 
     @Test
@@ -66,10 +66,10 @@ class MemberProfileTest {
     void updatesBasicProfileAndAllDatePreferences() {
         MemberProfile profile = create("둘픽", 1);
         DatePreferences updatedPreferences = new DatePreferences(
-                IndoorOutdoor.OUTDOOR,
-                ActivityLevel.STATIC,
-                DateTimePreference.DAY,
-                DateFocus.SIGHTSEEING
+                DatePreferenceOption.OUTDOOR,
+                DatePreferenceOption.STATIC,
+                DatePreferenceOption.DAY,
+                DatePreferenceOption.SIGHTSEEING
         );
 
         profile.updateBasicProfile(null, 3, NOW.plusSeconds(1));
@@ -78,6 +78,16 @@ class MemberProfileTest {
         assertThat(profile.getNickname()).isEqualTo("둘픽");
         assertThat(profile.getProfileIcon()).isEqualTo(3);
         assertThat(profile.getDatePreferences()).isEqualTo(updatedPreferences);
+    }
+
+    @Test
+    void rejectsAnOptionFromAnotherPreferenceCategory() {
+        assertThatThrownBy(() -> new DatePreferences(
+                DatePreferenceOption.ACTIVE,
+                DatePreferenceOption.INDOOR,
+                DatePreferenceOption.FOOD,
+                DatePreferenceOption.NIGHT
+        )).isInstanceOf(InvalidMemberProfileException.class);
     }
 
     private MemberProfile create(String nickname, int profileIcon) {
