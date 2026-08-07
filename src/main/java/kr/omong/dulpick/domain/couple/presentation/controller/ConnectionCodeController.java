@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "커플 연결 코드", description = "상대방에게 전달할 내 연결 코드 조회 API")
+@Tag(name = "커플 연결", description = "상대방에게 전달할 내 연결 코드 조회 API")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/connection-codes")
