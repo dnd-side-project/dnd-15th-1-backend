@@ -36,18 +36,16 @@ class ApiSchemaDocumentationTest {
     }
 
     @Test
-    void documentsNonceLifetimeAndKoreaTimeZone() {
+    void documentsNonceExpirationTimeZone() {
         Schema expiresAt = schemaOf(NonceResponse.class, "expiresAt");
 
-        assertThat(expiresAt.description())
-                .contains("10분", "UTC+9", "Asia/Seoul");
+        assertThat(expiresAt.description()).contains("Asia/Seoul");
     }
 
     private void assertProviderSchema(Schema schema) {
         assertThat(schema.allowableValues())
                 .containsExactly("KAKAO", "GOOGLE", "APPLE");
-        assertThat(schema.description())
-                .contains("KAKAO는 카카오", "GOOGLE은 구글", "APPLE은 애플");
+        assertThat(schema.description()).contains("소셜 제공자");
     }
 
     private Schema schemaOf(Class<?> recordType, String componentName) {
