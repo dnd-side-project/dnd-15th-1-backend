@@ -60,13 +60,35 @@ public class MemberProfileReader {
             MemberProfile profile,
             List<MemberSocialAccount> accounts
     ) {
+        if (profile == null) {
+            return toProfileWithoutOnboarding(member, accounts);
+        }
         return new MemberProfileView(
                 member.getId(),
                 member.getStatus(),
-                profile != null,
-                profile == null ? null : profile.getNickname(),
-                profile == null ? null : profile.getProfileIcon(),
-                profile == null ? null : profile.getDatePreferences(),
+                true,
+                profile.getNickname(),
+                profile.getProfileIcon(),
+                profile.getDatePreferences(),
+                member.getCreatedAt(),
+                member.getUpdatedAt(),
+                member.getLastWithdrawnAt(),
+                member.getLastRejoinedAt(),
+                accounts
+        );
+    }
+
+    private MemberProfileView toProfileWithoutOnboarding(
+            Member member,
+            List<MemberSocialAccount> accounts
+    ) {
+        return new MemberProfileView(
+                member.getId(),
+                member.getStatus(),
+                false,
+                null,
+                null,
+                null,
                 member.getCreatedAt(),
                 member.getUpdatedAt(),
                 member.getLastWithdrawnAt(),

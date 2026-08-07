@@ -9,6 +9,7 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
+import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -35,7 +36,7 @@ class ConnectionCodeIssuerTest {
         when(repository.existsByCodeDigest(anyString())).thenReturn(true);
 
         assertThatThrownBy(() -> issuer.issue(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 ConnectionCodeIssuedReason.ONBOARDING
         )).isInstanceOf(ConnectionCodeGenerationException.class);
     }
@@ -47,7 +48,7 @@ class ConnectionCodeIssuerTest {
         when(cipher.encrypt("ABCDEF")).thenReturn("encrypted");
 
         IssuedConnectionCode issued = issuer.issue(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 ConnectionCodeIssuedReason.ONBOARDING
         );
 

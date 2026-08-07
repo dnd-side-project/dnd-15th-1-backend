@@ -37,7 +37,7 @@ class WithdrawMemberHandlerTest {
 
     @Test
     void enqueuesAppleRevocationAndCompletesLocalWithdrawal() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         when(coupleDisconnectionService.disconnectForWithdrawal(1L, NOW))
                 .thenReturn(member);
 
@@ -53,7 +53,7 @@ class WithdrawMemberHandlerTest {
 
     @Test
     void rejectsDuplicateWithdrawalBeforeAuthenticationRevocation() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         member.withdraw(NOW.minusSeconds(1));
         when(coupleDisconnectionService.disconnectForWithdrawal(1L, NOW))
                 .thenReturn(member);

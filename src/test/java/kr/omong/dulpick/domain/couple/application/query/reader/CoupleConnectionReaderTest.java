@@ -90,7 +90,7 @@ class CoupleConnectionReaderTest {
     }
 
     private Member member(Long id) {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

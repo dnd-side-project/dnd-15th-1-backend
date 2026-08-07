@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import kr.omong.dulpick.domain.couple.domain.exception.ConnectionCodeNotActiveException;
 import kr.omong.dulpick.domain.member.domain.Member;
 
 import java.time.Instant;
@@ -86,7 +87,7 @@ public class ConnectionCode {
 
     public void use(Instant usedAt) {
         if (status != ConnectionCodeStatus.ACTIVE) {
-            return;
+            throw new ConnectionCodeNotActiveException();
         }
         status = ConnectionCodeStatus.USED;
         this.usedAt = usedAt;
@@ -94,7 +95,7 @@ public class ConnectionCode {
 
     public void revoke(Instant revokedAt) {
         if (status != ConnectionCodeStatus.ACTIVE) {
-            return;
+            throw new ConnectionCodeNotActiveException();
         }
         status = ConnectionCodeStatus.REVOKED;
         this.revokedAt = revokedAt;

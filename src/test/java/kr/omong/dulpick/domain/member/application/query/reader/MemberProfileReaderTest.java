@@ -10,6 +10,7 @@ import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,15 +33,20 @@ class MemberProfileReaderTest {
 
     @Test
     void returnsProfileViewWithoutInternalAuthenticationValues() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         ReflectionTestUtils.setField(member, "id", 1L);
         SocialAccount account = SocialAccount.create(
                 member,
                 SocialProvider.APPLE,
                 "provider-subject",
-                "member@example.com"
+                "member@example.com",
+                Instant.EPOCH
         );
-        account.updateProviderAuthorization("encrypted-refresh-token", "com.dulpick.app");
+        account.updateProviderAuthorization(
+                "encrypted-refresh-token",
+                "com.dulpick.app",
+                Instant.EPOCH
+        );
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
         when(socialAccountRepository.findAllByMemberId(1L)).thenReturn(List.of(account));
 

@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.member.domain;
 
 import kr.omong.dulpick.domain.member.domain.exception.InvalidMemberProfileException;
+import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
@@ -21,7 +22,7 @@ class MemberProfileTest {
     @Test
     void createsProfileWithNormalizedNicknameAndPreferences() {
         MemberProfile profile = MemberProfile.create(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 "  둘픽이  ",
                 1,
                 PREFERENCES,
@@ -36,7 +37,7 @@ class MemberProfileTest {
     @Test
     void countsExtendedEmojiAsOneUserPerceivedCharacter() {
         MemberProfile profile = MemberProfile.create(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 "👩‍❤️‍👨둘픽",
                 5,
                 PREFERENCES,
@@ -90,9 +91,26 @@ class MemberProfileTest {
         )).isInstanceOf(InvalidMemberProfileException.class);
     }
 
+    @Test
+    void rejectsProfileChangesForWithdrawnMember() {
+        Member member = Member.create(Instant.EPOCH);
+        MemberProfile profile = MemberProfile.create(member, "둘픽", 1, PREFERENCES, NOW);
+        member.withdraw(NOW.plusSeconds(1));
+
+        assertThatThrownBy(() -> profile.updateBasicProfile(
+                "새닉네임",
+                null,
+                NOW.plusSeconds(2)
+        )).isInstanceOf(MemberNotActiveException.class);
+        assertThatThrownBy(() -> profile.updateDatePreferences(
+                PREFERENCES,
+                NOW.plusSeconds(2)
+        )).isInstanceOf(MemberNotActiveException.class);
+    }
+
     private MemberProfile create(String nickname, int profileIcon) {
         return MemberProfile.create(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 nickname,
                 profileIcon,
                 PREFERENCES,

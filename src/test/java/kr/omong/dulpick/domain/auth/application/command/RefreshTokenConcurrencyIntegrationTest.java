@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -60,7 +61,7 @@ class RefreshTokenConcurrencyIntegrationTest {
     @Test
     @Timeout(10)
     void allowsOnlyOneConcurrentRotation() throws Exception {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         testMemberId = member.getId();
         IssuedTokens issuedTokens = tokenService.issue(member);
         ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
@@ -95,6 +96,40 @@ class RefreshTokenConcurrencyIntegrationTest {
         }
     }
 
+    @Test
+    @Timeout(10)
+    void serializesConcurrentRotationAndLogout() throws Exception {
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
+        testMemberId = member.getId();
+        IssuedTokens issuedTokens = tokenService.issue(member);
+        ExecutorService executor = Executors.newFixedThreadPool(CONCURRENT_REQUESTS);
+        CountDownLatch ready = new CountDownLatch(CONCURRENT_REQUESTS);
+        CountDownLatch start = new CountDownLatch(1);
+
+        try {
+            List<Future<Object>> futures = List.of(
+                    submitRotation(executor, ready, start, issuedTokens.refreshToken()),
+                    submitLogout(
+                            executor,
+                            ready,
+                            start,
+                            issuedTokens.refreshToken(),
+                            member.getId()
+                    )
+            );
+            assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
+            start.countDown();
+
+            List<Object> results = futures.stream().map(this::getResult).toList();
+
+            assertThat(results).filteredOn(Boolean.class::isInstance).containsExactly(true);
+            assertThat(results).filteredOn(result -> result instanceof IssuedTokens
+                    || result instanceof InvalidRefreshTokenException).hasSize(1);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private Future<Object> submitRotation(
             ExecutorService executor,
             CountDownLatch ready,
@@ -109,6 +144,21 @@ class RefreshTokenConcurrencyIntegrationTest {
             } catch (InvalidRefreshTokenException exception) {
                 return exception;
             }
+        });
+    }
+
+    private Future<Object> submitLogout(
+            ExecutorService executor,
+            CountDownLatch ready,
+            CountDownLatch start,
+            String refreshToken,
+            Long memberId
+    ) {
+        return executor.submit(() -> {
+            ready.countDown();
+            start.await();
+            authCommandService.logout(refreshToken, memberId);
+            return Boolean.TRUE;
         });
     }
 

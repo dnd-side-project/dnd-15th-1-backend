@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 
 @Service
 public class SocialAccountService {
@@ -42,13 +43,20 @@ public class SocialAccountService {
             String email,
             ProviderAuthorization providerAuthorization
     ) {
+        Instant updatedAt = clock.instant();
         return socialAccountRepository.findByProviderAndProviderSubject(provider, providerSubject)
-                .map(account -> updateExisting(account, email, providerAuthorization))
+                .map(account -> updateExisting(
+                        account,
+                        email,
+                        providerAuthorization,
+                        updatedAt
+                ))
                 .orElseGet(() -> create(
                         provider,
                         providerSubject,
                         email,
-                        providerAuthorization
+                        providerAuthorization,
+                        updatedAt
                 ));
     }
 
@@ -65,30 +73,34 @@ public class SocialAccountService {
     private AuthenticatedMember updateExisting(
             SocialAccount account,
             String email,
-            ProviderAuthorization providerAuthorization
+            ProviderAuthorization providerAuthorization,
+            Instant updatedAt
     ) {
-        rejoinIfWithdrawn(account.getMember());
+        rejoinIfWithdrawn(account.getMember(), updatedAt);
         if (email != null) {
-            account.updateEmail(email);
+            account.updateEmail(email, updatedAt);
         }
-        updateProviderAuthorization(account, providerAuthorization);
+        updateProviderAuthorization(account, providerAuthorization, updatedAt);
         return new AuthenticatedMember(account.getMember(), false);
     }
 
     private void updateProviderAuthorization(
             SocialAccount account,
-            ProviderAuthorization providerAuthorization
+            ProviderAuthorization providerAuthorization,
+            Instant updatedAt
     ) {
         if (providerAuthorization.hasRefreshToken()) {
             account.updateProviderAuthorization(
                     providerAuthorization.encryptedRefreshToken(),
-                    providerAuthorization.clientId()
+                    providerAuthorization.clientId(),
+                    updatedAt
             );
             return;
         }
         if (providerAuthorization.hasClientId()) {
             account.updateProviderClientIdWhenTokenIsAbsent(
-                    providerAuthorization.clientId()
+                    providerAuthorization.clientId(),
+                    updatedAt
             );
         }
     }
@@ -97,11 +109,18 @@ public class SocialAccountService {
             SocialProvider provider,
             String providerSubject,
             String email,
-            ProviderAuthorization providerAuthorization
+            ProviderAuthorization providerAuthorization,
+            Instant createdAt
     ) {
-        Member member = memberRepository.save(Member.create());
-        SocialAccount account = SocialAccount.create(member, provider, providerSubject, email);
-        updateProviderAuthorization(account, providerAuthorization);
+        Member member = memberRepository.save(Member.create(createdAt));
+        SocialAccount account = SocialAccount.create(
+                member,
+                provider,
+                providerSubject,
+                email,
+                createdAt
+        );
+        updateProviderAuthorization(account, providerAuthorization, createdAt);
         saveNewAccount(account);
         return new AuthenticatedMember(member, true);
     }
@@ -131,14 +150,14 @@ public class SocialAccountService {
     }
 
     private AuthenticatedMember authenticateExisting(SocialAccount account) {
-        rejoinIfWithdrawn(account.getMember());
+        rejoinIfWithdrawn(account.getMember(), clock.instant());
         return new AuthenticatedMember(account.getMember(), false);
     }
 
-    private void rejoinIfWithdrawn(Member member) {
+    private void rejoinIfWithdrawn(Member member, Instant rejoinedAt) {
         if (member.isActive()) {
             return;
         }
-        member.rejoin(clock.instant());
+        member.rejoin(rejoinedAt);
     }
 }

@@ -37,19 +37,19 @@ class AuthenticationDataCleanupIntegrationTest {
     void removesStaleAuthenticationDataAndKeepsReplayEvidence() {
         Instant now = Instant.now();
         LoginNonce usedNonce = nonce("a", now.plus(Duration.ofDays(1)));
-        usedNonce.use();
+        usedNonce.use(now);
         LoginNonce expiredNonce = nonce("b", now.minusSeconds(1));
         LoginNonce activeNonce = nonce("c", now.plus(Duration.ofDays(1)));
         loginNonceRepository.save(usedNonce);
         loginNonceRepository.save(expiredNonce);
         loginNonceRepository.save(activeNonce);
 
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         RefreshToken expiredToken = token(member, "d", now.minusSeconds(1));
         RefreshToken revokedToken = token(member, "e", now.plus(Duration.ofDays(1)));
-        revokedToken.revoke();
+        revokedToken.revoke(now);
         RefreshToken rotatedToken = token(member, "f", now.plus(Duration.ofDays(1)));
-        rotatedToken.rotate(hash("g"));
+        rotatedToken.rotate(hash("g"), now);
         RefreshToken activeToken = token(member, "h", now.plus(Duration.ofDays(1)));
         refreshTokenRepository.save(expiredToken);
         refreshTokenRepository.save(revokedToken);
@@ -90,11 +90,11 @@ class AuthenticationDataCleanupIntegrationTest {
     }
 
     private LoginNonce nonce(String seed, Instant expiresAt) {
-        return LoginNonce.create(SocialProvider.KAKAO, hash(seed), expiresAt);
+        return LoginNonce.create(SocialProvider.KAKAO, hash(seed), expiresAt, Instant.EPOCH);
     }
 
     private RefreshToken token(Member member, String seed, Instant expiresAt) {
-        return RefreshToken.create(member, hash(seed), expiresAt);
+        return RefreshToken.create(member, hash(seed), expiresAt, Instant.EPOCH);
     }
 
     private String hash(String seed) {

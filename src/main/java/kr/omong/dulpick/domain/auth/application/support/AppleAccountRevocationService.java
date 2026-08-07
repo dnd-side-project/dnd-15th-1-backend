@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.Instant;
 
 @Service
 public class AppleAccountRevocationService {
@@ -41,13 +42,14 @@ public class AppleAccountRevocationService {
     }
 
     private void enqueue(Long memberId, SocialAccount account) {
+        Instant enqueuedAt = clock.instant();
         AppleRevocationOutbox outbox = AppleRevocationOutbox.create(
                 memberId,
                 account.getProviderRefreshToken(),
                 account.getProviderClientId(),
-                clock.instant()
+                enqueuedAt
         );
         outboxRepository.save(outbox);
-        account.clearProviderAuthorization();
+        account.clearProviderAuthorization(enqueuedAt);
     }
 }

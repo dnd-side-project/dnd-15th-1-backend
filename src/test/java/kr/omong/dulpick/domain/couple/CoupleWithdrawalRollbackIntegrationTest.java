@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -179,7 +180,7 @@ class CoupleWithdrawalRollbackIntegrationTest {
     }
 
     private ProfileMember createMember(String nickname, int profileIcon) {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         testMemberIds.add(member.getId());
         String code = memberCommandService.initializeProfile(
                 member.getId(),

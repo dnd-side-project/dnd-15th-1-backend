@@ -11,6 +11,7 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import kr.omong.dulpick.domain.member.domain.exception.InvalidMemberProfileException;
+import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 
 import java.time.Instant;
 import java.util.regex.Matcher;
@@ -96,6 +97,7 @@ public class MemberProfile {
     }
 
     public void updateBasicProfile(String nickname, Integer profileIcon, Instant updatedAt) {
+        validateMemberActive();
         if (nickname == null && profileIcon == null) {
             throw new InvalidMemberProfileException(
                     "profile",
@@ -113,6 +115,7 @@ public class MemberProfile {
     }
 
     public void updateDatePreferences(DatePreferences preferences, Instant updatedAt) {
+        validateMemberActive();
         updatePreferences(preferences);
         this.updatedAt = requireUpdatedAt(updatedAt);
     }
@@ -194,5 +197,11 @@ public class MemberProfile {
                 "INVALID_NICKNAME",
                 "닉네임은 앞뒤 공백을 제외한 1~6자여야 합니다"
         );
+    }
+
+    private void validateMemberActive() {
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
     }
 }

@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -167,7 +168,7 @@ class ConnectionAbusePreventionIntegrationTest {
     }
 
     private Long createMember() {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         testMemberIds.add(member.getId());
         return member.getId();
     }

@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
@@ -266,7 +268,7 @@ class SocialLoginHandlerTest {
     }
 
     private Member member(Long id) {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         ReflectionTestUtils.setField(member, "id", id);
         return member;
     }

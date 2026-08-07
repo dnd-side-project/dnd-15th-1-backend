@@ -4,7 +4,6 @@ import kr.omong.dulpick.domain.auth.application.support.AppleAccountRevocationSe
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.couple.application.support.CoupleDisconnectionService;
 import kr.omong.dulpick.domain.member.domain.Member;
-import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,15 +37,8 @@ public class WithdrawMemberHandler {
                 memberId,
                 withdrawnAt
         );
-        validateActive(member);
-        appleAccountRevocationService.enqueueForMember(memberId);
         withdraw(member, memberId, withdrawnAt);
-    }
-
-    private void validateActive(Member member) {
-        if (!member.isActive()) {
-            throw new MemberAlreadyWithdrawnException();
-        }
+        appleAccountRevocationService.enqueueForMember(memberId);
     }
 
     private void withdraw(Member member, Long memberId, Instant withdrawnAt) {

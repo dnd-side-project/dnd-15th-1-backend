@@ -265,6 +265,33 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.connected").value(false));
     }
 
+    @Test
+    void rejoinDoesNotRestorePreviousCoupleRelationship() throws Exception {
+        TestMember withdrawing = createProfileMember("탈퇴자", 1);
+        TestMember partner = createProfileMember("이전상대", 2);
+        connect(withdrawing, partner.connectionCode());
+        Long previousCoupleId = activeCoupleMemberRepository
+                .findByMemberId(withdrawing.member().getId())
+                .orElseThrow()
+                .getCouple()
+                .getId();
+        memberCommandService.withdraw(withdrawing.member().getId());
+
+        Member rejoined = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                withdrawing.providerSubject(),
+                "rejoined@example.com",
+                ProviderAuthorization.none()
+        ).member();
+
+        assertThat(rejoined.isActive()).isTrue();
+        assertThat(coupleRepository.findById(previousCoupleId).orElseThrow().getStatus())
+                .isEqualTo(CoupleStatus.DISCONNECTED);
+        assertThat(activeCoupleMemberRepository.findByMemberId(rejoined.getId())).isEmpty();
+        assertThat(activeCoupleMemberRepository.findByMemberId(partner.member().getId()))
+                .isEmpty();
+    }
+
     private void connect(TestMember requester, String code) throws Exception {
         mockMvc.perform(post("/api/v1/couples")
                         .header("Authorization", bearer(requester))
@@ -286,7 +313,7 @@ class CoupleConnectionIntegrationTest {
                 member.getId(),
                 new InitializeMemberProfileCommand(nickname, profileIcon, PREFERENCES)
         ).connectionCode().code();
-        return new TestMember(member, tokens, code);
+        return new TestMember(member, tokens, code, subject);
     }
 
     private String connectionRequest(String code) {
@@ -311,7 +338,8 @@ class CoupleConnectionIntegrationTest {
     private record TestMember(
             Member member,
             IssuedTokens tokens,
-            String connectionCode
+            String connectionCode,
+            String providerSubject
     ) {
     }
 }

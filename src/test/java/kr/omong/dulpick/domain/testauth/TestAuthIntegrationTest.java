@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -180,7 +181,7 @@ class TestAuthIntegrationTest {
 
     @Test
     void rejectsSocialMemberRefreshToken() throws Exception {
-        Member socialMember = memberRepository.save(Member.create());
+        Member socialMember = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens socialTokens = tokenService.issue(socialMember);
 
         mockMvc.perform(post("/api/v1/test-auth/reissue")

@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -255,7 +256,7 @@ class CoupleConnectionConcurrencyIntegrationTest {
     }
 
     private ProfileMember createMember(String nickname, int profileIcon) {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         testMemberIds.add(member.getId());
         String code = memberCommandService.initializeProfile(
                 member.getId(),
