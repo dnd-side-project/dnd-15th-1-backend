@@ -15,6 +15,7 @@ import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorizat
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -36,12 +37,15 @@ class SocialLoginHandlerTest {
     private final AppleAuthorizationService appleAuthorizationService =
             mock(AppleAuthorizationService.class);
     private final SocialAccountService socialAccountService = mock(SocialAccountService.class);
+    private final MemberProfileRepository memberProfileRepository =
+            mock(MemberProfileRepository.class);
     private final TokenService tokenService = mock(TokenService.class);
     private final SocialLoginHandler handler = new SocialLoginHandler(
             verifierRegistry,
             loginNonceService,
             appleAuthorizationService,
             socialAccountService,
+            memberProfileRepository,
             tokenService
     );
 
@@ -73,6 +77,8 @@ class SocialLoginHandlerTest {
 
         assertThat(result.memberId()).isEqualTo(1L);
         assertThat(result.newMember()).isTrue();
+        assertThat(result.onboardingCompleted()).isFalse();
+        verifyNoInteractions(memberProfileRepository);
         verify(loginNonceService).consume(
                 SocialProvider.GOOGLE,
                 "login-nonce",
@@ -124,10 +130,13 @@ class SocialLoginHandlerTest {
                         "com.dulpick.app"
                 )
         )).thenReturn(new AuthenticatedMember(member, false));
+        when(memberProfileRepository.existsById(2L)).thenReturn(true);
         when(tokenService.issue(member)).thenReturn(tokens());
 
-        handler.handle(command);
+        SocialLoginResult result = handler.handle(command);
 
+        assertThat(result.newMember()).isFalse();
+        assertThat(result.onboardingCompleted()).isTrue();
         verify(loginNonceService).consume(
                 SocialProvider.APPLE,
                 "raw-nonce",
@@ -237,6 +246,7 @@ class SocialLoginHandlerTest {
 
         assertThat(result.memberId()).isEqualTo(5L);
         assertThat(result.newMember()).isFalse();
+        assertThat(result.onboardingCompleted()).isFalse();
     }
 
     @Test

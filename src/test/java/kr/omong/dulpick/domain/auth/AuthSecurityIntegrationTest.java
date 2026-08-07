@@ -150,6 +150,7 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").isNumber())
                 .andExpect(jsonPath("$.newMember").value(true))
+                .andExpect(jsonPath("$.onboardingCompleted").value(false))
                 .andExpect(jsonPath("$.token.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.token.refreshToken").isNotEmpty());
     }
