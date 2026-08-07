@@ -4,10 +4,14 @@ import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundExcept
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.notification.application.exception.PushDeviceConflictException;
+import kr.omong.dulpick.domain.notification.application.exception.PushDeviceNotFoundException;
+import kr.omong.dulpick.domain.notification.application.exception.PushRegistrationUnavailableException;
 import kr.omong.dulpick.domain.notification.domain.PushDevice;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceRepository;
 import kr.omong.dulpick.domain.notification.domain.PushProviderType;
 import kr.omong.dulpick.domain.notification.infrastructure.PushRegistrationCipher;
+import kr.omong.dulpick.domain.notification.infrastructure.PushRegistrationEncryptionException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import kr.omong.dulpick.global.exception.FieldValidationException;
 import kr.omong.dulpick.global.security.crypto.Sha256;
@@ -47,9 +51,7 @@ public class PushDeviceService {
         String deviceId = command.deviceId().toString();
         String registrationHash = Sha256.hex(command.providerRegistrationId());
         Instant registeredAt = clock.instant();
-        String encryptedRegistrationId = registrationCipher.encrypt(
-                command.providerRegistrationId()
-        );
+        String encryptedRegistrationId = encrypt(command.providerRegistrationId());
         PushDevice device = findRegistrationTarget(command, deviceId, registrationHash)
                 .map(existing -> refresh(
                         existing,
@@ -161,6 +163,14 @@ public class PushDeviceService {
             return toView(pushDeviceRepository.saveAndFlush(device));
         } catch (DataIntegrityViolationException exception) {
             throw new PushDeviceConflictException(exception);
+        }
+    }
+
+    private String encrypt(String providerRegistrationId) {
+        try {
+            return registrationCipher.encrypt(providerRegistrationId);
+        } catch (PushRegistrationEncryptionException exception) {
+            throw new PushRegistrationUnavailableException(exception);
         }
     }
 

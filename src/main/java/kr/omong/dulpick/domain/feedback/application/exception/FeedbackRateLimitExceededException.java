@@ -1,4 +1,4 @@
-package kr.omong.dulpick.domain.feedback.application;
+package kr.omong.dulpick.domain.feedback.application.exception;
 
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;

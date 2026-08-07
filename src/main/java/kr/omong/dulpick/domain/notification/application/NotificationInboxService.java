@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.notification.application;
 
+import kr.omong.dulpick.domain.notification.application.exception.NotificationNotFoundException;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;

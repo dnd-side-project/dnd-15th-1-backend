@@ -1,5 +1,7 @@
 package kr.omong.dulpick.domain.notification.application;
 
+import kr.omong.dulpick.domain.notification.application.exception.MarketingConsentVersionOutdatedException;
+import kr.omong.dulpick.domain.notification.application.exception.MarketingConsentVersionRequiredException;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
@@ -9,7 +11,6 @@ import kr.omong.dulpick.domain.notification.domain.MarketingConsentHistory;
 import kr.omong.dulpick.domain.notification.domain.MarketingConsentHistoryRepository;
 import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettings;
 import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettingsRepository;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,7 +18,6 @@ import java.time.Clock;
 import java.time.Instant;
 
 @Service
-@EnableConfigurationProperties(MarketingConsentProperties.class)
 public class NotificationSettingsService {
 
     private final MemberRepository memberRepository;

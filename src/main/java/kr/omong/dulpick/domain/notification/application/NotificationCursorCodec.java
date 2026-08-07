@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.ByteBuffer;
 import java.util.Base64;
+import java.util.Objects;
 
 @Component
 public class NotificationCursorCodec {
@@ -13,6 +14,7 @@ public class NotificationCursorCodec {
     private static final int CURSOR_BYTES = Long.BYTES;
 
     public String encode(Long notificationId) {
+        Objects.requireNonNull(notificationId, "notificationId must not be null");
         byte[] payload = ByteBuffer.allocate(CURSOR_BYTES)
                 .putLong(notificationId)
                 .array();

@@ -113,6 +113,12 @@ public class NotificationDelivery {
         updatedAt = claimedAt;
     }
 
+    public void failWithoutAttempt(String errorCode, Instant failedAt) {
+        status = NotificationDeliveryStatus.FAILED;
+        lastErrorCode = errorCode;
+        updatedAt = failedAt;
+    }
+
     public void markSent(String providerMessageId, Instant sentAt) {
         if (status != NotificationDeliveryStatus.SENDING) {
             return;

@@ -8,6 +8,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
+import java.util.Objects;
+
 @Component
 public class CoupleNotificationEventListener {
 
@@ -27,8 +29,10 @@ public class CoupleNotificationEventListener {
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void onDisconnected(CoupleDisconnectedEvent event) {
-        createDisconnected(event, event.firstMemberId());
-        createDisconnected(event, event.secondMemberId());
+        Long receiverMemberId = findDisconnectedNotificationReceiver(event);
+        if (receiverMemberId != null) {
+            createDisconnected(event, receiverMemberId);
+        }
     }
 
     private void createConnected(CoupleConnectedEvent event, Long receiverMemberId) {
@@ -64,5 +68,17 @@ public class CoupleNotificationEventListener {
                 ),
                 event.occurredAt()
         ));
+    }
+
+    private Long findDisconnectedNotificationReceiver(
+            CoupleDisconnectedEvent event
+    ) {
+        if (Objects.equals(event.firstMemberId(), event.requestedByMemberId())) {
+            return event.secondMemberId();
+        }
+        if (Objects.equals(event.secondMemberId(), event.requestedByMemberId())) {
+            return event.firstMemberId();
+        }
+        return null;
     }
 }

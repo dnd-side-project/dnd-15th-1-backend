@@ -3,7 +3,6 @@ package kr.omong.dulpick.domain.notification.application;
 import kr.omong.dulpick.domain.feedback.domain.MemberFeedbackRepository;
 import kr.omong.dulpick.domain.notification.config.NotificationMaintenanceProperties;
 import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -16,7 +15,6 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 @Service
-@EnableConfigurationProperties(NotificationMaintenanceProperties.class)
 public class NotificationDataCleanupService {
 
     private final NotificationRepository notificationRepository;

@@ -25,7 +25,7 @@ notification:
     project-id: ${FIREBASE_PROJECT_ID:}
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:}
   push:
-    registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:${PROVIDER_TOKEN_ENCRYPTION_KEY}}
+    registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:}
 
 couple:
   public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}

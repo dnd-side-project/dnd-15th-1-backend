@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.feedback.application;
 
+import kr.omong.dulpick.domain.feedback.application.exception.FeedbackRateLimitExceededException;
 import kr.omong.dulpick.domain.feedback.domain.MemberFeedback;
 import kr.omong.dulpick.domain.feedback.domain.MemberFeedbackRepository;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;

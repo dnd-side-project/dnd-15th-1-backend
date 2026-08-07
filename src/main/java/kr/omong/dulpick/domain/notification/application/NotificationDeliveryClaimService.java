@@ -5,8 +5,8 @@ import kr.omong.dulpick.domain.notification.domain.Notification;
 import kr.omong.dulpick.domain.notification.domain.NotificationDelivery;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceStatus;
+import kr.omong.dulpick.domain.notification.domain.PushProviderType;
 import kr.omong.dulpick.domain.notification.infrastructure.PushMessage;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,7 +15,6 @@ import java.time.Instant;
 import java.util.Optional;
 
 @Service
-@EnableConfigurationProperties(FcmProperties.class)
 public class NotificationDeliveryClaimService {
 
     private final NotificationDeliveryRepository deliveryRepository;
@@ -40,17 +39,12 @@ public class NotificationDeliveryClaimService {
         if (delivery == null || !delivery.canClaim(now, properties.sendingTimeout())) {
             return Optional.empty();
         }
+        if (delivery.getProvider() != PushProviderType.FCM) {
+            delivery.failWithoutAttempt("UNSUPPORTED_PROVIDER", now);
+            return Optional.empty();
+        }
         if (delivery.getPushDeviceStatus() != PushDeviceStatus.ACTIVE) {
-            delivery.claim(now);
-            delivery.handleFailure(
-                    "DEVICE_INACTIVE",
-                    false,
-                    false,
-                    now,
-                    properties.maxAttempts(),
-                    properties.initialRetryDelay(),
-                    properties.maxRetryDelay()
-            );
+            delivery.failWithoutAttempt("DEVICE_INACTIVE", now);
             return Optional.empty();
         }
         delivery.claim(now);

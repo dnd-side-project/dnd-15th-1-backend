@@ -1,7 +1,6 @@
 package kr.omong.dulpick.domain.notification.infrastructure;
 
 import kr.omong.dulpick.domain.notification.config.PushProperties;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.Cipher;
@@ -15,17 +14,18 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 @Component
-@EnableConfigurationProperties(PushProperties.class)
 public class PushRegistrationCipher {
 
     private static final int IV_BYTES = 12;
     private static final int GCM_TAG_BITS = 128;
 
-    private final String base64Key;
+    private final SecretKey secretKey;
     private final SecureRandom secureRandom;
 
     public PushRegistrationCipher(PushProperties properties, SecureRandom secureRandom) {
-        this.base64Key = properties.registrationEncryptionKey();
+        this.secretKey = createConfiguredSecretKey(
+                properties.registrationEncryptionKey()
+        );
         this.secureRandom = secureRandom;
     }
 
@@ -36,7 +36,7 @@ public class PushRegistrationCipher {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(
                     Cipher.ENCRYPT_MODE,
-                    createSecretKey(base64Key),
+                    requireSecretKey(),
                     new GCMParameterSpec(GCM_TAG_BITS, iv)
             );
             byte[] encrypted = cipher.doFinal(
@@ -66,7 +66,7 @@ public class PushRegistrationCipher {
             Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
             cipher.init(
                     Cipher.DECRYPT_MODE,
-                    createSecretKey(base64Key),
+                    requireSecretKey(),
                     new GCMParameterSpec(GCM_TAG_BITS, iv)
             );
             return new String(cipher.doFinal(encrypted), StandardCharsets.UTF_8);
@@ -75,7 +75,25 @@ public class PushRegistrationCipher {
         }
     }
 
-    private SecretKey createSecretKey(String base64Key) {
+    public void requireConfigured() {
+        if (secretKey == null) {
+            throw new IllegalStateException(
+                    "PUSH_REGISTRATION_ENCRYPTION_KEY is required"
+            );
+        }
+    }
+
+    private SecretKey requireSecretKey() {
+        if (secretKey == null) {
+            throw new PushRegistrationEncryptionException();
+        }
+        return secretKey;
+    }
+
+    private SecretKey createConfiguredSecretKey(String base64Key) {
+        if (base64Key == null || base64Key.isBlank()) {
+            return null;
+        }
         try {
             byte[] key = Base64.getDecoder().decode(base64Key);
             if (key.length != 32) {

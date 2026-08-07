@@ -42,6 +42,10 @@ public enum ErrorCode {
     ),
     PUSH_DEVICE_NOT_FOUND(HttpStatus.NOT_FOUND, "푸시 디바이스를 찾을 수 없습니다"),
     PUSH_DEVICE_CONFLICT(HttpStatus.CONFLICT, "푸시 디바이스 등록 상태가 변경되었습니다"),
+    PUSH_REGISTRATION_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "푸시 디바이스를 등록할 수 없습니다. 잠시 후 다시 시도해 주세요"
+    ),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
 
     // 커플 연결
