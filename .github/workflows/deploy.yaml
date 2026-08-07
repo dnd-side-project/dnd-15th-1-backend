@@ -25,7 +25,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: public.ecr.aws/docker/library/mysql:8.0
         env:
           MYSQL_DATABASE: dulpick_test
           MYSQL_USER: dulpick
