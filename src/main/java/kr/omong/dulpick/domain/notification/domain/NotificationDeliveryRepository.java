@@ -36,7 +36,8 @@ public interface NotificationDeliveryRepository
     @Query("""
             SELECT delivery.id
             FROM NotificationDelivery delivery
-            WHERE (
+            WHERE delivery.provider = kr.omong.dulpick.domain.notification.domain.PushProviderType.FCM
+              AND ((
                 delivery.status IN (
                     kr.omong.dulpick.domain.notification.domain.NotificationDeliveryStatus.PENDING,
                     kr.omong.dulpick.domain.notification.domain.NotificationDeliveryStatus.RETRY_PENDING
@@ -45,7 +46,7 @@ public interface NotificationDeliveryRepository
             ) OR (
                 delivery.status = kr.omong.dulpick.domain.notification.domain.NotificationDeliveryStatus.SENDING
                 AND delivery.lastAttemptedAt <= :staleBefore
-            )
+            ))
             ORDER BY delivery.id
             """)
     List<Long> findClaimableIds(

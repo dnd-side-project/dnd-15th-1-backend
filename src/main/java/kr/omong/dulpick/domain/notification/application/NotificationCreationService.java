@@ -6,8 +6,6 @@ import kr.omong.dulpick.domain.notification.domain.Notification;
 import kr.omong.dulpick.domain.notification.domain.NotificationDelivery;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;
 import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
-import kr.omong.dulpick.domain.notification.domain.NotificationRoute;
-import kr.omong.dulpick.domain.notification.domain.NotificationType;
 import kr.omong.dulpick.domain.notification.domain.PushDevice;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceRepository;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceStatus;
@@ -39,37 +37,39 @@ public class NotificationCreationService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void createSystemNotification(
-            Long receiverMemberId,
-            NotificationType type,
-            String title,
-            String body,
-            NotificationRoute route,
-            String referenceId,
-            String deduplicationKey,
-            Instant occurredAt
-    ) {
-        Member receiver = memberRepository.findById(receiverMemberId).orElse(null);
+    public void createSystemNotification(NotificationRequest request) {
+        createNotification(request, true);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void createNotification(NotificationRequest request, boolean pushEnabled) {
+        Member receiver = memberRepository.findById(request.receiverMemberId()).orElse(null);
         if (receiver == null || !receiver.isActive()) {
             return;
         }
         if (notificationRepository.existsByReceiverIdAndDeduplicationKey(
-                receiverMemberId,
-                deduplicationKey
+                request.receiverMemberId(),
+                request.deduplicationKey()
         )) {
             return;
         }
         Notification notification = notificationRepository.save(Notification.create(
                 receiver,
-                type,
-                title,
-                body,
-                route,
-                referenceId,
-                deduplicationKey,
-                occurredAt
+                request.type(),
+                request.title(),
+                request.body(),
+                request.route(),
+                request.referenceId(),
+                request.deduplicationKey(),
+                request.occurredAt()
         ));
-        createDeliveries(receiverMemberId, notification, occurredAt);
+        if (pushEnabled) {
+            createDeliveries(
+                    request.receiverMemberId(),
+                    notification,
+                    request.occurredAt()
+            );
+        }
     }
 
     private void createDeliveries(

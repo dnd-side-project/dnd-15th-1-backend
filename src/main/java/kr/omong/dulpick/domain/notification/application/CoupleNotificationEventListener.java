@@ -32,7 +32,7 @@ public class CoupleNotificationEventListener {
     }
 
     private void createConnected(CoupleConnectedEvent event, Long receiverMemberId) {
-        notificationCreationService.createSystemNotification(
+        notificationCreationService.createSystemNotification(new NotificationRequest(
                 receiverMemberId,
                 NotificationType.COUPLE_CONNECTED,
                 "커플 연결이 완료됐어요",
@@ -44,14 +44,14 @@ public class CoupleNotificationEventListener {
                         receiverMemberId
                 ),
                 event.occurredAt()
-        );
+        ));
     }
 
     private void createDisconnected(
             CoupleDisconnectedEvent event,
             Long receiverMemberId
     ) {
-        notificationCreationService.createSystemNotification(
+        notificationCreationService.createSystemNotification(new NotificationRequest(
                 receiverMemberId,
                 NotificationType.COUPLE_DISCONNECTED,
                 "커플 연결이 해제됐어요",
@@ -63,6 +63,6 @@ public class CoupleNotificationEventListener {
                         receiverMemberId
                 ),
                 event.occurredAt()
-        );
+        ));
     }
 }

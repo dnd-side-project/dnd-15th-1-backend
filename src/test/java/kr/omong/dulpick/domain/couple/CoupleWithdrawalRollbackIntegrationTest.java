@@ -142,10 +142,10 @@ class CoupleWithdrawalRollbackIntegrationTest {
                 .isPresent();
         assertThat(activeCoupleMemberRepository.findByMemberId(partner.memberId()))
                 .isPresent();
-        assertThat(coupleRepository.findAll())
-                .singleElement()
-                .satisfies(couple -> assertThat(couple.getStatus())
-                        .isEqualTo(CoupleStatus.ACTIVE));
+        assertThat(coupleRepository.findById(testCoupleIds.getLast()))
+                .get()
+                .extracting(Couple::getStatus)
+                .isEqualTo(CoupleStatus.ACTIVE);
         assertThat(committedCoupleEvents.disconnectedEvents()).isEmpty();
     }
 

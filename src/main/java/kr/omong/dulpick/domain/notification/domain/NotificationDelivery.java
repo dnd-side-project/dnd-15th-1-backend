@@ -32,6 +32,10 @@ public class NotificationDelivery {
     private PushDevice pushDevice;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    private PushProviderType provider;
+
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private NotificationDeliveryStatus status;
 
@@ -69,6 +73,7 @@ public class NotificationDelivery {
     ) {
         this.notification = notification;
         this.pushDevice = pushDevice;
+        this.provider = pushDevice.getProvider();
         this.status = NotificationDeliveryStatus.PENDING;
         this.attemptCount = 0;
         this.nextAttemptAt = createdAt;
@@ -154,6 +159,10 @@ public class NotificationDelivery {
 
     public NotificationDeliveryStatus getStatus() {
         return status;
+    }
+
+    public PushProviderType getProvider() {
+        return provider;
     }
 
     public int getAttemptCount() {
