@@ -22,6 +22,9 @@ public class PlaceImport {
     @Column(name = "member_id", nullable = false)
     private Long memberId;
 
+    @Column(name = "content_id")
+    private Long contentId;
+
     @Column(name = "canonical_url", nullable = false, length = 1_000)
     private String canonicalUrl;
 
@@ -106,6 +109,10 @@ public class PlaceImport {
         updatedAt = now;
     }
 
+    public void attachContent(Long contentId) {
+        this.contentId = contentId;
+    }
+
     public void retry(Instant now) {
         status = PlaceImportStatus.PROCESSING;
         failureCode = null;
@@ -168,6 +175,10 @@ public class PlaceImport {
 
     public Long getMemberId() {
         return memberId;
+    }
+
+    public Long getContentId() {
+        return contentId;
     }
 
     public String getCanonicalUrl() {

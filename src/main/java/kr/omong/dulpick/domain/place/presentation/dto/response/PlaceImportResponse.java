@@ -11,6 +11,8 @@ import java.util.List;
 public record PlaceImportResponse(
         @Schema(description = "분석 작업 ID")
         Long importId,
+        @Schema(description = "공용 게시물 ID")
+        Long contentId,
         @Schema(description = "추적 파라미터를 제거한 원본 게시물 링크")
         String originalUrl,
         @Schema(description = "콘텐츠 유형")
@@ -31,6 +33,7 @@ public record PlaceImportResponse(
     public static PlaceImportResponse from(PlaceImportView view) {
         return new PlaceImportResponse(
                 view.importId(),
+                view.contentId(),
                 view.originalUrl(),
                 view.sourceType(),
                 view.title(),

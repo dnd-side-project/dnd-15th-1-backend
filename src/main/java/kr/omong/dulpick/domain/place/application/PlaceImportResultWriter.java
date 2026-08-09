@@ -6,6 +6,13 @@ import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.Content;
+import kr.omong.dulpick.domain.place.domain.ContentPlace;
+import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.ContentRepository;
+import kr.omong.dulpick.domain.place.domain.ContentSubmission;
+import kr.omong.dulpick.domain.place.domain.ContentSubmissionRepository;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,24 +25,42 @@ public class PlaceImportResultWriter {
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
+    private final ContentRepository contentRepository;
+    private final ContentPlaceRepository contentPlaceRepository;
+    private final ContentSubmissionRepository submissionRepository;
     private final Clock clock;
 
     public PlaceImportResultWriter(
             PlaceImportRepository importRepository,
             PlaceCandidateRepository candidateRepository,
             PlaceRepository placeRepository,
+            ContentRepository contentRepository,
+            ContentPlaceRepository contentPlaceRepository,
+            ContentSubmissionRepository submissionRepository,
             Clock clock
     ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
+        this.contentRepository = contentRepository;
+        this.contentPlaceRepository = contentPlaceRepository;
+        this.submissionRepository = submissionRepository;
         this.clock = clock;
     }
 
     @Transactional
-    public void saveMetadata(Long importId, ContentMetadata metadata) {
+    public Long saveMetadata(Long importId, ContentMetadata metadata) {
         PlaceImport placeImport = importRepository.findById(importId)
                 .orElseThrow(IllegalStateException::new);
+        Content content = findOrCreateContent(metadata);
+        placeImport.attachContent(content.getId());
+        if (!submissionRepository.existsByContentIdAndMemberId(content.getId(), placeImport.getMemberId())) {
+            submissionRepository.save(ContentSubmission.create(
+                    content.getId(),
+                    placeImport.getMemberId(),
+                    clock.instant()
+            ));
+        }
         placeImport.recordMetadata(
                 metadata.title(),
                 metadata.caption(),
@@ -43,6 +68,7 @@ public class PlaceImportResultWriter {
                 metadata.contentHash(),
                 metadata.sourceUpdatedAt()
         );
+        return content.getId();
     }
 
     @Transactional
@@ -53,9 +79,15 @@ public class PlaceImportResultWriter {
     ) {
         PlaceImport placeImport = importRepository.findById(importId)
                 .orElseThrow(IllegalStateException::new);
+        Long contentId = placeImport.getContentId();
+        if (contentId == null) {
+            contentId = findOrCreateContent(metadata).getId();
+            placeImport.attachContent(contentId);
+        }
+        final Long resolvedContentId = contentId;
         candidateRepository.deleteAllByImportId(importId);
         List<PlaceCandidate> candidates = verifiedCandidates.stream()
-                .map(candidate -> saveCandidate(importId, candidate))
+                .map(candidate -> saveCandidate(importId, resolvedContentId, candidate))
                 .toList();
         candidateRepository.saveAll(candidates);
         placeImport.complete(
@@ -70,6 +102,7 @@ public class PlaceImportResultWriter {
 
     private PlaceCandidate saveCandidate(
             Long importId,
+            Long contentId,
             VerifiedCandidate candidate
     ) {
         VerifiedPlace verified = candidate.verified();
@@ -85,6 +118,13 @@ public class PlaceImportResultWriter {
                         verified.thumbnailUrl(),
                         clock.instant()
                 )));
+        if (!contentPlaceRepository.existsByContentIdAndPlaceId(contentId, place.getId())) {
+            contentPlaceRepository.save(ContentPlace.create(
+                    contentId,
+                    place.getId(),
+                    clock.instant()
+            ));
+        }
         return PlaceCandidate.verified(
                 importId,
                 place.getId(),
@@ -92,5 +132,26 @@ public class PlaceImportResultWriter {
                 candidate.extracted().addressHint(),
                 clock.instant()
         );
+    }
+
+    private Content findOrCreateContent(ContentMetadata metadata) {
+        String urlHash = Sha256.hex(metadata.canonicalUrl());
+        Content content = contentRepository.findByCanonicalUrlHash(urlHash)
+                .orElseGet(() -> contentRepository.save(Content.create(
+                        metadata.canonicalUrl(),
+                        urlHash,
+                        metadata.sourceType(),
+                        metadata.title(),
+                        metadata.caption(),
+                        metadata.thumbnailUrl(),
+                        clock.instant()
+                )));
+        content.updateMetadata(
+                metadata.title(),
+                metadata.caption(),
+                metadata.thumbnailUrl(),
+                clock.instant()
+        );
+        return content;
     }
 }

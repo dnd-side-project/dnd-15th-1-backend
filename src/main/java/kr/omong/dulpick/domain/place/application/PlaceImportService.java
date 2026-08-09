@@ -189,7 +189,8 @@ public class PlaceImportService {
                 placeImport.getCanonicalUrl(),
                 sourceType
         );
-        resultWriter.saveMetadata(placeImport.getId(), metadata);
+        Long contentId = resultWriter.saveMetadata(placeImport.getId(), metadata);
+        placeImport.attachContent(contentId);
         placeImport.recordMetadata(
                 metadata.title(),
                 metadata.caption(),
@@ -241,6 +242,7 @@ public class PlaceImportService {
                 .toList();
         return new PlaceImportView(
                 placeImport.getId(),
+                placeImport.getContentId(),
                 placeImport.getCanonicalUrl(),
                 placeImport.getSourceType(),
                 placeImport.getTitle(),
