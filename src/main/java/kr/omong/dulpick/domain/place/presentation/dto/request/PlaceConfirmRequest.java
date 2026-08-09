@@ -11,9 +11,8 @@ import java.util.List;
 public record PlaceConfirmRequest(
         @NotEmpty
         @Size(max = 10)
-        @Valid
         @Schema(description = "저장할 검증 완료 장소 후보 목록")
-        List<Selection> selections
+        List<@Valid Selection> selections
 ) {
 
     public record Selection(

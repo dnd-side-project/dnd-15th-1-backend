@@ -83,14 +83,14 @@ public class PlaceImportService {
                 existing.retry(clock.instant());
                 importRepository.save(existing);
                 processWithRetry(existing, source.sourceType());
-                return toView(existing);
+                return toView(reload(existing));
             }
             if (canRetry(existing)) {
                 existing.retry(clock.instant());
                 importRepository.save(existing);
                 processWithRetry(existing, source.sourceType());
             }
-            return toView(existing);
+            return toView(reload(existing));
         }
         validateDailyLimit(memberId);
         Instant now = clock.instant();
@@ -104,7 +104,7 @@ public class PlaceImportService {
         placeImport.start(now);
         importRepository.save(placeImport);
         processWithRetry(placeImport, source.sourceType());
-        return toView(placeImport);
+        return toView(reload(placeImport));
     }
 
     private void processWithRetry(
@@ -233,6 +233,10 @@ public class PlaceImportService {
                 placeImport.getFailureCode(),
                 candidates
         );
+    }
+
+    private PlaceImport reload(PlaceImport placeImport) {
+        return importRepository.findById(placeImport.getId()).orElse(placeImport);
     }
 
     private PlaceCandidateView toCandidateView(PlaceCandidate candidate) {
