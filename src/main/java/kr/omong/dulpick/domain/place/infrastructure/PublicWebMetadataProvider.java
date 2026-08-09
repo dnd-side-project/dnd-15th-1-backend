@@ -60,6 +60,10 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
             "\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"",
             Pattern.CASE_INSENSITIVE
     );
+    private static final Pattern BLOG_FRAME = Pattern.compile(
+            "<iframe[^>]+id=[\\\"']mainFrame[\\\"'][^>]+src=[\\\"']([^\\\"']+)",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final PlaceAnalysisProperties properties;
     private final RestClient restClient;
@@ -88,6 +92,9 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
                     || html.length() > 1_000_000) {
                 throw new MetadataUnavailableException();
             }
+            if (sourceType == ContentSourceType.NAVER_BLOG) {
+                html = fetchBlogFrame(page, html);
+            }
             String title = firstNonBlank(extract(html, TITLE), extract(html, HTML_TITLE));
             if (title.isBlank() && sourceType == ContentSourceType.NAVER_SHORT_LINK) {
                 title = fetchNaverPlaceTitle(page.url());
@@ -115,6 +122,15 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);
         }
+    }
+
+    private String fetchBlogFrame(FetchedPage page, String html) {
+        Matcher frame = BLOG_FRAME.matcher(html);
+        if (!frame.find()) {
+            return html;
+        }
+        String frameUrl = resolve(page.url(), URI.create(frame.group(1)));
+        return fetchFollowingRedirects(frameUrl).body();
     }
 
     private FetchedPage fetchFollowingRedirects(

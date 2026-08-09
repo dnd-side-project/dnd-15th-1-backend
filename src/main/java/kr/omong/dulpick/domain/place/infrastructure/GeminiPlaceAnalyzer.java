@@ -90,7 +90,9 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 Analyze an Instagram post or reel title and caption.
                 Extract up to 10 distinct real-world venues or attractions explicitly supported by the text.
                 Return each separately named place in a list. For a popup or event, return its host venue.
+                A neighborhood, city, landmark mentioned only as context or comparison is not a venue.
                 Do not infer a place from an influencer, product, hashtag, or generic scenery.
+                Return a candidate only when the caption names the venue itself or marks it as a location.
                 """ : """
                 Analyze the title and body text from a Naver map, Naver blog, or Tistory page.
                 Extract up to 10 distinct real-world place names explicitly mentioned in the text.
