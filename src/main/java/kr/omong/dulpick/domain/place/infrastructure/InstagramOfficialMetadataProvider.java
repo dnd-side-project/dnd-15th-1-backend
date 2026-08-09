@@ -42,7 +42,13 @@ public class InstagramOfficialMetadataProvider implements ContentMetadataProvide
     public boolean supports(ContentSourceType sourceType) {
         return properties.officialEnabled()
                 && properties.accessToken() != null
-                && !properties.accessToken().isBlank();
+                && !properties.accessToken().isBlank()
+                && isInstagram(sourceType);
+    }
+
+    private boolean isInstagram(ContentSourceType sourceType) {
+        return sourceType == ContentSourceType.INSTAGRAM_REEL
+                || sourceType == ContentSourceType.INSTAGRAM_POST;
     }
 
     @Override

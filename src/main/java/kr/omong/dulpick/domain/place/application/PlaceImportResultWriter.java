@@ -80,7 +80,7 @@ public class PlaceImportResultWriter {
         PlaceImport placeImport = importRepository.findById(importId)
                 .orElseThrow(IllegalStateException::new);
         Long contentId = placeImport.getContentId();
-        if (contentId == null) {
+        if (contentId == null && metadata.sourceType().storesPublicContent()) {
             contentId = findOrCreateContent(metadata).getId();
             placeImport.attachContent(contentId);
         }
@@ -118,7 +118,8 @@ public class PlaceImportResultWriter {
                         verified.thumbnailUrl(),
                         clock.instant()
                 )));
-        if (!contentPlaceRepository.existsByContentIdAndPlaceId(contentId, place.getId())) {
+        if (contentId != null
+                && !contentPlaceRepository.existsByContentIdAndPlaceId(contentId, place.getId())) {
             contentPlaceRepository.save(ContentPlace.create(
                     contentId,
                     place.getId(),

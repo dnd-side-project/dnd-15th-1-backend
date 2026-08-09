@@ -189,15 +189,18 @@ public class PlaceImportService {
                 placeImport.getCanonicalUrl(),
                 sourceType
         );
-        Long contentId = resultWriter.saveMetadata(placeImport.getId(), metadata);
-        placeImport.attachContent(contentId);
-        placeImport.recordMetadata(
-                metadata.title(),
-                metadata.caption(),
-                metadata.thumbnailUrl(),
-                metadata.contentHash(),
-                metadata.sourceUpdatedAt()
-        );
+        if (sourceType.storesPublicContent()) {
+            Long contentId = resultWriter.saveMetadata(placeImport.getId(), metadata);
+            placeImport.attachContent(contentId);
+        } else {
+            placeImport.recordMetadata(
+                    metadata.title(),
+                    metadata.caption(),
+                    metadata.thumbnailUrl(),
+                    metadata.contentHash(),
+                    metadata.sourceUpdatedAt()
+            );
+        }
         List<ExtractedPlace> extractedPlaces = placeAnalyzer.analyze(metadata).stream()
                 .limit(properties.maxCandidates())
                 .toList();

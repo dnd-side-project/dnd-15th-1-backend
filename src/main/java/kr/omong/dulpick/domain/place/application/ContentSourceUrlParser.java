@@ -16,10 +16,11 @@ public class ContentSourceUrlParser {
         if (!"https".equalsIgnoreCase(uri.getScheme())) {
             throw new InvalidSourceUrlException();
         }
-        if (!isInstagramHost(uri.getHost())) {
+        ContentSourceType sourceType = sourceType(uri);
+        if (sourceType == null) {
             throw new UnsupportedSourceUrlException();
         }
-        return new ParsedSource(canonicalize(uri), sourceType(uri.getPath()));
+        return new ParsedSource(canonicalize(uri), sourceType);
     }
 
     private URI parseUri(String rawUrl) {
@@ -33,7 +34,28 @@ public class ContentSourceUrlParser {
         }
     }
 
-    private ContentSourceType sourceType(String path) {
+    private ContentSourceType sourceType(URI uri) {
+        String host = uri.getHost();
+        String path = uri.getPath();
+        if (isInstagramHost(host)) {
+            return instagramSourceType(path);
+        }
+        if ("naver.me".equalsIgnoreCase(host)) {
+            return ContentSourceType.NAVER_SHORT_LINK;
+        }
+        if (isHostOrSubdomain(host, "map.naver.com")) {
+            return ContentSourceType.NAVER_MAP;
+        }
+        if (isHostOrSubdomain(host, "blog.naver.com")) {
+            return ContentSourceType.NAVER_BLOG;
+        }
+        if (isHostOrSubdomain(host, "tistory.com")) {
+            return ContentSourceType.TISTORY;
+        }
+        return null;
+    }
+
+    private ContentSourceType instagramSourceType(String path) {
         if (path != null && path.matches("^/reel/[^/]+/?$")) {
             return ContentSourceType.INSTAGRAM_REEL;
         }
@@ -46,6 +68,11 @@ public class ContentSourceUrlParser {
     private boolean isInstagramHost(String host) {
         return "instagram.com".equalsIgnoreCase(host)
                 || "www.instagram.com".equalsIgnoreCase(host);
+    }
+
+    private boolean isHostOrSubdomain(String host, String domain) {
+        return domain.equalsIgnoreCase(host)
+                || (host != null && host.toLowerCase().endsWith("." + domain));
     }
 
     private String canonicalize(URI uri) {

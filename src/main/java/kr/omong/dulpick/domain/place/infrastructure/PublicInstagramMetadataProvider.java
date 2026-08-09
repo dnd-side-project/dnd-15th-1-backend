@@ -55,7 +55,9 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
 
     @Override
     public boolean supports(ContentSourceType sourceType) {
-        return properties.publicCrawlerEnabled();
+        return properties.publicCrawlerEnabled()
+                && (sourceType == ContentSourceType.INSTAGRAM_REEL
+                || sourceType == ContentSourceType.INSTAGRAM_POST);
     }
 
     @Override

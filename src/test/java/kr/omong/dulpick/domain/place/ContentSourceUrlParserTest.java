@@ -56,4 +56,14 @@ class ContentSourceUrlParserTest {
                 .doesNotContain("?")
                 .doesNotContain("igsh");
     }
+
+    @Test
+    void acceptsNaverAndTistoryPlaceSources() {
+        assertThat(parser.parse("https://naver.me/F1r21MEx").sourceType())
+                .isEqualTo(ContentSourceType.NAVER_SHORT_LINK);
+        assertThat(parser.parse("https://blog.naver.com/noel_line/224171315707").sourceType())
+                .isEqualTo(ContentSourceType.NAVER_BLOG);
+        assertThat(parser.parse("https://jdblue2022.tistory.com/entry/example").sourceType())
+                .isEqualTo(ContentSourceType.TISTORY);
+    }
 }
