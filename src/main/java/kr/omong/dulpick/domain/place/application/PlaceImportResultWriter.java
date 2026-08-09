@@ -137,13 +137,7 @@ public class PlaceImportResultWriter {
         if (resolvedContentId != null) {
             candidates.forEach(candidate -> {
                 Long placeId = candidate.getPlaceId();
-                if (!contentPlaceRepository.existsByContentIdAndPlaceId(resolvedContentId, placeId)) {
-                    contentPlaceRepository.save(ContentPlace.create(
-                            resolvedContentId,
-                            placeId,
-                            clock.instant()
-                    ));
-                }
+                contentPlaceRepository.insertIfAbsent(resolvedContentId, placeId, clock.instant());
             });
         }
         if (resolvedContentId != null) {
@@ -165,18 +159,19 @@ public class PlaceImportResultWriter {
             VerifiedCandidate candidate
     ) {
         VerifiedPlace verified = candidate.verified();
+        placeRepository.insertIfAbsent(
+                verified.kakaoPlaceId(),
+                verified.name(),
+                verified.address(),
+                verified.roadAddress(),
+                verified.latitude(),
+                verified.longitude(),
+                verified.category(),
+                verified.thumbnailUrl(),
+                clock.instant()
+        );
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
-                .orElseGet(() -> placeRepository.save(Place.create(
-                        verified.kakaoPlaceId(),
-                        verified.name(),
-                        verified.address(),
-                        verified.roadAddress(),
-                        verified.latitude(),
-                        verified.longitude(),
-                        verified.category(),
-                        verified.thumbnailUrl(),
-                        clock.instant()
-                )));
+                .orElseThrow(IllegalStateException::new);
         return PlaceCandidate.verified(
                 importId,
                 place.getId(),
@@ -188,17 +183,18 @@ public class PlaceImportResultWriter {
 
     private Content findOrCreateContent(ContentMetadata metadata) {
         String urlHash = Sha256.hex(metadata.canonicalUrl());
+        contentRepository.insertIfAbsent(
+                metadata.canonicalUrl(),
+                urlHash,
+                metadata.sourceType().name(),
+                metadata.title(),
+                metadata.caption(),
+                metadata.thumbnailUrl(),
+                metadata.contentHash(),
+                clock.instant()
+        );
         Content content = contentRepository.findByCanonicalUrlHash(urlHash)
-                .orElseGet(() -> contentRepository.save(Content.create(
-                        metadata.canonicalUrl(),
-                        urlHash,
-                        metadata.sourceType(),
-                        metadata.title(),
-                        metadata.caption(),
-                        metadata.thumbnailUrl(),
-                        metadata.contentHash(),
-                        clock.instant()
-                )));
+                .orElseThrow(IllegalStateException::new);
         content.updateMetadata(
                 metadata.title(),
                 metadata.caption(),
