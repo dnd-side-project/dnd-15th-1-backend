@@ -28,7 +28,7 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
             VALUES (:memberId, :url, :urlHash, :sourceType, 'RECEIVED', 0, :now, :now)
             ON DUPLICATE KEY UPDATE canonical_url_hash = canonical_url_hash
             """, nativeQuery = true)
-    void insertIfAbsent(
+    int insertIfAbsent(
             @Param("memberId") Long memberId,
             @Param("url") String url,
             @Param("urlHash") String urlHash,
