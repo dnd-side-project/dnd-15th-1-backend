@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.time.Clock;
 import java.time.Duration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,15 +58,13 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
         try {
             var response = restClient.get()
                     .uri(canonicalUrl)
+                    .header(HttpHeaders.USER_AGENT, "Mozilla/5.0")
+                    .accept(MediaType.TEXT_HTML)
                     .retrieve()
                     .toEntity(String.class);
             if (response.getHeaders().getLocation() != null
                     || response.getBody() == null
-                    || response.getBody().length() > 1_000_000
-                    || response.getHeaders().getContentType() != null
-                    && !MediaType.TEXT_HTML.isCompatibleWith(
-                            response.getHeaders().getContentType()
-                    )) {
+                    || response.getBody().length() > 1_000_000) {
                 throw new MetadataUnavailableException();
             }
             String html = response.getBody();
