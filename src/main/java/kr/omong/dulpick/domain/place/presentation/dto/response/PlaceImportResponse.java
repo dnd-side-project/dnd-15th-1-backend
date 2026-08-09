@@ -52,7 +52,9 @@ public record PlaceImportResponse(
             String address,
             String roadAddress,
             String kakaoPlaceId,
-            String category
+            String category,
+            String evidence,
+            String mentionType
     ) {
 
         private static PlaceCandidateResponse from(PlaceCandidateView view) {
@@ -63,7 +65,9 @@ public record PlaceImportResponse(
                     view.address(),
                     view.roadAddress(),
                     view.kakaoPlaceId(),
-                    view.category()
+                    view.category(),
+                    view.evidence(),
+                    view.mentionType()
             );
         }
     }

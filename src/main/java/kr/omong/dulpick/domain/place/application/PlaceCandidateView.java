@@ -7,6 +7,8 @@ public record PlaceCandidateView(
         String address,
         String roadAddress,
         String kakaoPlaceId,
-        String category
+        String category,
+        String evidence,
+        String mentionType
 ) {
 }

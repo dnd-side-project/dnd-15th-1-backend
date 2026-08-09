@@ -91,6 +91,8 @@ public class PlaceImportResultWriter {
                         place.getId(),
                         place.getName(),
                         place.getAddress(),
+                        null,
+                        null,
                         clock.instant()
                 ))
                 .toList());
@@ -136,6 +138,14 @@ public class PlaceImportResultWriter {
                     metadata.contentHash(),
                     clock.instant()
             ));
+            contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateSourceMetadata(
+                    metadata.sourceAuthorName(),
+                    metadata.sourceAuthorUsername(),
+                    metadata.sourcePublishedOn(),
+                    metadata.likeCount(),
+                    metadata.commentCount(),
+                    metadata.engagementCheckedAt()
+            ));
             candidates.forEach(candidate -> {
                 Long placeId = candidate.getPlaceId();
                 contentPlaceRepository.insertIfAbsent(resolvedContentId, placeId, clock.instant());
@@ -180,6 +190,8 @@ public class PlaceImportResultWriter {
                 place.getId(),
                 candidate.extracted().name(),
                 candidate.extracted().addressHint(),
+                candidate.extracted().evidence(),
+                candidate.extracted().mentionType(),
                 clock.instant()
         );
     }

@@ -80,6 +80,9 @@ public class PublicContentQueryService {
                 content.getId(),
                 content.getCanonicalUrl(),
                 content.getSourceType(),
+                author(content),
+                content.getSourcePublishedOn(),
+                engagement(content),
                 content.getTitle(),
                 content.getContent(),
                 content.getThumbnailUrl(),
@@ -102,6 +105,29 @@ public class PublicContentQueryService {
                 null,
                 null,
                 null
+        );
+    }
+
+    private PublicContentView.ContentAuthorView author(Content content) {
+        if (content.getSourceAuthorName() == null && content.getSourceAuthorUsername() == null) {
+            return null;
+        }
+        return new PublicContentView.ContentAuthorView(
+                content.getSourceAuthorName(),
+                content.getSourceAuthorUsername()
+        );
+    }
+
+    private PublicContentView.ContentEngagementView engagement(Content content) {
+        if (content.getLikeCount() == null
+                && content.getCommentCount() == null
+                && content.getEngagementCheckedAt() == null) {
+            return null;
+        }
+        return new PublicContentView.ContentEngagementView(
+                content.getLikeCount(),
+                content.getCommentCount(),
+                content.getEngagementCheckedAt()
         );
     }
 }

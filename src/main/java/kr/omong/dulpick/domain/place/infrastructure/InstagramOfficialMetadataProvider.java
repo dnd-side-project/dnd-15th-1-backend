@@ -12,7 +12,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.time.Clock;
-import java.time.Instant;
 import java.time.Duration;
 import java.util.Map;
 
@@ -64,18 +63,28 @@ public class InstagramOfficialMetadataProvider implements ContentMetadataProvide
                     .retrieve()
                     .body(Map.class);
             String title = text(response, "title");
-            String caption = "";
-            String content = title.strip();
+            InstagramCaptionMetadataParser.Parsed parsed = InstagramCaptionMetadataParser.parse(
+                    title,
+                    "",
+                    title
+            );
+            String content = String.join("\n", parsed.title(), parsed.content()).strip();
             if (content.isBlank()) {
                 throw new MetadataUnavailableException();
             }
             return new ContentMetadata(
                     canonicalUrl,
                     sourceType,
-                    title,
-                    caption,
+                    parsed.title(),
+                    parsed.content(),
                     text(response, "thumbnail_url"),
                     Sha256.hex(content),
+                    clock.instant(),
+                    text(response, "author_name"),
+                    null,
+                    null,
+                    null,
+                    null,
                     clock.instant()
             );
         } catch (RestClientException exception) {

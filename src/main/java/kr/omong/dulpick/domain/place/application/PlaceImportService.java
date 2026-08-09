@@ -183,6 +183,25 @@ public class PlaceImportService {
                 || exception.getErrorCode() == ErrorCode.PLACE_VERIFICATION_UNAVAILABLE;
     }
 
+    private ExtractedPlace validateEvidence(ExtractedPlace candidate, String sourceText) {
+        if (candidate.evidence() == null || candidate.evidence().isBlank()) {
+            return candidate;
+        }
+        if (sourceText.contains(normalizeText(candidate.evidence()))) {
+            return candidate;
+        }
+        return new ExtractedPlace(
+                candidate.name(),
+                candidate.addressHint(),
+                null,
+                candidate.mentionType()
+        );
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.toLowerCase().replaceAll("\\s+", "");
+    }
+
     @Transactional(readOnly = true)
     public PlaceImportView get(Long memberId, Long importId) {
         PlaceImport placeImport = importRepository.findById(importId)
@@ -213,7 +232,9 @@ public class PlaceImportService {
                     metadata.sourceUpdatedAt()
             );
         }
+        String sourceText = normalizeText(metadata.title() + " " + metadata.caption());
         List<ExtractedPlace> extractedPlaces = placeAnalyzer.analyze(metadata).stream()
+                .map(candidate -> validateEvidence(candidate, sourceText))
                 .limit(properties.maxCandidates())
                 .toList();
         List<VerifiedCandidate> candidates = new ArrayList<>();
@@ -275,7 +296,9 @@ public class PlaceImportService {
                     null,
                     null,
                     null,
-                    null
+                    null,
+                    candidate.getEvidence(),
+                    candidate.getMentionType()
             );
         }
         return new PlaceCandidateView(
@@ -285,7 +308,9 @@ public class PlaceImportService {
                 place.getAddress(),
                 place.getRoadAddress(),
                 place.getKakaoPlaceId(),
-                place.getCategory()
+                place.getCategory(),
+                candidate.getEvidence(),
+                candidate.getMentionType()
         );
     }
 }

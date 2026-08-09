@@ -78,17 +78,28 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
             String title = extract(html, TITLE);
             String description = extract(html, DESCRIPTION);
             String thumbnailUrl = extract(html, IMAGE);
-            String content = String.join("\n", title, description).strip();
-            if (content.isBlank()) {
+            InstagramCaptionMetadataParser.Parsed parsed = InstagramCaptionMetadataParser.parse(
+                    title,
+                    description,
+                    description
+            );
+            if (parsed.title().isBlank() && parsed.content().isBlank()) {
                 throw new MetadataUnavailableException();
             }
+            String content = String.join("\n", parsed.title(), parsed.content()).strip();
             return new ContentMetadata(
                     canonicalUrl,
                     sourceType,
-                    title,
-                    description,
+                    parsed.title(),
+                    parsed.content(),
                     thumbnailUrl,
                     Sha256.hex(content),
+                    clock.instant(),
+                    parsed.displayName(),
+                    parsed.username(),
+                    parsed.publishedOn(),
+                    parsed.likeCount(),
+                    parsed.commentCount(),
                     clock.instant()
             );
         } catch (RestClientException exception) {

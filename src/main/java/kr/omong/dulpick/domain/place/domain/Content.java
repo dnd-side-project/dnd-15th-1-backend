@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "contents")
@@ -43,6 +44,24 @@ public class Content {
 
     @Column(name = "place_count", nullable = false)
     private int placeCount;
+
+    @Column(name = "source_author_name", length = 255)
+    private String sourceAuthorName;
+
+    @Column(name = "source_author_username", length = 255)
+    private String sourceAuthorUsername;
+
+    @Column(name = "source_published_on")
+    private LocalDate sourcePublishedOn;
+
+    @Column(name = "like_count")
+    private Long likeCount;
+
+    @Column(name = "comment_count")
+    private Long commentCount;
+
+    @Column(name = "engagement_checked_at")
+    private Instant engagementCheckedAt;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)
@@ -132,6 +151,22 @@ public class Content {
         this.placeCount = Math.max(placeCount, 0);
     }
 
+    public void updateSourceMetadata(
+            String sourceAuthorName,
+            String sourceAuthorUsername,
+            LocalDate sourcePublishedOn,
+            Long likeCount,
+            Long commentCount,
+            Instant engagementCheckedAt
+    ) {
+        this.sourceAuthorName = sourceAuthorName;
+        this.sourceAuthorUsername = sourceAuthorUsername;
+        this.sourcePublishedOn = sourcePublishedOn;
+        this.likeCount = likeCount;
+        this.commentCount = commentCount;
+        this.engagementCheckedAt = engagementCheckedAt;
+    }
+
     public Long getId() {
         return id;
     }
@@ -162,6 +197,30 @@ public class Content {
 
     public int getPlaceCount() {
         return placeCount;
+    }
+
+    public String getSourceAuthorName() {
+        return sourceAuthorName;
+    }
+
+    public String getSourceAuthorUsername() {
+        return sourceAuthorUsername;
+    }
+
+    public LocalDate getSourcePublishedOn() {
+        return sourcePublishedOn;
+    }
+
+    public Long getLikeCount() {
+        return likeCount;
+    }
+
+    public Long getCommentCount() {
+        return commentCount;
+    }
+
+    public Instant getEngagementCheckedAt() {
+        return engagementCheckedAt;
     }
 
     public Instant getCreatedAt() {

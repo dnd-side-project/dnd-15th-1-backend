@@ -31,6 +31,12 @@ public class PlaceCandidate {
     @Column(name = "extracted_address_hint", length = 500)
     private String extractedAddressHint;
 
+    @Column(name = "evidence", length = 1_000)
+    private String evidence;
+
+    @Column(name = "mention_type", length = 40)
+    private String mentionType;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "verification_status", nullable = false, length = 30)
     private PlaceVerificationStatus verificationStatus;
@@ -46,6 +52,8 @@ public class PlaceCandidate {
             Long placeId,
             String extractedName,
             String extractedAddressHint,
+            String evidence,
+            String mentionType,
             PlaceVerificationStatus verificationStatus,
             Instant createdAt
     ) {
@@ -53,6 +61,8 @@ public class PlaceCandidate {
         this.placeId = placeId;
         this.extractedName = extractedName;
         this.extractedAddressHint = extractedAddressHint;
+        this.evidence = evidence;
+        this.mentionType = mentionType;
         this.verificationStatus = verificationStatus;
         this.createdAt = createdAt;
     }
@@ -62,6 +72,8 @@ public class PlaceCandidate {
             Long placeId,
             String extractedName,
             String extractedAddressHint,
+            String evidence,
+            String mentionType,
             Instant createdAt
     ) {
         return new PlaceCandidate(
@@ -69,6 +81,8 @@ public class PlaceCandidate {
                 placeId,
                 extractedName,
                 extractedAddressHint,
+                evidence,
+                mentionType,
                 PlaceVerificationStatus.VERIFIED,
                 createdAt
         );
@@ -92,6 +106,14 @@ public class PlaceCandidate {
 
     public String getExtractedAddressHint() {
         return extractedAddressHint;
+    }
+
+    public String getEvidence() {
+        return evidence;
+    }
+
+    public String getMentionType() {
+        return mentionType;
     }
 
     public PlaceVerificationStatus getVerificationStatus() {

@@ -117,7 +117,13 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
                     description,
                     extract(html, IMAGE),
                     Sha256.hex(content),
-                    clock.instant()
+                    clock.instant(),
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null
             );
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);

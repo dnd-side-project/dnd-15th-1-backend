@@ -67,10 +67,14 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 }
                 Object name = candidate.get("name");
                 Object addressHint = candidate.get("addressHint");
+                Object evidence = candidate.get("evidence");
+                Object mentionType = candidate.get("mentionType");
                 if (name != null && !name.toString().isBlank()) {
                     ExtractedPlace extracted = new ExtractedPlace(
                             name.toString().strip(),
-                            addressHint == null ? null : addressHint.toString().strip()
+                            addressHint == null ? null : addressHint.toString().strip(),
+                            evidence == null ? null : evidence.toString().strip(),
+                            mentionType == null ? null : mentionType.toString().strip()
                     );
                     result.putIfAbsent(normalize(extracted.name()), extracted);
                 }
@@ -101,7 +105,7 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 Do not infer a place that is not supported by the supplied text.
                 """;
         String prompt = (instructions + """
-                Return JSON only in this shape: {\"candidates\":[{\"name\":\"...\",\"addressHint\":\"...\"}]}.
+                Return JSON only in this shape: {\"candidates\":[{\"name\":\"...\",\"addressHint\":\"...\",\"evidence\":\"...\",\"mentionType\":\"EXPLICIT_VENUE\"}]}.
                 Content type: %s
                 Title: %s
                 Body or caption: %s
@@ -130,7 +134,9 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 "type", "OBJECT",
                 "properties", Map.of(
                         "name", Map.of("type", "STRING"),
-                        "addressHint", Map.of("type", "STRING")
+                        "addressHint", Map.of("type", "STRING"),
+                        "evidence", Map.of("type", "STRING"),
+                        "mentionType", Map.of("type", "STRING")
                 ),
                 "required", List.of("name")
         );

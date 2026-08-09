@@ -16,6 +16,8 @@ import org.springframework.web.client.RestClientException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Locale;
 
@@ -44,15 +46,12 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             throw new PlaceVerificationUnavailableException();
         }
         try {
-            List<PlaceSearchResult> results = searchByNameFallback(extractedPlace.name());
-            if (results.isEmpty() && extractedPlace.addressHint() != null) {
-                results = search(query(extractedPlace));
-            }
-            List<PlaceSearchResult> searchResults = results;
+            List<PlaceSearchResult> results = searchCandidates(extractedPlace);
             return results.stream()
-                    .filter(result -> matches(extractedPlace, result))
+                    .map(result -> new RankedPlace(result, score(extractedPlace, result)))
+                    .sorted(Comparator.comparingInt(RankedPlace::score).reversed())
+                    .map(RankedPlace::place)
                     .findFirst()
-                    .or(() -> selectExactNameMatch(extractedPlace, searchResults))
                     .map(this::toVerifiedPlace)
                     .orElse(null);
         } catch (RestClientException exception) {
@@ -98,6 +97,57 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         return extractedPlace.name() + " " + extractedPlace.addressHint();
     }
 
+    private List<PlaceSearchResult> searchCandidates(ExtractedPlace extractedPlace) {
+        Map<String, PlaceSearchResult> results = new LinkedHashMap<>();
+        addResults(results, search(query(extractedPlace)));
+        if (extractedPlace.addressHint() != null && !extractedPlace.addressHint().isBlank()) {
+            addResults(results, search(extractedPlace.name() + " " + region(extractedPlace.addressHint())));
+        }
+        addResults(results, searchByNameFallback(extractedPlace.name()));
+        return results.values().stream().toList();
+    }
+
+    private void addResults(Map<String, PlaceSearchResult> target, List<PlaceSearchResult> results) {
+        results.forEach(result -> target.putIfAbsent(result.kakaoPlaceId(), result));
+    }
+
+    private String region(String addressHint) {
+        String[] words = addressHint.strip().split("\\s+");
+        return String.join(" ", java.util.Arrays.copyOf(words, Math.min(words.length, 2)));
+    }
+
+    private int score(ExtractedPlace extractedPlace, PlaceSearchResult result) {
+        int score = 0;
+        String extractedName = normalize(extractedPlace.name());
+        String resultName = normalize(result.name());
+        if (resultName.equals(extractedName)) {
+            score += 25;
+        } else if (resultName.contains(extractedName) || extractedName.contains(resultName)) {
+            score += 15;
+        }
+        String rawEvidence = extractedPlace.evidence() == null ? "" : extractedPlace.evidence().strip();
+        String evidence = normalize(rawEvidence);
+        if (evidence.isBlank()) {
+            score -= 40;
+        } else {
+            if (evidence.contains(extractedName)) {
+                score += 30;
+            }
+            if (rawEvidence.contains("위치") || rawEvidence.contains("주소") || rawEvidence.contains("📍")) {
+                score += 20;
+            }
+        }
+        String addressHint = normalize(extractedPlace.addressHint());
+        if (!addressHint.isBlank()) {
+            String address = normalize(result.address() + result.roadAddress());
+            score += address.contains(addressHint) || addressHint.contains(address) ? 20 : -30;
+        }
+        if ("EXPLICIT_VENUE".equalsIgnoreCase(extractedPlace.mentionType())) {
+            score += 10;
+        }
+        return score;
+    }
+
     private List<PlaceSearchResult> searchByNameFallback(String name) {
         String[] words = name.strip().split("\\s+");
         for (int wordCount = words.length; wordCount >= 2; wordCount--) {
@@ -108,54 +158,6 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             }
         }
         return search(name);
-    }
-
-    private boolean matches(
-            ExtractedPlace extractedPlace,
-            PlaceSearchResult result
-    ) {
-        String extractedName = normalize(extractedPlace.name());
-        String resultName = normalize(result.name());
-        boolean nameMatches = resultName.equals(extractedName)
-                || resultName.contains(extractedName)
-                || extractedName.contains(resultName);
-        if (!nameMatches) {
-            return false;
-        }
-        String addressHint = normalize(extractedPlace.addressHint());
-        if (addressHint.isBlank()) {
-            return true;
-        }
-        String address = normalize(result.address() + result.roadAddress());
-        return address.contains(addressHint) || addressHint.contains(address);
-    }
-
-    private boolean exactNameMatches(
-            ExtractedPlace extractedPlace,
-            PlaceSearchResult result
-    ) {
-        return normalize(extractedPlace.name()).equals(normalize(result.name()));
-    }
-
-    private java.util.Optional<PlaceSearchResult> selectExactNameMatch(
-            ExtractedPlace extractedPlace,
-            List<PlaceSearchResult> results
-    ) {
-        List<PlaceSearchResult> exactMatches = results.stream()
-                .filter(result -> exactNameMatches(extractedPlace, result))
-                .toList();
-        if (exactMatches.size() <= 1) {
-            return exactMatches.stream().findFirst();
-        }
-        String addressHint = normalize(extractedPlace.addressHint());
-        return exactMatches.stream()
-                .filter(result -> !addressHint.isBlank()
-                        && normalize(result.address() + result.roadAddress()).contains(addressHint))
-                .findFirst()
-                .or(() -> exactMatches.stream()
-                        .filter(result -> result.name().contains("점") || result.name().contains("지점"))
-                        .findFirst())
-                .or(() -> exactMatches.stream().findFirst());
     }
 
     private String normalize(String value) {
@@ -200,5 +202,8 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private BigDecimal decimal(Map<String, Object> document, String key) {
         String value = text(document, key);
         return value.isBlank() ? null : new BigDecimal(value);
+    }
+
+    private record RankedPlace(PlaceSearchResult place, int score) {
     }
 }
