@@ -63,6 +63,27 @@ public class Content {
     @Column(name = "engagement_checked_at")
     private Instant engagementCheckedAt;
 
+    @Column(name = "analyzer_model", length = 100)
+    private String analyzerModel;
+
+    @Column(name = "prompt_version", length = 50)
+    private String promptVersion;
+
+    @Column(name = "extracted_candidates_json", columnDefinition = "TEXT")
+    private String extractedCandidatesJson;
+
+    @Column(name = "analyzed_at")
+    private Instant analyzedAt;
+
+    @Column(name = "analysis_content_hash", length = 64)
+    private String analysisContentHash;
+
+    @Column(name = "analysis_status", length = 30)
+    private String analysisStatus;
+
+    @Column(name = "analysis_started_at")
+    private Instant analysisStartedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)
     private ContentPublicationStatus publicationStatus;
@@ -167,6 +188,32 @@ public class Content {
         this.engagementCheckedAt = engagementCheckedAt;
     }
 
+    public void updateExtractedAnalysis(
+            String contentHash,
+            String analyzerModel,
+            String promptVersion,
+            String extractedCandidatesJson,
+            Instant analyzedAt
+    ) {
+        this.analysisContentHash = contentHash;
+        this.analyzerModel = analyzerModel;
+        this.promptVersion = promptVersion;
+        this.extractedCandidatesJson = extractedCandidatesJson;
+        this.analyzedAt = analyzedAt;
+        this.analysisStatus = "READY";
+        this.analysisStartedAt = null;
+    }
+
+    public void startAnalysis(Instant startedAt) {
+        this.analysisStatus = "PROCESSING";
+        this.analysisStartedAt = startedAt;
+    }
+
+    public void failAnalysis() {
+        this.analysisStatus = "FAILED";
+        this.analysisStartedAt = null;
+    }
+
     public Long getId() {
         return id;
     }
@@ -221,6 +268,26 @@ public class Content {
 
     public Instant getEngagementCheckedAt() {
         return engagementCheckedAt;
+    }
+
+    public String getAnalyzerModel() {
+        return analyzerModel;
+    }
+
+    public String getAnalysisContentHash() {
+        return analysisContentHash;
+    }
+
+    public String getPromptVersion() {
+        return promptVersion;
+    }
+
+    public String getExtractedCandidatesJson() {
+        return extractedCandidatesJson;
+    }
+
+    public Instant getAnalyzedAt() {
+        return analyzedAt;
     }
 
     public Instant getCreatedAt() {

@@ -15,9 +15,12 @@ import kr.omong.dulpick.domain.place.domain.ContentSubmissionRepository;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PlaceImportResultWriter {
@@ -29,6 +32,7 @@ public class PlaceImportResultWriter {
     private final ContentPlaceRepository contentPlaceRepository;
     private final ContentSubmissionRepository submissionRepository;
     private final Clock clock;
+    private final ObjectMapper objectMapper;
 
     public PlaceImportResultWriter(
             PlaceImportRepository importRepository,
@@ -37,7 +41,8 @@ public class PlaceImportResultWriter {
             ContentRepository contentRepository,
             ContentPlaceRepository contentPlaceRepository,
             ContentSubmissionRepository submissionRepository,
-            Clock clock
+            Clock clock,
+            ObjectMapper objectMapper
     ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
@@ -46,6 +51,87 @@ public class PlaceImportResultWriter {
         this.contentPlaceRepository = contentPlaceRepository;
         this.submissionRepository = submissionRepository;
         this.clock = clock;
+        this.objectMapper = objectMapper;
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<List<ExtractedPlace>> loadCachedAnalysis(
+            Long contentId,
+            String contentHash,
+            String analyzerModel,
+            String promptVersion
+    ) {
+        return contentRepository.findById(contentId)
+                .filter(content -> contentHash.equals(content.getAnalysisContentHash()))
+                .filter(content -> analyzerModel.equals(content.getAnalyzerModel()))
+                .filter(content -> promptVersion.equals(content.getPromptVersion()))
+                .filter(content -> content.getAnalyzedAt() != null)
+                .flatMap(this::readCandidates);
+    }
+
+    @Transactional
+    public boolean claimAnalysis(
+            Long contentId,
+            Instant now,
+            Instant staleBefore
+    ) {
+        return contentRepository.claimAnalysis(contentId, now, staleBefore) == 1;
+    }
+
+    @Transactional
+    public void saveAnalysis(
+            Long contentId,
+            String contentHash,
+            String analyzerModel,
+            String promptVersion,
+            List<ExtractedPlace> candidates,
+            Instant analyzedAt
+    ) {
+        contentRepository.findById(contentId).ifPresent(content -> {
+            try {
+                content.updateExtractedAnalysis(
+                        contentHash,
+                        analyzerModel,
+                        promptVersion,
+                        objectMapper.writeValueAsString(candidates),
+                        analyzedAt
+                );
+            } catch (Exception exception) {
+                throw new IllegalStateException("Failed to cache place analysis", exception);
+            }
+        });
+    }
+
+    @Transactional
+    public void failAnalysis(Long contentId) {
+        contentRepository.failAnalysis(contentId);
+    }
+
+    @Transactional
+    public void saveExtractedCandidates(Long importId, List<ExtractedPlace> candidates) {
+        candidateRepository.deleteAllByImportId(importId);
+        candidateRepository.saveAll(candidates.stream()
+                .map(candidate -> PlaceCandidate.extracted(
+                        importId,
+                        candidate.name(),
+                        candidate.addressHint(),
+                        candidate.evidence(),
+                        candidate.mentionType(),
+                        clock.instant()
+                ))
+                .toList());
+    }
+
+    private Optional<List<ExtractedPlace>> readCandidates(Content content) {
+        try {
+            ExtractedPlace[] candidates = objectMapper.readValue(
+                    content.getExtractedCandidatesJson(),
+                    ExtractedPlace[].class
+            );
+            return Optional.of(List.of(candidates));
+        } catch (Exception exception) {
+            return Optional.empty();
+        }
     }
 
     @Transactional

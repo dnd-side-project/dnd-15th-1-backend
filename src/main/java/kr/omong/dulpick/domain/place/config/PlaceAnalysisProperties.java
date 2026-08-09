@@ -9,7 +9,9 @@ public record PlaceAnalysisProperties(
         int maxCandidates,
         int maxRetries,
         boolean publicCrawlerEnabled,
-        int staleTimeoutSeconds
+        int staleTimeoutSeconds,
+        int retryCooldownSeconds,
+        int maxRetryCount
 ) {
 
     public PlaceAnalysisProperties {
@@ -24,6 +26,12 @@ public record PlaceAnalysisProperties(
         }
         if (staleTimeoutSeconds <= 0) {
             staleTimeoutSeconds = 600;
+        }
+        if (retryCooldownSeconds <= 0) {
+            retryCooldownSeconds = 300;
+        }
+        if (maxRetryCount <= 0) {
+            maxRetryCount = 3;
         }
     }
 }

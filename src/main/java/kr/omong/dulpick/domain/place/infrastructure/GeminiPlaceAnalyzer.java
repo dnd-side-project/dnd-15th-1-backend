@@ -40,6 +40,16 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
     }
 
     @Override
+    public String modelKey() {
+        return properties.model();
+    }
+
+    @Override
+    public String promptVersion() {
+        return "place-extraction-v3";
+    }
+
+    @Override
     @SuppressWarnings("unchecked")
     public List<ExtractedPlace> analyze(ContentMetadata metadata) {
         if (!properties.enabled() || properties.apiKey() == null || properties.apiKey().isBlank()) {

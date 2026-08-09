@@ -88,6 +88,26 @@ public class PlaceCandidate {
         );
     }
 
+    public static PlaceCandidate extracted(
+            Long importId,
+            String extractedName,
+            String extractedAddressHint,
+            String evidence,
+            String mentionType,
+            Instant createdAt
+    ) {
+        return new PlaceCandidate(
+                importId,
+                null,
+                extractedName,
+                extractedAddressHint,
+                evidence,
+                mentionType,
+                PlaceVerificationStatus.EXTRACTED,
+                createdAt
+        );
+    }
+
     public Long getId() {
         return id;
     }

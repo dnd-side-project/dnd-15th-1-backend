@@ -16,6 +16,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import kr.omong.dulpick.global.security.crypto.Sha256;
@@ -148,7 +149,13 @@ public class PlaceImportService {
     private boolean canRetry(PlaceImport placeImport) {
         if (placeImport.getStatus() == PlaceImportStatus.FAILED
                 || placeImport.getStatus() == PlaceImportStatus.RECEIVED) {
-            return true;
+            if (placeImport.getStatus() == PlaceImportStatus.RECEIVED) {
+                return true;
+            }
+            return placeImport.getRetryCount() < properties.maxRetryCount()
+                    && placeImport.getUpdatedAt()
+                    .plusSeconds(properties.retryCooldownSeconds())
+                    .isBefore(clock.instant());
         }
         if (placeImport.getStatus() != PlaceImportStatus.PROCESSING) {
             return false;
@@ -233,10 +240,49 @@ public class PlaceImportService {
             );
         }
         String sourceText = normalizeText(metadata.title() + " " + metadata.caption());
-        List<ExtractedPlace> extractedPlaces = placeAnalyzer.analyze(metadata).stream()
-                .map(candidate -> validateEvidence(candidate, sourceText))
-                .limit(properties.maxCandidates())
-                .toList();
+        String analyzerModel = placeAnalyzer.modelKey();
+        String promptVersion = placeAnalyzer.promptVersion();
+        List<ExtractedPlace> extractedPlaces = loadCachedCandidates(
+                placeImport,
+                metadata,
+                analyzerModel,
+                promptVersion
+        );
+        if (extractedPlaces == null) {
+            Long contentId = placeImport.getContentId();
+            if (contentId != null) {
+                boolean claimed = resultWriter.claimAnalysis(
+                        contentId,
+                        clock.instant(),
+                        clock.instant().minusSeconds(properties.staleTimeoutSeconds())
+                );
+                if (!claimed) {
+                    return;
+                }
+            }
+            try {
+                extractedPlaces = placeAnalyzer.analyze(metadata).stream()
+                        .map(candidate -> validateEvidence(candidate, sourceText))
+                        .limit(properties.maxCandidates())
+                        .toList();
+                if (contentId != null) {
+                    resultWriter.saveAnalysis(
+                            contentId,
+                            metadata.contentHash(),
+                            analyzerModel,
+                            promptVersion,
+                            extractedPlaces,
+                            clock.instant()
+                    );
+                }
+                resultWriter.saveExtractedCandidates(placeImport.getId(), extractedPlaces);
+            } catch (RuntimeException exception) {
+                if (contentId != null) {
+                    resultWriter.failAnalysis(contentId);
+                }
+                throw exception;
+            }
+        }
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (ExtractedPlace extractedPlace : extractedPlaces) {
             VerifiedPlace verifiedPlace = placeVerifier.verify(extractedPlace);
@@ -251,6 +297,35 @@ public class PlaceImportService {
             return;
         }
         resultWriter.saveSuccess(placeImport.getId(), metadata, candidates);
+    }
+
+    private List<ExtractedPlace> loadCachedCandidates(
+            PlaceImport placeImport,
+            ContentMetadata metadata,
+            String analyzerModel,
+            String promptVersion
+    ) {
+        if (placeImport.getContentId() != null) {
+            return resultWriter.loadCachedAnalysis(
+                            placeImport.getContentId(),
+                            metadata.contentHash(),
+                            analyzerModel,
+                            promptVersion
+                    )
+                    .orElse(null);
+        }
+        List<ExtractedPlace> candidates = candidateRepository
+                .findAllByImportIdOrderByIdAsc(placeImport.getId())
+                .stream()
+                .filter(candidate -> candidate.getVerificationStatus() == PlaceVerificationStatus.EXTRACTED)
+                .map(candidate -> new ExtractedPlace(
+                        candidate.getExtractedName(),
+                        candidate.getExtractedAddressHint(),
+                        candidate.getEvidence(),
+                        candidate.getMentionType()
+                ))
+                .toList();
+        return candidates.isEmpty() ? null : candidates;
     }
 
     private Member findActiveMember(Long memberId) {

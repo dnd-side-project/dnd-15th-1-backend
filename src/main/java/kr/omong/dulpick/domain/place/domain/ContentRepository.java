@@ -38,4 +38,31 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
             @Param("contentHash") String contentHash,
             @Param("now") java.time.Instant now
     );
+
+    @Modifying
+    @Query("""
+            UPDATE Content content
+               SET content.analysisStatus = 'PROCESSING',
+                   content.analysisStartedAt = :now
+            WHERE content.id = :contentId
+               AND (content.analysisStatus IS NULL
+                    OR content.analysisStatus = 'FAILED'
+                    OR content.analysisStatus = 'READY'
+                    OR (content.analysisStatus = 'PROCESSING'
+                        AND content.analysisStartedAt < :staleBefore))
+            """)
+    int claimAnalysis(
+            @Param("contentId") Long contentId,
+            @Param("now") java.time.Instant now,
+            @Param("staleBefore") java.time.Instant staleBefore
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE Content content
+               SET content.analysisStatus = 'FAILED',
+                   content.analysisStartedAt = null
+             WHERE content.id = :contentId
+            """)
+    int failAnalysis(@Param("contentId") Long contentId);
 }

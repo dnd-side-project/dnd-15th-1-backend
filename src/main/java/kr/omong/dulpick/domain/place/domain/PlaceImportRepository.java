@@ -71,7 +71,8 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
                 placeImport.failureCode = null,
                 placeImport.updatedAt = :now
             WHERE placeImport.id = :importId
-              AND placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.REVIEW_REQUIRED
+              AND (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.REVIEW_REQUIRED
+                   OR placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.COMPLETED)
             """)
     int claimChangedCompleted(@Param("importId") Long importId, @Param("now") Instant now);
 }
