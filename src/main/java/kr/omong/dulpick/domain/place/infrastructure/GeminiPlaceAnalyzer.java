@@ -13,6 +13,7 @@ import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -59,7 +60,7 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
             if (!(candidates instanceof List<?> values)) {
                 return List.of();
             }
-            List<ExtractedPlace> result = new ArrayList<>();
+            Map<String, ExtractedPlace> result = new LinkedHashMap<>();
             for (Object value : values) {
                 if (!(value instanceof Map<?, ?> candidate)) {
                     continue;
@@ -67,13 +68,14 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 Object name = candidate.get("name");
                 Object addressHint = candidate.get("addressHint");
                 if (name != null && !name.toString().isBlank()) {
-                    result.add(new ExtractedPlace(
+                    ExtractedPlace extracted = new ExtractedPlace(
                             name.toString().strip(),
                             addressHint == null ? null : addressHint.toString().strip()
-                    ));
+                    );
+                    result.putIfAbsent(normalize(extracted.name()), extracted);
                 }
             }
-            return result;
+            return new ArrayList<>(result.values());
         } catch (RuntimeException exception) {
             if (exception instanceof PlaceAnalysisUnavailableException failure) {
                 throw failure;
@@ -83,18 +85,25 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
     }
 
     private Map<String, Object> request(ContentMetadata metadata) {
-        String prompt = """
-                Extract up to 10 distinct real-world place candidates from the following Instagram text.
-                If the text lists multiple places, return every separately named place as a separate candidate.
-                Never collapse a numbered list or a list separated by commas into one candidate.
-                For a popup or temporary event, return the host venue as the place candidate when the host venue
-                is stated (for example, return '용산 아이파크몰' instead of only the popup or product name).
-                Do not infer a place when the text does not support it.
+        boolean instagram = metadata.sourceType().name().startsWith("INSTAGRAM");
+        String instructions = instagram ? """
+                Analyze an Instagram post or reel title and caption.
+                Extract up to 10 distinct real-world venues or attractions explicitly supported by the text.
+                Return each separately named place in a list. For a popup or event, return its host venue.
+                Do not infer a place from an influencer, product, hashtag, or generic scenery.
+                """ : """
+                Analyze the title and body text from a Naver map, Naver blog, or Tistory page.
+                Extract up to 10 distinct real-world place names explicitly mentioned in the text.
+                A Naver short map link identifies one place by its page title, so return only that title.
+                For blogs, return each separately named venue or attraction and ignore article or product names.
+                Do not infer a place that is not supported by the supplied text.
+                """;
+        String prompt = (instructions + """
                 Return JSON only in this shape: {\"candidates\":[{\"name\":\"...\",\"addressHint\":\"...\"}]}.
                 Content type: %s
                 Title: %s
-                Caption or description: %s
-                """.formatted(
+                Body or caption: %s
+                """).formatted(
                 metadata.sourceType(),
                 safe(metadata.title()),
                 safe(metadata.caption())
@@ -146,5 +155,9 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
 
     private String safe(String value) {
         return value == null ? "" : value.strip();
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "").toLowerCase();
     }
 }

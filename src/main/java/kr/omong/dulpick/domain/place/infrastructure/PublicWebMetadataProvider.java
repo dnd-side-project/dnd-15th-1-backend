@@ -52,6 +52,14 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
             "<title[^>]*>(.*?)</title>",
             Pattern.CASE_INSENSITIVE | Pattern.DOTALL
     );
+    private static final Pattern NAVER_PLACE_ID = Pattern.compile(
+            "/entry/place/(\\d+)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern JSON_NAME = Pattern.compile(
+            "\\\"name\\\"\\s*:\\s*\\\"([^\\\"]+)\\\"",
+            Pattern.CASE_INSENSITIVE
+    );
 
     private final PlaceAnalysisProperties properties;
     private final RestClient restClient;
@@ -74,13 +82,16 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     @Override
     public ContentMetadata fetch(String canonicalUrl, ContentSourceType sourceType) {
         try {
-            var response = fetchFollowingRedirects(canonicalUrl);
-            String html = response.getBody();
+            FetchedPage page = fetchFollowingRedirects(canonicalUrl);
+            String html = page.body();
             if (html == null
                     || html.length() > 1_000_000) {
                 throw new MetadataUnavailableException();
             }
             String title = firstNonBlank(extract(html, TITLE), extract(html, HTML_TITLE));
+            if (title.isBlank() && sourceType == ContentSourceType.NAVER_SHORT_LINK) {
+                title = fetchNaverPlaceTitle(page.url());
+            }
             String description = firstNonBlank(
                     extract(html, DESCRIPTION),
                     extract(html, META_DESCRIPTION)
@@ -106,7 +117,7 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         }
     }
 
-    private org.springframework.http.ResponseEntity<String> fetchFollowingRedirects(
+    private FetchedPage fetchFollowingRedirects(
             String canonicalUrl
     ) {
         String currentUrl = canonicalUrl;
@@ -120,11 +131,34 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
                     })
                     .toEntity(String.class);
             if (response.getHeaders().getLocation() == null) {
-                return response;
+                return new FetchedPage(currentUrl, response.getBody());
             }
             currentUrl = resolve(currentUrl, response.getHeaders().getLocation());
         }
         throw new MetadataUnavailableException();
+    }
+
+    private String fetchNaverPlaceTitle(String finalUrl) {
+        Matcher matcher = NAVER_PLACE_ID.matcher(finalUrl);
+        if (!matcher.find()) {
+            throw new MetadataUnavailableException();
+        }
+        try {
+            String body = restClient.get()
+                    .uri("https://map.naver.com/p/api/place/" + matcher.group(1))
+                    .header(HttpHeaders.USER_AGENT, "Mozilla/5.0")
+                    .header(HttpHeaders.REFERER, finalUrl)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+            Matcher name = JSON_NAME.matcher(body == null ? "" : body);
+            if (!name.find()) {
+                throw new MetadataUnavailableException();
+            }
+            return HtmlUtils.htmlUnescape(name.group(1).strip());
+        } catch (RestClientException exception) {
+            throw new MetadataUnavailableException(exception);
+        }
     }
 
     private String resolve(String currentUrl, URI location) {
@@ -157,5 +191,8 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
                 .replaceAll("\\s+", " ")
                 .strip();
         return normalized.substring(0, Math.min(normalized.length(), 20_000));
+    }
+
+    private record FetchedPage(String url, String body) {
     }
 }

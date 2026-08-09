@@ -79,7 +79,7 @@ public class PlaceImportService {
         if (!properties.enabled()) {
             throw new PlaceAnalysisUnavailableException(null);
         }
-        Member member = lockActiveMember(memberId);
+        Member member = findActiveMember(memberId);
         ContentSourceUrlParser.ParsedSource source = urlParser.parse(rawUrl);
         String urlHash = Sha256.hex(source.canonicalUrl());
         PlaceImport existing = importRepository
@@ -87,19 +87,21 @@ public class PlaceImportService {
                 .orElse(null);
         if (existing != null) {
             if (isContentChanged(existing, source)) {
-                existing.retry(clock.instant());
-                importRepository.save(existing);
-                processWithRetry(existing, source.sourceType());
+                Instant now = clock.instant();
+                if (reservationService.claimChangedCompleted(existing.getId(), now)) {
+                    processWithRetry(reload(existing), source.sourceType());
+                }
                 return toView(reload(existing));
             }
-            if (canRetry(existing)) {
-                existing.retry(clock.instant());
-                importRepository.save(existing);
-                processWithRetry(existing, source.sourceType());
+            if (canRetry(existing)
+                    && reservationService.claimRetryable(
+                    existing.getId(),
+                    clock.instant(),
+                    clock.instant().minusSeconds(properties.staleTimeoutSeconds()))) {
+                processWithRetry(reload(existing), source.sourceType());
             }
             return toView(reload(existing));
         }
-        validateDailyLimit(memberId);
         Instant now = clock.instant();
         PlaceImportReservationService.Reservation reservation = reservationService.reserve(
                 member.getId(),
@@ -230,15 +232,7 @@ public class PlaceImportService {
         resultWriter.saveSuccess(placeImport.getId(), metadata, candidates);
     }
 
-    private void validateDailyLimit(Long memberId) {
-        Instant since = clock.instant().minusSeconds(24 * 60 * 60);
-        if (importRepository.countByMemberIdAndCreatedAtGreaterThanEqual(memberId, since)
-                >= properties.dailyLimit()) {
-            throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED);
-        }
-    }
-
-    private Member lockActiveMember(Long memberId) {
+    private Member findActiveMember(Long memberId) {
         Member member = memberRepository.findById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
         if (!member.isActive()) {

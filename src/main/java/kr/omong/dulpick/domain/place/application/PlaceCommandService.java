@@ -76,18 +76,19 @@ public class PlaceCommandService {
         if (!member.isActive()) {
             throw new MemberNotActiveException();
         }
+        placeRepository.insertIfAbsent(
+                searchResult.kakaoPlaceId(),
+                searchResult.name(),
+                searchResult.address(),
+                searchResult.roadAddress(),
+                searchResult.latitude(),
+                searchResult.longitude(),
+                searchResult.category(),
+                searchResult.thumbnailUrl(),
+                clock.instant()
+        );
         Place place = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
-                .orElseGet(() -> placeRepository.save(Place.create(
-                        searchResult.kakaoPlaceId(),
-                        searchResult.name(),
-                        searchResult.address(),
-                        searchResult.roadAddress(),
-                        searchResult.latitude(),
-                        searchResult.longitude(),
-                        searchResult.category(),
-                        searchResult.thumbnailUrl(),
-                        clock.instant()
-                )));
+                .orElseThrow(PlaceNotFoundException::new);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
