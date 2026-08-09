@@ -41,7 +41,7 @@ public class PlaceImport {
     @Column(name = "source_updated_at")
     private Instant sourceUpdatedAt;
 
-    @Column(length = 1_000)
+    @Column(length = 4_000)
     private String title;
 
     @Column(columnDefinition = "TEXT")

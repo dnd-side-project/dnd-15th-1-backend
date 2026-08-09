@@ -29,7 +29,7 @@ public class Content {
     @Column(name = "source_type", nullable = false, length = 30)
     private ContentSourceType sourceType;
 
-    @Column(length = 1_000)
+    @Column(length = 4_000)
     private String title;
 
     @Column(columnDefinition = "TEXT")
