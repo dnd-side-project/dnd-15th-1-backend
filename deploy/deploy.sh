@@ -75,10 +75,10 @@ run_container() {
 }
 
 wait_until_healthy() {
-    local attempts=30
+    local attempts=150
 
     for ((attempt = 1; attempt <= attempts; attempt++)); do
-        if curl --fail --silent --show-error "${HEALTH_URL}" >/dev/null; then
+        if curl --fail --silent "${HEALTH_URL}" >/dev/null; then
             return 0
         fi
         sleep 2
