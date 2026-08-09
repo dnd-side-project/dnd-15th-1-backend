@@ -83,6 +83,7 @@ public class PublicContentQueryService {
                 content.getTitle(),
                 content.getContent(),
                 content.getThumbnailUrl(),
+                content.getPlaceCount(),
                 content.getPublicationStatus(),
                 places
         );

@@ -56,7 +56,7 @@ public class PlaceImportResultWriter {
         placeImport.attachContent(content.getId());
         submissionRepository.insertIfAbsent(content.getId(), placeImport.getMemberId(), clock.instant());
         placeImport.recordMetadata(
-                fitTitle(metadata.title()),
+                displayTitle(metadata),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -96,7 +96,7 @@ public class PlaceImportResultWriter {
                 .toList());
         importRepository.findById(importId).orElseThrow(IllegalStateException::new)
                 .complete(
-                        fitTitle(metadata.title()),
+                        displayTitle(metadata),
                         metadata.caption(),
                         metadata.thumbnailUrl(),
                         metadata.contentHash(),
@@ -130,7 +130,7 @@ public class PlaceImportResultWriter {
         candidateRepository.saveAll(candidates);
         if (resolvedContentId != null) {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateMetadata(
-                    fitTitle(metadata.title()),
+                    displayTitle(metadata),
                     metadata.caption(),
                     metadata.thumbnailUrl(),
                     metadata.contentHash(),
@@ -140,12 +140,14 @@ public class PlaceImportResultWriter {
                 Long placeId = candidate.getPlaceId();
                 contentPlaceRepository.insertIfAbsent(resolvedContentId, placeId, clock.instant());
             });
+            contentRepository.findById(resolvedContentId)
+                    .ifPresent(content -> content.updatePlaceCount(candidates.size()));
         }
         if (resolvedContentId != null) {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(
-                fitTitle(metadata.title()),
+                displayTitle(metadata),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -204,5 +206,20 @@ public class PlaceImportResultWriter {
             return title;
         }
         return title.substring(0, 4_000);
+    }
+
+    private String displayTitle(ContentMetadata metadata) {
+        String title = metadata.title() == null ? "" : metadata.title().strip();
+        if (metadata.sourceType().name().startsWith("INSTAGRAM")) {
+            int separator = title.indexOf(": ");
+            if (separator >= 0 && separator + 2 < title.length()) {
+                title = title.substring(separator + 2).strip();
+            }
+        }
+        String firstLine = title.split("\\R", 2)[0].strip();
+        if (firstLine.isBlank()) {
+            firstLine = (metadata.caption() == null ? "" : metadata.caption()).strip();
+        }
+        return fitTitle(firstLine.length() > 200 ? firstLine.substring(0, 200).strip() : firstLine);
     }
 }

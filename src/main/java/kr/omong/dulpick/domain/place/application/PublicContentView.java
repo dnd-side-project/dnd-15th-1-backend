@@ -12,6 +12,7 @@ public record PublicContentView(
         String title,
         String content,
         String thumbnailUrl,
+        int placeCount,
         ContentPublicationStatus publicationStatus,
         List<MemberPlaceView> places
 ) {

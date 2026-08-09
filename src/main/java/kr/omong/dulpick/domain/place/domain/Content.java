@@ -41,6 +41,9 @@ public class Content {
     @Column(name = "content_hash", length = 64)
     private String contentHash;
 
+    @Column(name = "place_count", nullable = false)
+    private int placeCount;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)
     private ContentPublicationStatus publicationStatus;
@@ -74,6 +77,7 @@ public class Content {
         this.content = content;
         this.thumbnailUrl = thumbnailUrl;
         this.contentHash = contentHash;
+        this.placeCount = 0;
         this.publicationStatus = ContentPublicationStatus.PENDING;
         this.createdAt = now;
         this.updatedAt = now;
@@ -124,6 +128,10 @@ public class Content {
         this.updatedAt = now;
     }
 
+    public void updatePlaceCount(int placeCount) {
+        this.placeCount = Math.max(placeCount, 0);
+    }
+
     public Long getId() {
         return id;
     }
@@ -150,6 +158,10 @@ public class Content {
 
     public ContentPublicationStatus getPublicationStatus() {
         return publicationStatus;
+    }
+
+    public int getPlaceCount() {
+        return placeCount;
     }
 
     public Instant getCreatedAt() {
