@@ -9,8 +9,9 @@ readonly PUBLIC_WEB_BASE_URL="${3:?${USAGE}}"
 readonly FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 readonly APP_DIR="${APP_DIR:-/home/ubuntu/dulpick}"
 readonly ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
-readonly APPLE_PRIVATE_KEY_FILE="${APP_DIR}/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
-readonly FIREBASE_CREDENTIALS_FILE="${APP_DIR}/secrets/firebase-service-account.json"
+readonly SECRETS_DIR="${APP_DIR}/secrets"
+readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-dulpick-backend}"
 readonly DOCKER_NETWORK="${DOCKER_NETWORK:-short-net}"
 readonly HOST_PORT="${HOST_PORT:-8083}"
@@ -44,6 +45,27 @@ fi
 if [[ "${DEPLOY_PULL:-true}" == "true" ]]; then
     docker pull "${FULL_IMAGE}"
 fi
+
+prepare_secret_permissions() {
+    local image="$1"
+    local -a secret_paths=(
+        "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+    )
+
+    chmod 400 "${APPLE_PRIVATE_KEY_FILE}"
+    if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
+        chmod 400 "${FIREBASE_CREDENTIALS_FILE}"
+        secret_paths+=("/run/secrets/firebase-service-account.json")
+    fi
+
+    docker run --rm \
+        --user root \
+        --volume "${SECRETS_DIR}:/run/secrets" \
+        --entrypoint chown \
+        "${image}" \
+        spring:spring \
+        "${secret_paths[@]}"
+}
 
 run_container() {
     local image="$1"
@@ -118,6 +140,7 @@ verify_universal_link_routes() {
 }
 
 docker container rm --force "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+prepare_secret_permissions "${FULL_IMAGE}"
 run_container "${FULL_IMAGE}"
 
 if wait_until_healthy && verify_universal_link_routes; then
@@ -131,6 +154,7 @@ docker container rm --force "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
 if [[ -n "${previous_image}" && "${previous_image}" != "${FULL_IMAGE}" ]]; then
     echo "Rolling back to: ${previous_image}" >&2
+    prepare_secret_permissions "${previous_image}"
     run_container "${previous_image}"
 
     if wait_until_healthy; then
