@@ -190,7 +190,7 @@ public class PlaceImportResultWriter {
                 metadata.canonicalUrl(),
                 urlHash,
                 metadata.sourceType().name(),
-                fitTitle(metadata.title()),
+                displayTitle(metadata),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -220,6 +220,7 @@ public class PlaceImportResultWriter {
         if (firstLine.isBlank()) {
             firstLine = (metadata.caption() == null ? "" : metadata.caption()).strip();
         }
+        firstLine = firstLine.replaceAll("^[\\\"'‘’“”]+|[\\\"'‘’“”]+$", "").strip();
         return fitTitle(firstLine.length() > 200 ? firstLine.substring(0, 200).strip() : firstLine);
     }
 }
