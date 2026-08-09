@@ -68,6 +68,7 @@ public class InstagramOfficialMetadataProvider implements ContentMetadataProvide
                     sourceType,
                     title,
                     caption,
+                    text(response, "thumbnail_url"),
                     Sha256.hex(content),
                     clock.instant()
             );

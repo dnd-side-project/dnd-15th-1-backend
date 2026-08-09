@@ -11,8 +11,16 @@ import java.util.List;
 public record PlaceImportResponse(
         @Schema(description = "분석 작업 ID")
         Long importId,
+        @Schema(description = "추적 파라미터를 제거한 원본 게시물 링크")
+        String originalUrl,
         @Schema(description = "콘텐츠 유형")
         ContentSourceType sourceType,
+        @Schema(description = "게시물 제목")
+        String title,
+        @Schema(description = "게시물 설명 또는 캡션")
+        String content,
+        @Schema(description = "게시물 썸네일 URL", nullable = true)
+        String thumbnailUrl,
         @Schema(description = "분석 상태")
         PlaceImportStatus status,
         @Schema(description = "실패 코드", nullable = true)
@@ -23,7 +31,11 @@ public record PlaceImportResponse(
     public static PlaceImportResponse from(PlaceImportView view) {
         return new PlaceImportResponse(
                 view.importId(),
+                view.originalUrl(),
                 view.sourceType(),
+                view.title(),
+                view.content(),
+                view.thumbnailUrl(),
                 view.status(),
                 view.failureCode(),
                 view.candidates().stream().map(PlaceCandidateResponse::from).toList()

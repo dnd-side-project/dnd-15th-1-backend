@@ -10,6 +10,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.util.HtmlUtils;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -27,6 +28,10 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
     );
     private static final Pattern DESCRIPTION = Pattern.compile(
             "<meta[^>]+property=[\\\"']og:description[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern IMAGE = Pattern.compile(
+            "<meta[^>]+property=[\\\"']og:image[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -70,6 +75,7 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
             String html = response.getBody();
             String title = extract(html, TITLE);
             String description = extract(html, DESCRIPTION);
+            String thumbnailUrl = extract(html, IMAGE);
             String content = String.join("\n", title, description).strip();
             if (content.isBlank()) {
                 throw new MetadataUnavailableException();
@@ -79,6 +85,7 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
                     sourceType,
                     title,
                     description,
+                    thumbnailUrl,
                     Sha256.hex(content),
                     clock.instant()
             );
@@ -92,6 +99,8 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
             return "";
         }
         Matcher matcher = pattern.matcher(html);
-        return matcher.find() ? matcher.group(1).strip() : "";
+        return matcher.find()
+                ? HtmlUtils.htmlUnescape(matcher.group(1).strip())
+                : "";
     }
 }

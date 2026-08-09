@@ -21,6 +21,8 @@ import kr.omong.dulpick.global.exception.ErrorCode;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -29,6 +31,8 @@ import java.util.List;
 
 @Service
 public class PlaceImportService {
+
+    private static final Logger logger = LoggerFactory.getLogger(PlaceImportService.class);
 
     private final MemberRepository memberRepository;
     private final PlaceImportRepository importRepository;
@@ -125,6 +129,7 @@ public class PlaceImportService {
                 placeImport.retry(clock.instant());
                 importRepository.save(placeImport);
             } catch (RuntimeException exception) {
+                logger.error("Place import processing failed: importId={}", placeImport.getId(), exception);
                 placeImport.fail(ErrorCode.INTERNAL_ERROR.getCode(), clock.instant());
                 importRepository.save(placeImport);
                 return;
@@ -184,6 +189,14 @@ public class PlaceImportService {
                 placeImport.getCanonicalUrl(),
                 sourceType
         );
+        resultWriter.saveMetadata(placeImport.getId(), metadata);
+        placeImport.recordMetadata(
+                metadata.title(),
+                metadata.caption(),
+                metadata.thumbnailUrl(),
+                metadata.contentHash(),
+                metadata.sourceUpdatedAt()
+        );
         List<ExtractedPlace> extractedPlaces = placeAnalyzer.analyze(metadata).stream()
                 .limit(properties.maxCandidates())
                 .toList();
@@ -228,7 +241,11 @@ public class PlaceImportService {
                 .toList();
         return new PlaceImportView(
                 placeImport.getId(),
+                placeImport.getCanonicalUrl(),
                 placeImport.getSourceType(),
+                placeImport.getTitle(),
+                placeImport.getContent(),
+                placeImport.getThumbnailUrl(),
                 placeImport.getStatus(),
                 placeImport.getFailureCode(),
                 candidates

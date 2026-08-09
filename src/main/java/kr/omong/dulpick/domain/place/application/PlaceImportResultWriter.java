@@ -33,6 +33,19 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
+    public void saveMetadata(Long importId, ContentMetadata metadata) {
+        PlaceImport placeImport = importRepository.findById(importId)
+                .orElseThrow(IllegalStateException::new);
+        placeImport.recordMetadata(
+                metadata.title(),
+                metadata.caption(),
+                metadata.thumbnailUrl(),
+                metadata.contentHash(),
+                metadata.sourceUpdatedAt()
+        );
+    }
+
+    @Transactional
     public void saveSuccess(
             Long importId,
             ContentMetadata metadata,
@@ -46,6 +59,9 @@ public class PlaceImportResultWriter {
                 .toList();
         candidateRepository.saveAll(candidates);
         placeImport.complete(
+                metadata.title(),
+                metadata.caption(),
+                metadata.thumbnailUrl(),
                 metadata.contentHash(),
                 metadata.sourceUpdatedAt(),
                 clock.instant()

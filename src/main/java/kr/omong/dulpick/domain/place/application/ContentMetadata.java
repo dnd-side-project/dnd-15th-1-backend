@@ -9,6 +9,7 @@ public record ContentMetadata(
         ContentSourceType sourceType,
         String title,
         String caption,
+        String thumbnailUrl,
         String contentHash,
         Instant sourceUpdatedAt
 ) {

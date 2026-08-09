@@ -38,6 +38,15 @@ public class PlaceImport {
     @Column(name = "source_updated_at")
     private Instant sourceUpdatedAt;
 
+    @Column(length = 1_000)
+    private String title;
+
+    @Column(columnDefinition = "TEXT")
+    private String content;
+
+    @Column(name = "thumbnail_url", length = 1_000)
+    private String thumbnailUrl;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
     private PlaceImportStatus status;
@@ -104,15 +113,39 @@ public class PlaceImport {
     }
 
     public void complete(
+            String title,
+            String content,
+            String thumbnailUrl,
             String contentHash,
             Instant sourceUpdatedAt,
             Instant now
     ) {
-        this.contentHash = contentHash;
+        recordMetadata(title, content, thumbnailUrl, contentHash, sourceUpdatedAt);
         this.sourceUpdatedAt = sourceUpdatedAt;
         status = PlaceImportStatus.REVIEW_REQUIRED;
         updatedAt = now;
         completedAt = now;
+    }
+
+    public void recordMetadata(
+            String title,
+            String content,
+            String thumbnailUrl,
+            String contentHash,
+            Instant sourceUpdatedAt
+    ) {
+        this.title = truncate(title, 1_000);
+        this.content = content;
+        this.thumbnailUrl = truncate(thumbnailUrl, 1_000);
+        this.contentHash = contentHash;
+        this.sourceUpdatedAt = sourceUpdatedAt;
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     public void fail(String failureCode, Instant now) {
@@ -163,5 +196,17 @@ public class PlaceImport {
 
     public Instant getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public String getContent() {
+        return content;
+    }
+
+    public String getThumbnailUrl() {
+        return thumbnailUrl;
     }
 }

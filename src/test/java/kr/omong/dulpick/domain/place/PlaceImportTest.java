@@ -23,7 +23,14 @@ class PlaceImportTest {
         );
 
         placeImport.start(createdAt.plusSeconds(1));
-        placeImport.complete("content-hash", createdAt, createdAt.plusSeconds(2));
+        placeImport.complete(
+                "제목",
+                "내용",
+                null,
+                "content-hash",
+                createdAt,
+                createdAt.plusSeconds(2)
+        );
         assertThat(placeImport.getStatus()).isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
 
         placeImport.markCompleted(createdAt.plusSeconds(3));
