@@ -44,7 +44,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             throw new PlaceVerificationUnavailableException();
         }
         try {
-            List<PlaceSearchResult> results = search(extractedPlace.name());
+            List<PlaceSearchResult> results = searchByNameFallback(extractedPlace.name());
             if (results.isEmpty() && extractedPlace.addressHint() != null) {
                 results = search(query(extractedPlace));
             }
@@ -98,6 +98,18 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             return extractedPlace.name();
         }
         return extractedPlace.name() + " " + extractedPlace.addressHint();
+    }
+
+    private List<PlaceSearchResult> searchByNameFallback(String name) {
+        String[] words = name.strip().split("\\s+");
+        for (int wordCount = words.length; wordCount >= 2; wordCount--) {
+            String query = String.join(" ", java.util.Arrays.copyOf(words, wordCount));
+            List<PlaceSearchResult> results = search(query);
+            if (!results.isEmpty()) {
+                return results;
+            }
+        }
+        return search(name);
     }
 
     private boolean matches(

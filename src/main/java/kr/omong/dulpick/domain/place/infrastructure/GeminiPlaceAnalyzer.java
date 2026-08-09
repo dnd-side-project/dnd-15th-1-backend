@@ -87,6 +87,8 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
                 Extract up to 10 distinct real-world place candidates from the following Instagram text.
                 If the text lists multiple places, return every separately named place as a separate candidate.
                 Never collapse a numbered list or a list separated by commas into one candidate.
+                For a popup or temporary event, return the host venue as the place candidate when the host venue
+                is stated (for example, return '용산 아이파크몰' instead of only the popup or product name).
                 Do not infer a place when the text does not support it.
                 Return JSON only in this shape: {\"candidates\":[{\"name\":\"...\",\"addressHint\":\"...\"}]}.
                 Content type: %s
