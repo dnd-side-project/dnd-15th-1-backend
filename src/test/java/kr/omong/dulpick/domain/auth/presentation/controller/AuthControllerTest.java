@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -57,7 +58,7 @@ class AuthControllerTest {
     void logsInWithVerifiedSocialIdentity() throws Exception {
         IssuedTokens tokens = new IssuedTokens("access", "refresh", 900);
         when(authCommandService.socialLogin(any()))
-                .thenReturn(new SocialLoginResult(1L, true, tokens));
+                .thenReturn(new SocialLoginResult(1L, true, false, tokens));
 
         mockMvc.perform(post("/api/v1/auth/social-login")
                         .contentType("application/json")
@@ -71,6 +72,7 @@ class AuthControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(1))
                 .andExpect(jsonPath("$.newMember").value(true))
+                .andExpect(jsonPath("$.onboardingCompleted").value(false))
                 .andExpect(jsonPath("$.token.tokenType").value("Bearer"));
     }
 
@@ -102,5 +104,14 @@ class AuthControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void returnsMethodNotAllowedForUnsupportedMethod() throws Exception {
+        mockMvc.perform(put("/api/v1/auth/nonce")
+                        .contentType("application/json")
+                        .content("{}"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
     }
 }

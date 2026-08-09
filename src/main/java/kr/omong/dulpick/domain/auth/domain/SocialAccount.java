@@ -52,23 +52,29 @@ public class SocialAccount {
     protected SocialAccount() {
     }
 
-    private SocialAccount(Member member, SocialProvider provider, String providerSubject, String email) {
-        Instant now = Instant.now();
+    private SocialAccount(
+            Member member,
+            SocialProvider provider,
+            String providerSubject,
+            String email,
+            Instant createdAt
+    ) {
         this.member = member;
         this.provider = provider;
         this.providerSubject = providerSubject;
         this.email = email;
-        this.createdAt = now;
-        this.updatedAt = now;
+        this.createdAt = createdAt;
+        this.updatedAt = createdAt;
     }
 
     public static SocialAccount create(
             Member member,
             SocialProvider provider,
             String providerSubject,
-            String email
+            String email,
+            Instant createdAt
     ) {
-        return new SocialAccount(member, provider, providerSubject, email);
+        return new SocialAccount(member, provider, providerSubject, email, createdAt);
     }
 
     public Member getMember() {
@@ -83,9 +89,9 @@ public class SocialAccount {
         return email;
     }
 
-    public void updateEmail(String email) {
+    public void updateEmail(String email, Instant updatedAt) {
         this.email = email;
-        this.updatedAt = Instant.now();
+        this.updatedAt = updatedAt;
     }
 
     public String getProviderRefreshToken() {
@@ -98,24 +104,28 @@ public class SocialAccount {
 
     public void updateProviderAuthorization(
             String encryptedRefreshToken,
-            String clientId
+            String clientId,
+            Instant updatedAt
     ) {
         this.providerRefreshToken = encryptedRefreshToken;
         this.providerClientId = clientId;
-        this.updatedAt = Instant.now();
+        this.updatedAt = updatedAt;
     }
 
-    public void updateProviderClientIdWhenTokenIsAbsent(String clientId) {
+    public void updateProviderClientIdWhenTokenIsAbsent(
+            String clientId,
+            Instant updatedAt
+    ) {
         if (providerRefreshToken != null) {
             return;
         }
         this.providerClientId = clientId;
-        this.updatedAt = Instant.now();
+        this.updatedAt = updatedAt;
     }
 
-    public void clearProviderAuthorization() {
+    public void clearProviderAuthorization(Instant updatedAt) {
         this.providerRefreshToken = null;
         this.providerClientId = null;
-        this.updatedAt = Instant.now();
+        this.updatedAt = updatedAt;
     }
 }

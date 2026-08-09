@@ -8,7 +8,10 @@ import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
+import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
+import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
@@ -24,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -126,11 +130,35 @@ class TestAuthIntegrationTest {
                         .content(credentials(email.toUpperCase(), PASSWORD)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").value(memberId))
+                .andExpect(jsonPath("$.newMember").value(false))
+                .andExpect(jsonPath("$.onboardingCompleted").value(false))
                 .andReturn();
 
         assertThat(accessToken(loginResult)).isNotBlank();
         assertThat(memberRepository.findById(memberId).orElseThrow().getStatus())
                 .isEqualTo(MemberStatus.ACTIVE);
+    }
+
+    @Test
+    void returnsCompletedOnboardingStatusOnLogin() throws Exception {
+        String email = uniqueEmail("onboarding");
+        signUp(email);
+        Long memberId = credentialRepository.findByEmail(email)
+                .orElseThrow()
+                .getMember()
+                .getId();
+        memberCommandService.initializeProfile(memberId, onboardingProfile());
+
+        mockMvc.perform(post("/api/v1/test-auth/login")
+                        .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(credentials(email, PASSWORD)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.memberId").value(memberId))
+                .andExpect(jsonPath("$.newMember").value(false))
+                .andExpect(jsonPath("$.onboardingCompleted").value(true))
+                .andExpect(jsonPath("$.token.accessToken").isNotEmpty())
+                .andExpect(jsonPath("$.token.refreshToken").isNotEmpty());
     }
 
     @Test
@@ -180,7 +208,7 @@ class TestAuthIntegrationTest {
 
     @Test
     void rejectsSocialMemberRefreshToken() throws Exception {
-        Member socialMember = memberRepository.save(Member.create());
+        Member socialMember = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens socialTokens = tokenService.issue(socialMember);
 
         mockMvc.perform(post("/api/v1/test-auth/reissue")
@@ -209,6 +237,21 @@ class TestAuthIntegrationTest {
                         "$.paths['/api/v1/test-auth/signup'].post.responses['401']"
                 ).exists())
                 .andExpect(jsonPath(
+                        "$.paths['/api/v1/test-auth/signup'].post.responses['201']"
+                                + ".content['application/json'].schema['$ref']"
+                ).value("#/components/schemas/SocialLoginResponse"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/test-auth/login'].post.responses['200']"
+                                + ".content['application/json'].schema['$ref']"
+                ).value("#/components/schemas/SocialLoginResponse"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/test-auth/reissue'].post.responses['200']"
+                                + ".content['application/json'].schema['$ref']"
+                ).value("#/components/schemas/TokenResponse"))
+                .andExpect(jsonPath(
+                        "$.paths['/api/v1/test-auth/logout'].post.responses['204']"
+                ).exists())
+                .andExpect(jsonPath(
                         "$.paths['/api/v1/test-auth/logout'].post.security[0].testAuthKey"
                 ).exists())
                 .andExpect(jsonPath(
@@ -223,7 +266,11 @@ class TestAuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials(email, PASSWORD)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.provider").value("KAKAO"))
+                .andExpect(jsonPath("$.newMember").value(true))
+                .andExpect(jsonPath("$.onboardingCompleted").value(false))
+                .andExpect(jsonPath("$.provider").doesNotExist())
+                .andExpect(jsonPath("$.token.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.token.expiresIn").isNumber())
                 .andReturn();
         return nestedTokenResponse(result);
     }
@@ -272,6 +319,16 @@ class TestAuthIntegrationTest {
 
     private String bearer(String accessToken) {
         return "Bearer " + accessToken;
+    }
+
+    private InitializeMemberProfileCommand onboardingProfile() {
+        DatePreferences preferences = new DatePreferences(
+                DatePreferenceOption.INDOOR,
+                DatePreferenceOption.ACTIVE,
+                DatePreferenceOption.NIGHT,
+                DatePreferenceOption.FOOD
+        );
+        return new InitializeMemberProfileCommand("둘픽이", 1, preferences);
     }
 
     private record AuthTokens(

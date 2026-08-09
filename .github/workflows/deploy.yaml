@@ -25,7 +25,7 @@ jobs:
 
     services:
       mysql:
-        image: mysql:8.0
+        image: public.ecr.aws/docker/library/mysql:8.0
         env:
           MYSQL_DATABASE: dulpick_test
           MYSQL_USER: dulpick
@@ -125,15 +125,20 @@ jobs:
           APPLE_DEV_CLIENT_ID: ${{ secrets.APPLE_DEV_CLIENT_ID }}
           APPLE_PRIVATE_KEY_BASE64: ${{ secrets.APPLE_PRIVATE_KEY_BASE64 }}
           PROVIDER_TOKEN_ENCRYPTION_KEY: ${{ secrets.PROVIDER_TOKEN_ENCRYPTION_KEY }}
+          PUSH_REGISTRATION_ENCRYPTION_KEY: ${{ secrets.PUSH_REGISTRATION_ENCRYPTION_KEY }}
+          FCM_ENABLED: ${{ secrets.FCM_ENABLED }}
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
           TEST_AUTH_ENABLED: ${{ secrets.TEST_AUTH_ENABLED }}
           TEST_AUTH_ACCESS_KEY: ${{ secrets.TEST_AUTH_ACCESS_KEY }}
+          PUBLIC_WEB_BASE_URL: ${{ secrets.PUBLIC_WEB_BASE_URL }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL
           script: |
             set -Eeuo pipefail
 
@@ -141,7 +146,9 @@ jobs:
             readonly ENV_FILE="${APP_DIR}/.env"
             readonly SECRETS_DIR="${APP_DIR}/secrets"
             readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+            readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
             readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
+            readonly FCM_ENABLED_VALUE="${FCM_ENABLED:-false}"
 
             require_value() {
               local key="$1"
@@ -179,6 +186,34 @@ jobs:
               require_value \
                 "PROVIDER_TOKEN_ENCRYPTION_KEY" \
                 "${PROVIDER_TOKEN_ENCRYPTION_KEY:-}"
+              require_value \
+                "PUBLIC_WEB_BASE_URL" \
+                "${PUBLIC_WEB_BASE_URL:-}"
+
+              if [[ "${PUBLIC_WEB_BASE_URL}" != "https://dulpick.omong.kr" ]]; then
+                echo \
+                  "PUBLIC_WEB_BASE_URL must be https://dulpick.omong.kr" \
+                  >&2
+                exit 1
+              fi
+
+              if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
+                require_value \
+                  "PUSH_REGISTRATION_ENCRYPTION_KEY" \
+                  "${PUSH_REGISTRATION_ENCRYPTION_KEY:-}"
+                require_value "FIREBASE_PROJECT_ID" "${FIREBASE_PROJECT_ID:-}"
+                require_value \
+                  "FIREBASE_SERVICE_ACCOUNT_BASE64" \
+                  "${FIREBASE_SERVICE_ACCOUNT_BASE64:-}"
+                if ! printf '%s' "${FIREBASE_SERVICE_ACCOUNT_BASE64}" \
+                  | base64 --decode >/dev/null 2>&1; then
+                  echo "FIREBASE_SERVICE_ACCOUNT_BASE64 must be valid Base64" >&2
+                  exit 1
+                fi
+              elif [[ "${FCM_ENABLED_VALUE}" != "false" ]]; then
+                echo "FCM_ENABLED must be true or false" >&2
+                exit 1
+              fi
 
               if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
                 require_value \
@@ -246,6 +281,17 @@ jobs:
             update_env \
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
+            update_env "PUBLIC_WEB_BASE_URL" "${PUBLIC_WEB_BASE_URL}"
+            update_env "FCM_ENABLED" "${FCM_ENABLED_VALUE}"
+            if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
+              update_env "FIREBASE_PROJECT_ID" "${FIREBASE_PROJECT_ID}"
+              update_env \
+                "FIREBASE_CREDENTIALS_PATH" \
+                "/run/secrets/firebase-service-account.json"
+              update_env \
+                "PUSH_REGISTRATION_ENCRYPTION_KEY" \
+                "${PUSH_REGISTRATION_ENCRYPTION_KEY}"
+            fi
             if [[ "${TEST_AUTH_ENABLED_VALUE}" == "true" ]]; then
               update_env "TEST_AUTH_ENABLED" "true"
               update_env "TEST_AUTH_ACCESS_KEY" "${TEST_AUTH_ACCESS_KEY}"
@@ -259,7 +305,18 @@ jobs:
             chmod 600 "${private_key_temp}"
             mv "${private_key_temp}" "${APPLE_PRIVATE_KEY_FILE}"
 
+            if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
+              firebase_credentials_temp="$(mktemp "${SECRETS_DIR}/firebase.XXXXXX")"
+              printf '%s' "${FIREBASE_SERVICE_ACCOUNT_BASE64}" \
+                | base64 --decode > "${firebase_credentials_temp}"
+              chmod 600 "${firebase_credentials_temp}"
+              mv "${firebase_credentials_temp}" "${FIREBASE_CREDENTIALS_FILE}"
+            fi
+
             echo "${GHCR_TOKEN}" | docker login ghcr.io \
               --username "${GHCR_USERNAME}" \
               --password-stdin
-            "${APP_DIR}/deploy.sh" "${IMAGE_NAME}" "${IMAGE_TAG}"
+            "${APP_DIR}/deploy.sh" \
+              "${IMAGE_NAME}" \
+              "${IMAGE_TAG}" \
+              "${PUBLIC_WEB_BASE_URL}"

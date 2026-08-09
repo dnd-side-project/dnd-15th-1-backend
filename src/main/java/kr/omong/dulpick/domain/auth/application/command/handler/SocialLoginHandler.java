@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
+import kr.omong.dulpick.domain.auth.application.exception.ConcurrentSocialAccountCreationException;
 import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
 import kr.omong.dulpick.domain.auth.application.support.LoginNonceService;
 import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
@@ -13,7 +14,7 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
-import org.springframework.dao.DataIntegrityViolationException;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -23,6 +24,7 @@ public class SocialLoginHandler {
     private final LoginNonceService loginNonceService;
     private final AppleAuthorizationService appleAuthorizationService;
     private final SocialAccountService socialAccountService;
+    private final MemberProfileRepository memberProfileRepository;
     private final TokenService tokenService;
 
     public SocialLoginHandler(
@@ -30,12 +32,14 @@ public class SocialLoginHandler {
             LoginNonceService loginNonceService,
             AppleAuthorizationService appleAuthorizationService,
             SocialAccountService socialAccountService,
+            MemberProfileRepository memberProfileRepository,
             TokenService tokenService
     ) {
         this.verifierRegistry = verifierRegistry;
         this.loginNonceService = loginNonceService;
         this.appleAuthorizationService = appleAuthorizationService;
         this.socialAccountService = socialAccountService;
+        this.memberProfileRepository = memberProfileRepository;
         this.tokenService = tokenService;
     }
 
@@ -53,8 +57,14 @@ public class SocialLoginHandler {
         return new SocialLoginResult(
                 authenticatedMember.member().getId(),
                 authenticatedMember.newMember(),
+                isOnboardingCompleted(authenticatedMember),
                 tokens
         );
+    }
+
+    private boolean isOnboardingCompleted(AuthenticatedMember authenticatedMember) {
+        return !authenticatedMember.newMember()
+                && memberProfileRepository.existsById(authenticatedMember.member().getId());
     }
 
     private void validateNonce(SocialLoginCommand command, SocialIdentity identity) {
@@ -98,7 +108,7 @@ public class SocialLoginHandler {
                     identity.email(),
                     providerAuthorization
             );
-        } catch (DataIntegrityViolationException exception) {
+        } catch (ConcurrentSocialAccountCreationException exception) {
             return socialAccountService.getExisting(provider, identity.providerSubject());
         }
     }

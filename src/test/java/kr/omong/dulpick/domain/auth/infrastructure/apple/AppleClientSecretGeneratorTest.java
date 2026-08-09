@@ -56,6 +56,7 @@ class AppleClientSecretGeneratorTest {
         );
 
         assertClientSecret(generator.generate(PROD_CLIENT_ID), PROD_CLIENT_ID, keyPair);
+        Files.delete(privateKeyPath);
         assertClientSecret(generator.generate(DEV_CLIENT_ID), DEV_CLIENT_ID, keyPair);
     }
 

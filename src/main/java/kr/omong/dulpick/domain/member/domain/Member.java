@@ -8,6 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
 
 import java.time.Instant;
 
@@ -47,8 +48,8 @@ public class Member {
         this.updatedAt = createdAt;
     }
 
-    public static Member create() {
-        return new Member(MemberStatus.ACTIVE, Instant.now());
+    public static Member create(Instant createdAt) {
+        return new Member(MemberStatus.ACTIVE, createdAt);
     }
 
     public Long getId() {
@@ -84,6 +85,9 @@ public class Member {
     }
 
     public void withdraw(Instant withdrawnAt) {
+        if (!isActive()) {
+            throw new MemberAlreadyWithdrawnException();
+        }
         status = MemberStatus.WITHDRAWN;
         lastWithdrawnAt = withdrawnAt;
         tokenVersion++;

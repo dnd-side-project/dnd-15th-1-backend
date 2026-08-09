@@ -1,0 +1,18 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": [
+          "DZAU4TTS8S.com.dulpick.app",
+          "DZAU4TTS8S.com.dulpick.dev"
+        ],
+        "components": [
+          {
+            "/": "/connect",
+            "comment": "DulPick couple invitation"
+          }
+        ]
+      }
+    ]
+  }
+}

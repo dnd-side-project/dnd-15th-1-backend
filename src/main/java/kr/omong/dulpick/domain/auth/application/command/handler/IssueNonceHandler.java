@@ -41,8 +41,14 @@ public class IssueNonceHandler {
     @Transactional
     public IssuedNonce handle(SocialProvider provider) {
         String rawNonce = generateNonce();
-        Instant expiresAt = clock.instant().plus(properties.nonceTtl());
-        LoginNonce nonce = LoginNonce.create(provider, Sha256.hex(rawNonce), expiresAt);
+        Instant issuedAt = clock.instant();
+        Instant expiresAt = issuedAt.plus(properties.nonceTtl());
+        LoginNonce nonce = LoginNonce.create(
+                provider,
+                Sha256.hex(rawNonce),
+                expiresAt,
+                issuedAt
+        );
         loginNonceRepository.save(nonce);
         return new IssuedNonce(rawNonce, expiresAt);
     }

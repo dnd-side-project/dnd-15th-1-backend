@@ -3,12 +3,14 @@ package kr.omong.dulpick.domain.member.application.query.reader;
 import kr.omong.dulpick.domain.auth.domain.SocialAccount;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
-import kr.omong.dulpick.domain.member.application.query.view.MemberProfile;
+import kr.omong.dulpick.domain.member.application.query.view.MemberProfileView;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,29 +23,39 @@ class MemberProfileReaderTest {
     private final MemberRepository memberRepository = mock(MemberRepository.class);
     private final SocialAccountRepository socialAccountRepository =
             mock(SocialAccountRepository.class);
+    private final MemberProfileRepository memberProfileRepository =
+            mock(MemberProfileRepository.class);
     private final MemberProfileReader reader = new MemberProfileReader(
             memberRepository,
-            socialAccountRepository
+            socialAccountRepository,
+            memberProfileRepository
     );
 
     @Test
     void returnsProfileViewWithoutInternalAuthenticationValues() {
-        Member member = Member.create();
+        Member member = Member.create(Instant.EPOCH);
         ReflectionTestUtils.setField(member, "id", 1L);
         SocialAccount account = SocialAccount.create(
                 member,
                 SocialProvider.APPLE,
                 "provider-subject",
-                "member@example.com"
+                "member@example.com",
+                Instant.EPOCH
         );
-        account.updateProviderAuthorization("encrypted-refresh-token", "com.dulpick.app");
+        account.updateProviderAuthorization(
+                "encrypted-refresh-token",
+                "com.dulpick.app",
+                Instant.EPOCH
+        );
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
         when(socialAccountRepository.findAllByMemberId(1L)).thenReturn(List.of(account));
 
-        MemberProfile profile = reader.read(1L);
+        MemberProfileView profile = reader.read(1L);
 
         assertThat(profile.memberId()).isEqualTo(1L);
         assertThat(profile.status()).isEqualTo(member.getStatus());
+        assertThat(profile.onboardingCompleted()).isFalse();
+        assertThat(profile.nickname()).isNull();
         assertThat(profile.socialAccounts()).singleElement()
                 .satisfies(socialAccount -> {
                     assertThat(socialAccount.provider()).isEqualTo(SocialProvider.APPLE);

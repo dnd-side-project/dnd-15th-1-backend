@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicPageController {
 
     private static final String HTML_UTF_8 = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8";
+    private static final String AASA_RESOURCE = "universal-link/apple-app-site-association";
 
     @GetMapping(value = "/", produces = HTML_UTF_8)
     public Resource home() {
@@ -24,6 +25,19 @@ public class PublicPageController {
     @GetMapping(value = "/terms", produces = HTML_UTF_8)
     public Resource terms() {
         return page("terms.html");
+    }
+
+    @GetMapping(value = "/connect", produces = HTML_UTF_8)
+    public Resource connect() {
+        return page("connect.html");
+    }
+
+    @GetMapping(
+            value = "/.well-known/apple-app-site-association",
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    public Resource appleAppSiteAssociation() {
+        return new ClassPathResource(AASA_RESOURCE);
     }
 
     private Resource page(String fileName) {

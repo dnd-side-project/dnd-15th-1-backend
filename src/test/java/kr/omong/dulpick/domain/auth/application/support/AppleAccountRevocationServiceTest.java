@@ -98,13 +98,14 @@ class AppleAccountRevocationServiceTest {
             String clientId
     ) {
         SocialAccount account = SocialAccount.create(
-                Member.create(),
+                Member.create(Instant.EPOCH),
                 provider,
                 provider.name().toLowerCase() + "-subject",
-                "member@example.com"
+                "member@example.com",
+                NOW
         );
         if (encryptedRefreshToken != null) {
-            account.updateProviderAuthorization(encryptedRefreshToken, clientId);
+            account.updateProviderAuthorization(encryptedRefreshToken, clientId, NOW);
         }
         return account;
     }

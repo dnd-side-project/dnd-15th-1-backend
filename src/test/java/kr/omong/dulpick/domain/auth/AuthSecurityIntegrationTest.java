@@ -20,6 +20,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -149,13 +150,14 @@ class AuthSecurityIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.memberId").isNumber())
                 .andExpect(jsonPath("$.newMember").value(true))
+                .andExpect(jsonPath("$.onboardingCompleted").value(false))
                 .andExpect(jsonPath("$.token.accessToken").isNotEmpty())
                 .andExpect(jsonPath("$.token.refreshToken").isNotEmpty());
     }
 
     @Test
     void reissuesTokensWithInvalidBearerToken() throws Exception {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens tokens = tokenService.issue(member);
 
         mockMvc.perform(post("/api/v1/auth/reissue")
@@ -205,7 +207,7 @@ class AuthSecurityIntegrationTest {
 
     @Test
     void revokesRefreshTokenWithValidAccessToken() throws Exception {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         IssuedTokens tokens = tokenService.issue(member);
 
         mockMvc.perform(post("/api/v1/auth/logout")
