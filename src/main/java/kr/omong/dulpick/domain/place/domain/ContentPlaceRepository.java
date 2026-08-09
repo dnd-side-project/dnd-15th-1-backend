@@ -9,4 +9,8 @@ public interface ContentPlaceRepository extends JpaRepository<ContentPlace, Long
     boolean existsByContentIdAndPlaceId(Long contentId, Long placeId);
 
     List<ContentPlace> findAllByContentId(Long contentId);
+
+    List<ContentPlace> findAllByContentIdIn(List<Long> contentIds);
+
+    void deleteAllByContentId(Long contentId);
 }

@@ -190,6 +190,9 @@ public class PlaceImportService {
                 sourceType
         );
         if (sourceType.storesPublicContent()) {
+            if (resultWriter.reuseUnchangedContent(placeImport.getId(), metadata)) {
+                return;
+            }
             Long contentId = resultWriter.saveMetadata(placeImport.getId(), metadata);
             placeImport.attachContent(contentId);
         } else {

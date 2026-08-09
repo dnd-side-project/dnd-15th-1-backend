@@ -72,6 +72,47 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
+    public boolean reuseUnchangedContent(Long importId, ContentMetadata metadata) {
+        if (!metadata.sourceType().storesPublicContent()) {
+            return false;
+        }
+        String urlHash = Sha256.hex(metadata.canonicalUrl());
+        Content content = contentRepository.findByCanonicalUrlHash(urlHash).orElse(null);
+        if (content == null || !metadata.contentHash().equals(content.getContentHash())) {
+            return false;
+        }
+        List<Place> places = contentPlaceRepository.findAllByContentId(content.getId()).stream()
+                .map(ContentPlace::getPlaceId)
+                .map(placeRepository::findById)
+                .flatMap(java.util.Optional::stream)
+                .toList();
+        if (places.isEmpty()) {
+            return false;
+        }
+        saveMetadata(importId, metadata);
+        candidateRepository.deleteAllByImportId(importId);
+        candidateRepository.saveAll(places.stream()
+                .map(place -> PlaceCandidate.verified(
+                        importId,
+                        place.getId(),
+                        place.getName(),
+                        place.getAddress(),
+                        clock.instant()
+                ))
+                .toList());
+        importRepository.findById(importId).orElseThrow(IllegalStateException::new)
+                .complete(
+                        metadata.title(),
+                        metadata.caption(),
+                        metadata.thumbnailUrl(),
+                        metadata.contentHash(),
+                        metadata.sourceUpdatedAt(),
+                        clock.instant()
+                );
+        return true;
+    }
+
+    @Transactional
     public void saveSuccess(
             Long importId,
             ContentMetadata metadata,
@@ -86,10 +127,28 @@ public class PlaceImportResultWriter {
         }
         final Long resolvedContentId = contentId;
         candidateRepository.deleteAllByImportId(importId);
+        if (resolvedContentId != null) {
+            contentPlaceRepository.deleteAllByContentId(resolvedContentId);
+        }
         List<PlaceCandidate> candidates = verifiedCandidates.stream()
                 .map(candidate -> saveCandidate(importId, resolvedContentId, candidate))
                 .toList();
         candidateRepository.saveAll(candidates);
+        if (resolvedContentId != null) {
+            candidates.forEach(candidate -> {
+                Long placeId = candidate.getPlaceId();
+                if (!contentPlaceRepository.existsByContentIdAndPlaceId(resolvedContentId, placeId)) {
+                    contentPlaceRepository.save(ContentPlace.create(
+                            resolvedContentId,
+                            placeId,
+                            clock.instant()
+                    ));
+                }
+            });
+        }
+        if (resolvedContentId != null) {
+            contentRepository.findById(resolvedContentId).ifPresent(Content::publish);
+        }
         placeImport.complete(
                 metadata.title(),
                 metadata.caption(),
@@ -118,14 +177,6 @@ public class PlaceImportResultWriter {
                         verified.thumbnailUrl(),
                         clock.instant()
                 )));
-        if (contentId != null
-                && !contentPlaceRepository.existsByContentIdAndPlaceId(contentId, place.getId())) {
-            contentPlaceRepository.save(ContentPlace.create(
-                    contentId,
-                    place.getId(),
-                    clock.instant()
-            ));
-        }
         return PlaceCandidate.verified(
                 importId,
                 place.getId(),
@@ -145,12 +196,14 @@ public class PlaceImportResultWriter {
                         metadata.title(),
                         metadata.caption(),
                         metadata.thumbnailUrl(),
+                        metadata.contentHash(),
                         clock.instant()
                 )));
         content.updateMetadata(
                 metadata.title(),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
+                metadata.contentHash(),
                 clock.instant()
         );
         return content;

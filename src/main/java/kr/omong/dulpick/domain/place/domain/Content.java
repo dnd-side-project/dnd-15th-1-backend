@@ -38,6 +38,9 @@ public class Content {
     @Column(name = "thumbnail_url", length = 1_000)
     private String thumbnailUrl;
 
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)
     private ContentPublicationStatus publicationStatus;
@@ -61,6 +64,7 @@ public class Content {
             String title,
             String content,
             String thumbnailUrl,
+            String contentHash,
             Instant now
     ) {
         this.canonicalUrl = canonicalUrl;
@@ -69,7 +73,8 @@ public class Content {
         this.title = title;
         this.content = content;
         this.thumbnailUrl = thumbnailUrl;
-        this.publicationStatus = ContentPublicationStatus.PUBLIC;
+        this.contentHash = contentHash;
+        this.publicationStatus = ContentPublicationStatus.PENDING;
         this.createdAt = now;
         this.updatedAt = now;
     }
@@ -81,6 +86,7 @@ public class Content {
             String title,
             String content,
             String thumbnailUrl,
+            String contentHash,
             Instant now
     ) {
         return new Content(
@@ -90,15 +96,31 @@ public class Content {
                 title,
                 content,
                 thumbnailUrl,
+                contentHash,
                 now
         );
     }
 
-    public void updateMetadata(String title, String content, String thumbnailUrl, Instant now) {
+    public void updateMetadata(
+            String title,
+            String content,
+            String thumbnailUrl,
+            String contentHash,
+            Instant now
+    ) {
         this.title = title;
         this.content = content;
         this.thumbnailUrl = thumbnailUrl;
+        this.contentHash = contentHash;
         this.updatedAt = now;
+    }
+
+    public String getContentHash() {
+        return contentHash;
+    }
+
+    public void publish() {
+        this.publicationStatus = ContentPublicationStatus.PUBLIC;
     }
 
     public Long getId() {

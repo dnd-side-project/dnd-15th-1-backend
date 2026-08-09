@@ -42,4 +42,8 @@ public class ContentPlace {
     public Long getPlaceId() {
         return placeId;
     }
+
+    public Long getContentId() {
+        return contentId;
+    }
 }

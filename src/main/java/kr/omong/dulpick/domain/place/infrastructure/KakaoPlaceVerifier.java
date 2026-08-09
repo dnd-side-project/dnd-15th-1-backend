@@ -52,9 +52,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             return results.stream()
                     .filter(result -> matches(extractedPlace, result))
                     .findFirst()
-                    .or(() -> searchResults.stream()
-                            .filter(result -> exactNameMatches(extractedPlace, result))
-                            .findFirst())
+                    .or(() -> selectExactNameMatch(extractedPlace, searchResults))
                     .map(this::toVerifiedPlace)
                     .orElse(null);
         } catch (RestClientException exception) {
@@ -137,6 +135,27 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             PlaceSearchResult result
     ) {
         return normalize(extractedPlace.name()).equals(normalize(result.name()));
+    }
+
+    private java.util.Optional<PlaceSearchResult> selectExactNameMatch(
+            ExtractedPlace extractedPlace,
+            List<PlaceSearchResult> results
+    ) {
+        List<PlaceSearchResult> exactMatches = results.stream()
+                .filter(result -> exactNameMatches(extractedPlace, result))
+                .toList();
+        if (exactMatches.size() <= 1) {
+            return exactMatches.stream().findFirst();
+        }
+        String addressHint = normalize(extractedPlace.addressHint());
+        return exactMatches.stream()
+                .filter(result -> !addressHint.isBlank()
+                        && normalize(result.address() + result.roadAddress()).contains(addressHint))
+                .findFirst()
+                .or(() -> exactMatches.stream()
+                        .filter(result -> result.name().contains("점") || result.name().contains("지점"))
+                        .findFirst())
+                .or(() -> exactMatches.stream().findFirst());
     }
 
     private String normalize(String value) {

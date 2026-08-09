@@ -20,7 +20,7 @@ public class ContentSubmission {
     @Column(name = "content_id", nullable = false)
     private Long contentId;
 
-    @Column(name = "member_id", nullable = false)
+    @Column(name = "member_id")
     private Long memberId;
 
     @Column(name = "submitted_at", nullable = false)

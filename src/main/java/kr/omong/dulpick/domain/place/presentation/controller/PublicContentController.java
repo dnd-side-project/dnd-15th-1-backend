@@ -11,7 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 @Tag(name = SwaggerTagNames.PLACE, description = "공용 게시물 큐레이션 조회 API")
 @SecurityRequirement(name = "bearerAuth")
@@ -30,7 +31,7 @@ public class PublicContentController {
             description = "모든 회원이 제출한 게시물 중 공개 상태인 원본 게시물과 연결 장소를 조회합니다."
     )
     @GetMapping
-    public ResponseEntity<List<PublicContentView>> findPublicContents() {
-        return ResponseEntity.ok(queryService.findPublicContents());
+    public ResponseEntity<Page<PublicContentView>> findPublicContents(Pageable pageable) {
+        return ResponseEntity.ok(queryService.findPublicContents(pageable));
     }
 }
