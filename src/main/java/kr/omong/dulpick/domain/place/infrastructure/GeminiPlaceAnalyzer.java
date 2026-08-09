@@ -84,7 +84,9 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
 
     private Map<String, Object> request(ContentMetadata metadata) {
         String prompt = """
-                Extract up to 10 real-world place candidates from the following Instagram text.
+                Extract up to 10 distinct real-world place candidates from the following Instagram text.
+                If the text lists multiple places, return every separately named place as a separate candidate.
+                Never collapse a numbered list or a list separated by commas into one candidate.
                 Do not infer a place when the text does not support it.
                 Return JSON only in this shape: {\"candidates\":[{\"name\":\"...\",\"addressHint\":\"...\"}]}.
                 Content type: %s

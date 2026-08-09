@@ -48,9 +48,13 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             if (results.isEmpty() && extractedPlace.addressHint() != null) {
                 results = search(query(extractedPlace));
             }
+            List<PlaceSearchResult> searchResults = results;
             return results.stream()
                     .filter(result -> matches(extractedPlace, result))
                     .findFirst()
+                    .or(() -> searchResults.stream()
+                            .filter(result -> exactNameMatches(extractedPlace, result))
+                            .findFirst())
                     .map(this::toVerifiedPlace)
                     .orElse(null);
         } catch (RestClientException exception) {
@@ -114,6 +118,13 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         }
         String address = normalize(result.address() + result.roadAddress());
         return address.contains(addressHint) || addressHint.contains(address);
+    }
+
+    private boolean exactNameMatches(
+            ExtractedPlace extractedPlace,
+            PlaceSearchResult result
+    ) {
+        return normalize(extractedPlace.name()).equals(normalize(result.name()));
     }
 
     private String normalize(String value) {
