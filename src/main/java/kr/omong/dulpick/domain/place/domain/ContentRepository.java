@@ -43,26 +43,25 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
     @Query("""
             UPDATE Content content
                SET content.analysisStatus = 'PROCESSING',
-                   content.analysisStartedAt = :now
-            WHERE content.id = :contentId
+                   content.analysisStartedAt = :now,
+                   content.analysisClaimToken = :claimToken
+             WHERE content.id = :contentId
                AND (content.analysisStatus IS NULL
                     OR content.analysisStatus = 'FAILED'
-                    OR content.analysisStatus = 'READY'
+                    OR (content.analysisStatus = 'READY'
+                        AND (content.analysisContentHash <> :contentHash
+                             OR content.analyzerModel <> :analyzerModel
+                             OR content.promptVersion <> :promptVersion))
                     OR (content.analysisStatus = 'PROCESSING'
                         AND content.analysisStartedAt < :staleBefore))
             """)
     int claimAnalysis(
             @Param("contentId") Long contentId,
+            @Param("contentHash") String contentHash,
+            @Param("analyzerModel") String analyzerModel,
+            @Param("promptVersion") String promptVersion,
+            @Param("claimToken") String claimToken,
             @Param("now") java.time.Instant now,
             @Param("staleBefore") java.time.Instant staleBefore
     );
-
-    @Modifying
-    @Query("""
-            UPDATE Content content
-               SET content.analysisStatus = 'FAILED',
-                   content.analysisStartedAt = null
-             WHERE content.id = :contentId
-            """)
-    int failAnalysis(@Param("contentId") Long contentId);
 }

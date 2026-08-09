@@ -251,36 +251,58 @@ public class PlaceImportService {
         if (extractedPlaces == null) {
             Long contentId = placeImport.getContentId();
             if (contentId != null) {
-                boolean claimed = resultWriter.claimAnalysis(
+                String claimToken = resultWriter.claimAnalysis(
                         contentId,
+                        metadata.contentHash(),
+                        analyzerModel,
+                        promptVersion,
                         clock.instant(),
                         clock.instant().minusSeconds(properties.staleTimeoutSeconds())
                 );
-                if (!claimed) {
-                    return;
+                if (claimToken == null) {
+                    extractedPlaces = loadCachedCandidates(
+                            placeImport,
+                            metadata,
+                            analyzerModel,
+                            promptVersion
+                    );
+                    if (extractedPlaces == null) {
+                        placeImport.requeue(clock.instant());
+                        importRepository.save(placeImport);
+                        return;
+                    }
+                } else {
+                    try {
+                        extractedPlaces = placeAnalyzer.analyze(metadata).stream()
+                                .map(candidate -> validateEvidence(candidate, sourceText))
+                                .limit(properties.maxCandidates())
+                                .toList();
+                        boolean saved = resultWriter.saveAnalysis(
+                                contentId,
+                                claimToken,
+                                metadata.contentHash(),
+                                analyzerModel,
+                                promptVersion,
+                                extractedPlaces,
+                                clock.instant()
+                        );
+                        if (!saved) {
+                            placeImport.requeue(clock.instant());
+                            importRepository.save(placeImport);
+                            return;
+                        }
+                        resultWriter.saveExtractedCandidates(placeImport.getId(), extractedPlaces);
+                    } catch (RuntimeException exception) {
+                        resultWriter.failAnalysis(contentId, claimToken);
+                        throw exception;
+                    }
                 }
-            }
-            try {
+            } else {
                 extractedPlaces = placeAnalyzer.analyze(metadata).stream()
                         .map(candidate -> validateEvidence(candidate, sourceText))
                         .limit(properties.maxCandidates())
                         .toList();
-                if (contentId != null) {
-                    resultWriter.saveAnalysis(
-                            contentId,
-                            metadata.contentHash(),
-                            analyzerModel,
-                            promptVersion,
-                            extractedPlaces,
-                            clock.instant()
-                    );
-                }
                 resultWriter.saveExtractedCandidates(placeImport.getId(), extractedPlaces);
-            } catch (RuntimeException exception) {
-                if (contentId != null) {
-                    resultWriter.failAnalysis(contentId);
-                }
-                throw exception;
             }
         }
         List<VerifiedCandidate> candidates = new ArrayList<>();

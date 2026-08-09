@@ -84,6 +84,9 @@ public class Content {
     @Column(name = "analysis_started_at")
     private Instant analysisStartedAt;
 
+    @Column(name = "analysis_claim_token", length = 36)
+    private String analysisClaimToken;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "publication_status", nullable = false, length = 30)
     private ContentPublicationStatus publicationStatus;
@@ -202,6 +205,7 @@ public class Content {
         this.analyzedAt = analyzedAt;
         this.analysisStatus = "READY";
         this.analysisStartedAt = null;
+        this.analysisClaimToken = null;
     }
 
     public void startAnalysis(Instant startedAt) {
@@ -209,9 +213,22 @@ public class Content {
         this.analysisStartedAt = startedAt;
     }
 
+    public boolean isClaimedBy(String claimToken) {
+        return "PROCESSING".equals(analysisStatus)
+                && claimToken != null
+                && claimToken.equals(analysisClaimToken);
+    }
+
+    public void releaseAnalysis(String claimToken) {
+        if (isClaimedBy(claimToken)) {
+            failAnalysis();
+        }
+    }
+
     public void failAnalysis() {
         this.analysisStatus = "FAILED";
         this.analysisStartedAt = null;
+        this.analysisClaimToken = null;
     }
 
     public Long getId() {

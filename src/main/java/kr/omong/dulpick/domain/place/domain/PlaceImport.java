@@ -119,6 +119,12 @@ public class PlaceImport {
         updatedAt = now;
     }
 
+    public void requeue(Instant now) {
+        status = PlaceImportStatus.RECEIVED;
+        failureCode = null;
+        updatedAt = now;
+    }
+
     public void complete(
             String title,
             String content,

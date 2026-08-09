@@ -21,6 +21,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class PlaceImportResultWriter {
@@ -70,41 +71,60 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
-    public boolean claimAnalysis(
+    public String claimAnalysis(
             Long contentId,
+            String contentHash,
+            String analyzerModel,
+            String promptVersion,
             Instant now,
             Instant staleBefore
     ) {
-        return contentRepository.claimAnalysis(contentId, now, staleBefore) == 1;
+        String claimToken = UUID.randomUUID().toString();
+        return contentRepository.claimAnalysis(
+                contentId,
+                contentHash,
+                analyzerModel,
+                promptVersion,
+                claimToken,
+                now,
+                staleBefore
+        ) == 1 ? claimToken : null;
     }
 
     @Transactional
-    public void saveAnalysis(
+    public boolean saveAnalysis(
             Long contentId,
+            String claimToken,
             String contentHash,
             String analyzerModel,
             String promptVersion,
             List<ExtractedPlace> candidates,
             Instant analyzedAt
     ) {
-        contentRepository.findById(contentId).ifPresent(content -> {
-            try {
-                content.updateExtractedAnalysis(
-                        contentHash,
-                        analyzerModel,
-                        promptVersion,
-                        objectMapper.writeValueAsString(candidates),
-                        analyzedAt
-                );
-            } catch (Exception exception) {
-                throw new IllegalStateException("Failed to cache place analysis", exception);
-            }
-        });
+        Optional<Content> cachedContent = contentRepository.findById(contentId)
+                .filter(c -> c.isClaimedBy(claimToken));
+        if (cachedContent.isEmpty()) {
+            return false;
+        }
+        try {
+            cachedContent.get().updateExtractedAnalysis(
+                    contentHash,
+                    analyzerModel,
+                    promptVersion,
+                    objectMapper.writeValueAsString(candidates),
+                    analyzedAt
+            );
+            return true;
+        } catch (Exception exception) {
+            throw new IllegalStateException("Failed to cache place analysis", exception);
+        }
     }
 
     @Transactional
-    public void failAnalysis(Long contentId) {
-        contentRepository.failAnalysis(contentId);
+    public void failAnalysis(Long contentId, String claimToken) {
+        contentRepository.findById(contentId)
+                .filter(content -> content.isClaimedBy(claimToken))
+                .ifPresent(Content::failAnalysis);
     }
 
     @Transactional
