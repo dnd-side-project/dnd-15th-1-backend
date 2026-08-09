@@ -44,7 +44,11 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
             throw new PlaceVerificationUnavailableException();
         }
         try {
-            return search(query(extractedPlace)).stream()
+            List<PlaceSearchResult> results = search(extractedPlace.name());
+            if (results.isEmpty() && extractedPlace.addressHint() != null) {
+                results = search(query(extractedPlace));
+            }
+            return results.stream()
                     .filter(result -> matches(extractedPlace, result))
                     .findFirst()
                     .map(this::toVerifiedPlace)
