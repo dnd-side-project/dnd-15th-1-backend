@@ -16,6 +16,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
@@ -86,16 +88,18 @@ class AppleWithdrawalIntegrationTest {
     }
 
     private Member appleMember() {
-        Member member = memberRepository.save(Member.create());
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
         SocialAccount account = SocialAccount.create(
                 member,
                 SocialProvider.APPLE,
                 "apple-subject-" + member.getId(),
-                "member@example.com"
+                "member@example.com",
+                Instant.EPOCH
         );
         account.updateProviderAuthorization(
                 "encrypted-refresh-token",
-                "com.dulpick.app"
+                "com.dulpick.app",
+                Instant.EPOCH
         );
         socialAccountRepository.save(account);
         return member;

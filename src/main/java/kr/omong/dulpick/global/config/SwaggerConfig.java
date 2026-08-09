@@ -25,9 +25,12 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .components(new Components().addSecuritySchemes("bearerAuth", bearerAuth))
                 .tags(List.of(
-                        new Tag().name("인증"),
-                        new Tag().name("회원"),
-                        new Tag().name("서버")
+                        new Tag().name(SwaggerTagNames.AUTH),
+                        new Tag().name(SwaggerTagNames.MEMBER),
+                        new Tag().name(SwaggerTagNames.COUPLE_CONNECTION),
+                        new Tag().name(SwaggerTagNames.FEEDBACK),
+                        new Tag().name(SwaggerTagNames.NOTIFICATION),
+                        new Tag().name(SwaggerTagNames.SERVER)
                 ));
     }
 

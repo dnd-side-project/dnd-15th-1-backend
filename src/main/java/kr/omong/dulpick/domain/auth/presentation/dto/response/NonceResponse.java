@@ -13,7 +13,7 @@ public record NonceResponse(
         )
         String nonce,
         @Schema(
-                description = "nonce 만료 시각. 발급 후 10분이며 대한민국 표준시(UTC+9, Asia/Seoul) 기준입니다.",
+                description = "nonce 만료 시각(Asia/Seoul)",
                 example = "2026-07-31T16:10:00"
         )
         LocalDateTime expiresAt

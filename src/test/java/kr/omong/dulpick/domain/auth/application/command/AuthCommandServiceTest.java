@@ -40,7 +40,7 @@ class AuthCommandServiceTest {
         );
         IssuedNonce nonce = new IssuedNonce("nonce", Instant.EPOCH);
         IssuedTokens tokens = new IssuedTokens("access", "refresh", 900);
-        SocialLoginResult loginResult = new SocialLoginResult(1L, true, tokens);
+        SocialLoginResult loginResult = new SocialLoginResult(1L, true, false, tokens);
         when(issueNonceHandler.handle(SocialProvider.GOOGLE)).thenReturn(nonce);
         when(socialLoginHandler.handle(command)).thenReturn(loginResult);
         when(reissueTokenHandler.handle("refresh")).thenReturn(tokens);

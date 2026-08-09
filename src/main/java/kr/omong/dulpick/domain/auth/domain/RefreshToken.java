@@ -43,15 +43,25 @@ public class RefreshToken {
     protected RefreshToken() {
     }
 
-    private RefreshToken(Member member, String tokenHash, Instant expiresAt) {
+    private RefreshToken(
+            Member member,
+            String tokenHash,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
         this.member = member;
         this.tokenHash = tokenHash;
         this.expiresAt = expiresAt;
-        this.createdAt = Instant.now();
+        this.createdAt = createdAt;
     }
 
-    public static RefreshToken create(Member member, String tokenHash, Instant expiresAt) {
-        return new RefreshToken(member, tokenHash, expiresAt);
+    public static RefreshToken create(
+            Member member,
+            String tokenHash,
+            Instant expiresAt,
+            Instant createdAt
+    ) {
+        return new RefreshToken(member, tokenHash, expiresAt, createdAt);
     }
 
     public Member getMember() {
@@ -70,14 +80,14 @@ public class RefreshToken {
         return !expiresAt.isAfter(now);
     }
 
-    public void rotate(String replacementTokenHash) {
-        this.revokedAt = Instant.now();
+    public void rotate(String replacementTokenHash, Instant rotatedAt) {
+        this.revokedAt = rotatedAt;
         this.replacedByTokenHash = replacementTokenHash;
     }
 
-    public void revoke() {
-        if (revokedAt == null) {
-            revokedAt = Instant.now();
+    public void revoke(Instant revokedAt) {
+        if (this.revokedAt == null) {
+            this.revokedAt = revokedAt;
         }
     }
 }

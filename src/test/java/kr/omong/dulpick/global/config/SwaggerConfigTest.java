@@ -32,6 +32,13 @@ class SwaggerConfigTest {
                 .containsKey("bearerAuth");
         assertThat(openApi.getTags())
                 .extracting("name")
-                .containsExactly("인증", "회원", "서버");
+                .containsExactly(
+                        SwaggerTagNames.AUTH,
+                        SwaggerTagNames.MEMBER,
+                        SwaggerTagNames.COUPLE_CONNECTION,
+                        SwaggerTagNames.FEEDBACK,
+                        SwaggerTagNames.NOTIFICATION,
+                        SwaggerTagNames.SERVER
+                );
     }
 }

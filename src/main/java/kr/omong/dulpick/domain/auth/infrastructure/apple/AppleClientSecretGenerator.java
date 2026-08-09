@@ -27,6 +27,7 @@ public class AppleClientSecretGenerator {
 
     private final AppleTokenProperties properties;
     private final Clock clock;
+    private volatile ECPrivateKey privateKey;
 
     public AppleClientSecretGenerator(AppleTokenProperties properties, Clock clock) {
         this.properties = properties;
@@ -60,6 +61,19 @@ public class AppleClientSecretGenerator {
     }
 
     private ECPrivateKey readPrivateKey() {
+        ECPrivateKey cachedKey = privateKey;
+        if (cachedKey != null) {
+            return cachedKey;
+        }
+        synchronized (this) {
+            if (privateKey == null) {
+                privateKey = loadPrivateKey();
+            }
+            return privateKey;
+        }
+    }
+
+    private ECPrivateKey loadPrivateKey() {
         try {
             String pem = Files.readString(Path.of(properties.privateKeyPath()));
             String encodedKey = pem
