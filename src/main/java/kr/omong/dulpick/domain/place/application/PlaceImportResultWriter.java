@@ -54,15 +54,9 @@ public class PlaceImportResultWriter {
                 .orElseThrow(IllegalStateException::new);
         Content content = findOrCreateContent(metadata);
         placeImport.attachContent(content.getId());
-        if (!submissionRepository.existsByContentIdAndMemberId(content.getId(), placeImport.getMemberId())) {
-            submissionRepository.save(ContentSubmission.create(
-                    content.getId(),
-                    placeImport.getMemberId(),
-                    clock.instant()
-            ));
-        }
+        submissionRepository.insertIfAbsent(content.getId(), placeImport.getMemberId(), clock.instant());
         placeImport.recordMetadata(
-                metadata.title(),
+                fitTitle(metadata.title()),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -102,7 +96,7 @@ public class PlaceImportResultWriter {
                 .toList());
         importRepository.findById(importId).orElseThrow(IllegalStateException::new)
                 .complete(
-                        metadata.title(),
+                        fitTitle(metadata.title()),
                         metadata.caption(),
                         metadata.thumbnailUrl(),
                         metadata.contentHash(),
@@ -135,16 +129,23 @@ public class PlaceImportResultWriter {
                 .toList();
         candidateRepository.saveAll(candidates);
         if (resolvedContentId != null) {
+            contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateMetadata(
+                    fitTitle(metadata.title()),
+                    metadata.caption(),
+                    metadata.thumbnailUrl(),
+                    metadata.contentHash(),
+                    clock.instant()
+            ));
             candidates.forEach(candidate -> {
                 Long placeId = candidate.getPlaceId();
                 contentPlaceRepository.insertIfAbsent(resolvedContentId, placeId, clock.instant());
             });
         }
         if (resolvedContentId != null) {
-            contentRepository.findById(resolvedContentId).ifPresent(Content::publish);
+            contentRepository.findById(resolvedContentId).ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(
-                metadata.title(),
+                fitTitle(metadata.title()),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -187,7 +188,7 @@ public class PlaceImportResultWriter {
                 metadata.canonicalUrl(),
                 urlHash,
                 metadata.sourceType().name(),
-                metadata.title(),
+                fitTitle(metadata.title()),
                 metadata.caption(),
                 metadata.thumbnailUrl(),
                 metadata.contentHash(),
@@ -195,13 +196,13 @@ public class PlaceImportResultWriter {
         );
         Content content = contentRepository.findByCanonicalUrlHash(urlHash)
                 .orElseThrow(IllegalStateException::new);
-        content.updateMetadata(
-                metadata.title(),
-                metadata.caption(),
-                metadata.thumbnailUrl(),
-                metadata.contentHash(),
-                clock.instant()
-        );
         return content;
+    }
+
+    private String fitTitle(String title) {
+        if (title == null || title.length() <= 4_000) {
+            return title;
+        }
+        return title.substring(0, 4_000);
     }
 }

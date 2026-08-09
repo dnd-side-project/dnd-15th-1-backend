@@ -98,13 +98,16 @@ public class PlaceImportService {
         }
         validateDailyLimit(memberId);
         Instant now = clock.instant();
-        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+        importRepository.insertIfAbsent(
                 member.getId(),
                 source.canonicalUrl(),
                 urlHash,
-                source.sourceType(),
+                source.sourceType().name(),
                 now
-        ));
+        );
+        PlaceImport placeImport = importRepository
+                .findByMemberIdAndCanonicalUrlHash(member.getId(), urlHash)
+                .orElseThrow(IllegalStateException::new);
         placeImport.start(now);
         importRepository.save(placeImport);
         processWithRetry(placeImport, source.sourceType());

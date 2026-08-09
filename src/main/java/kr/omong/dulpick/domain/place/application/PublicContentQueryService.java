@@ -15,6 +15,8 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Service
 public class PublicContentQueryService {
@@ -35,9 +37,17 @@ public class PublicContentQueryService {
 
     @Transactional(readOnly = true)
     public Page<PublicContentView> findPublicContents(Pageable pageable) {
+        Pageable orderedPageable = pageable.getSort().isSorted()
+                ? pageable
+                : PageRequest.of(
+                        pageable.getPageNumber(),
+                        pageable.getPageSize(),
+                        Sort.by(Sort.Direction.DESC, "createdAt")
+                                .and(Sort.by(Sort.Direction.DESC, "id"))
+                );
         Page<Content> contents = contentRepository.findAllByPublicationStatus(
                 ContentPublicationStatus.PUBLIC,
-                pageable
+                orderedPageable
         );
         List<Long> contentIds = contents.getContent().stream().map(Content::getId).toList();
         Map<Long, List<Long>> placeIdsByContent = contentPlaceRepository

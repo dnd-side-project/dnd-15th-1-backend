@@ -119,8 +119,9 @@ public class Content {
         return contentHash;
     }
 
-    public void publish() {
+    public void publish(Instant now) {
         this.publicationStatus = ContentPublicationStatus.PUBLIC;
+        this.updatedAt = now;
     }
 
     public Long getId() {
