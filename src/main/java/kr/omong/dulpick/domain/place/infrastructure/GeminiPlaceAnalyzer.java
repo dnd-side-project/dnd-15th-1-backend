@@ -112,11 +112,13 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
         );
         Map<String, Object> part = Map.of("text", prompt);
         Map<String, Object> content = Map.of("role", "user", "parts", List.of(part));
-        Map<String, Object> generationConfig = Map.of(
-                "responseMimeType", "application/json",
-                "temperature", 0.1,
-                "responseSchema", responseSchema()
-        );
+        Map<String, Object> generationConfig = new HashMap<>();
+        generationConfig.put("responseMimeType", "application/json");
+        generationConfig.put("responseSchema", responseSchema());
+        if (!properties.model().startsWith("gemini-3.5-flash-lite")
+                && !properties.model().startsWith("gemini-3.6-flash")) {
+            generationConfig.put("temperature", 0.1);
+        }
         Map<String, Object> request = new HashMap<>();
         request.put("contents", List.of(content));
         request.put("generationConfig", generationConfig);
