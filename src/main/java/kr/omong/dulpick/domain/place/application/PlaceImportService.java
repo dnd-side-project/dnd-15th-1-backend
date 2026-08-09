@@ -39,6 +39,7 @@ public class PlaceImportService {
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
     private final PlaceImportResultWriter resultWriter;
+    private final PlaceImportReservationService reservationService;
     private final ContentSourceUrlParser urlParser;
     private final MetadataService metadataService;
     private final PlaceAnalyzer placeAnalyzer;
@@ -52,6 +53,7 @@ public class PlaceImportService {
             PlaceCandidateRepository candidateRepository,
             PlaceRepository placeRepository,
             PlaceImportResultWriter resultWriter,
+            PlaceImportReservationService reservationService,
             ContentSourceUrlParser urlParser,
             MetadataService metadataService,
             PlaceAnalyzer placeAnalyzer,
@@ -64,6 +66,7 @@ public class PlaceImportService {
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
         this.resultWriter = resultWriter;
+        this.reservationService = reservationService;
         this.urlParser = urlParser;
         this.metadataService = metadataService;
         this.placeAnalyzer = placeAnalyzer;
@@ -98,26 +101,18 @@ public class PlaceImportService {
         }
         validateDailyLimit(memberId);
         Instant now = clock.instant();
-        int inserted = importRepository.insertIfAbsent(
+        PlaceImportReservationService.Reservation reservation = reservationService.reserve(
                 member.getId(),
                 source.canonicalUrl(),
                 urlHash,
-                source.sourceType().name(),
+                source.sourceType(),
                 now
         );
-        PlaceImport placeImport = importRepository
-                .findByMemberIdAndCanonicalUrlHash(member.getId(), urlHash)
+        PlaceImport placeImport = importRepository.findById(reservation.importId())
                 .orElseThrow(IllegalStateException::new);
-        if (inserted == 0) {
-            if (canRetry(placeImport)) {
-                placeImport.retry(clock.instant());
-                importRepository.save(placeImport);
-                processWithRetry(placeImport, source.sourceType());
-            }
+        if (!reservation.claimed()) {
             return toView(reload(placeImport));
         }
-        placeImport.start(now);
-        importRepository.save(placeImport);
         processWithRetry(placeImport, source.sourceType());
         return toView(reload(placeImport));
     }
@@ -149,7 +144,8 @@ public class PlaceImportService {
     }
 
     private boolean canRetry(PlaceImport placeImport) {
-        if (placeImport.getStatus() == PlaceImportStatus.FAILED) {
+        if (placeImport.getStatus() == PlaceImportStatus.FAILED
+                || placeImport.getStatus() == PlaceImportStatus.RECEIVED) {
             return true;
         }
         if (placeImport.getStatus() != PlaceImportStatus.PROCESSING) {

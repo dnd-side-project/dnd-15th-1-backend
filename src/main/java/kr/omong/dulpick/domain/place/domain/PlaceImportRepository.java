@@ -35,4 +35,14 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
             @Param("sourceType") String sourceType,
             @Param("now") Instant now
     );
+
+    @Modifying
+    @Query("""
+            UPDATE PlaceImport placeImport
+            SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING,
+                placeImport.updatedAt = :now
+            WHERE placeImport.id = :importId
+              AND placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.RECEIVED
+            """)
+    int claimReceived(@Param("importId") Long importId, @Param("now") Instant now);
 }

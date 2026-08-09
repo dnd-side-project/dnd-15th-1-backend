@@ -141,7 +141,7 @@ public class PlaceImport {
             String contentHash,
             Instant sourceUpdatedAt
     ) {
-        this.title = truncate(title, 1_000);
+        this.title = truncate(title, 4_000);
         this.content = content;
         this.thumbnailUrl = truncate(thumbnailUrl, 1_000);
         this.contentHash = contentHash;
