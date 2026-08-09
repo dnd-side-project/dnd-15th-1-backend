@@ -48,6 +48,29 @@ public enum ErrorCode {
     ),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
 
+    // 장소 import
+    UNSUPPORTED_SOURCE_URL(HttpStatus.BAD_REQUEST, "지원하지 않는 콘텐츠 URL입니다"),
+    INVALID_SOURCE_URL(HttpStatus.BAD_REQUEST, "올바른 콘텐츠 URL을 입력해 주세요"),
+    PLACE_IMPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "장소 분석 작업을 찾을 수 없습니다"),
+    PLACE_IMPORT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "장소 분석 작업에 접근할 수 없습니다"),
+    PLACE_IMPORT_ALREADY_EXISTS(HttpStatus.CONFLICT, "동일한 콘텐츠 분석 작업이 이미 존재합니다"),
+    PLACE_METADATA_UNAVAILABLE(
+            HttpStatus.BAD_GATEWAY,
+            "콘텐츠 메타데이터를 조회할 수 없습니다"
+    ),
+    PLACE_ANALYSIS_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "장소 분석을 일시적으로 처리할 수 없습니다"
+    ),
+    PLACE_VERIFICATION_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "장소 검증을 일시적으로 처리할 수 없습니다"
+    ),
+    PLACE_NOT_VERIFIED(HttpStatus.UNPROCESSABLE_ENTITY, "검증된 장소를 찾을 수 없습니다"),
+    PLACE_ALREADY_SAVED(HttpStatus.CONFLICT, "이미 저장된 장소입니다"),
+    PLACE_CANDIDATE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "저장할 장소 후보가 올바르지 않습니다"),
+    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
+
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),
     INVALID_CONNECTION_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 연결 코드입니다"),

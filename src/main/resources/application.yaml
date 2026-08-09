@@ -68,6 +68,37 @@ notification:
     batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
     max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 
+place-analysis:
+  enabled: ${PLACE_ANALYSIS_ENABLED:false}
+  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:100}
+  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:10}
+  max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
+  stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
+  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+
+instagram:
+  metadata:
+    official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}
+    access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
+    base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
+    oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
+    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+    timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
+
+gemini:
+  enabled: ${GEMINI_ENABLED:false}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:10}
+
+kakao:
+  local:
+    enabled: ${KAKAO_LOCAL_ENABLED:false}
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    timeout-seconds: ${KAKAO_LOCAL_TIMEOUT_SECONDS:3}
+
 auth:
   jwt:
     issuer: dulpick

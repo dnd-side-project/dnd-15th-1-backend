@@ -1,0 +1,261 @@
+package kr.omong.dulpick.domain.place.application;
+
+import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
+import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceAnalysisUnavailableException;
+import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
+import kr.omong.dulpick.domain.place.domain.ContentSourceType;
+import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
+import kr.omong.dulpick.domain.place.domain.PlaceImport;
+import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
+import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
+import kr.omong.dulpick.global.security.crypto.Sha256;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+@Service
+public class PlaceImportService {
+
+    private final MemberRepository memberRepository;
+    private final PlaceImportRepository importRepository;
+    private final PlaceCandidateRepository candidateRepository;
+    private final PlaceRepository placeRepository;
+    private final PlaceImportResultWriter resultWriter;
+    private final ContentSourceUrlParser urlParser;
+    private final MetadataService metadataService;
+    private final PlaceAnalyzer placeAnalyzer;
+    private final PlaceVerifier placeVerifier;
+    private final PlaceAnalysisProperties properties;
+    private final Clock clock;
+
+    public PlaceImportService(
+            MemberRepository memberRepository,
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            PlaceImportResultWriter resultWriter,
+            ContentSourceUrlParser urlParser,
+            MetadataService metadataService,
+            PlaceAnalyzer placeAnalyzer,
+            PlaceVerifier placeVerifier,
+            PlaceAnalysisProperties properties,
+            Clock clock
+    ) {
+        this.memberRepository = memberRepository;
+        this.importRepository = importRepository;
+        this.candidateRepository = candidateRepository;
+        this.placeRepository = placeRepository;
+        this.resultWriter = resultWriter;
+        this.urlParser = urlParser;
+        this.metadataService = metadataService;
+        this.placeAnalyzer = placeAnalyzer;
+        this.placeVerifier = placeVerifier;
+        this.properties = properties;
+        this.clock = clock;
+    }
+
+    public PlaceImportView importLink(Long memberId, String rawUrl) {
+        if (!properties.enabled()) {
+            throw new PlaceAnalysisUnavailableException(null);
+        }
+        Member member = lockActiveMember(memberId);
+        ContentSourceUrlParser.ParsedSource source = urlParser.parse(rawUrl);
+        String urlHash = Sha256.hex(source.canonicalUrl());
+        PlaceImport existing = importRepository
+                .findByMemberIdAndCanonicalUrlHash(memberId, urlHash)
+                .orElse(null);
+        if (existing != null) {
+            if (isContentChanged(existing, source)) {
+                existing.retry(clock.instant());
+                importRepository.save(existing);
+                processWithRetry(existing, source.sourceType());
+                return toView(existing);
+            }
+            if (canRetry(existing)) {
+                existing.retry(clock.instant());
+                importRepository.save(existing);
+                processWithRetry(existing, source.sourceType());
+            }
+            return toView(existing);
+        }
+        validateDailyLimit(memberId);
+        Instant now = clock.instant();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                source.canonicalUrl(),
+                urlHash,
+                source.sourceType(),
+                now
+        ));
+        placeImport.start(now);
+        importRepository.save(placeImport);
+        processWithRetry(placeImport, source.sourceType());
+        return toView(placeImport);
+    }
+
+    private void processWithRetry(
+            PlaceImport placeImport,
+            ContentSourceType sourceType
+    ) {
+        int attempts = properties.maxRetries() + 1;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            try {
+                process(placeImport, sourceType);
+                return;
+            } catch (BusinessException exception) {
+                if (!isRetryable(exception) || attempt == attempts - 1) {
+                    placeImport.fail(exception.getErrorCode().getCode(), clock.instant());
+                    importRepository.save(placeImport);
+                    return;
+                }
+                placeImport.retry(clock.instant());
+                importRepository.save(placeImport);
+            } catch (RuntimeException exception) {
+                placeImport.fail(ErrorCode.INTERNAL_ERROR.getCode(), clock.instant());
+                importRepository.save(placeImport);
+                return;
+            }
+        }
+    }
+
+    private boolean canRetry(PlaceImport placeImport) {
+        if (placeImport.getStatus() == PlaceImportStatus.FAILED) {
+            return true;
+        }
+        if (placeImport.getStatus() != PlaceImportStatus.PROCESSING) {
+            return false;
+        }
+        return placeImport.getUpdatedAt().plusSeconds(properties.staleTimeoutSeconds())
+                .isBefore(clock.instant());
+    }
+
+    private boolean isContentChanged(
+            PlaceImport existing,
+            ContentSourceUrlParser.ParsedSource source
+    ) {
+        if (existing.getContentHash() == null
+                || existing.getStatus() == PlaceImportStatus.PROCESSING
+                || existing.getStatus() == PlaceImportStatus.FAILED) {
+            return false;
+        }
+        try {
+            ContentMetadata metadata = metadataService.fetch(
+                    source.canonicalUrl(),
+                    source.sourceType()
+            );
+            return !metadata.contentHash().equals(existing.getContentHash());
+        } catch (BusinessException exception) {
+            return false;
+        }
+    }
+
+    private boolean isRetryable(BusinessException exception) {
+        return exception.getErrorCode() == ErrorCode.PLACE_METADATA_UNAVAILABLE
+                || exception.getErrorCode() == ErrorCode.PLACE_ANALYSIS_UNAVAILABLE
+                || exception.getErrorCode() == ErrorCode.PLACE_VERIFICATION_UNAVAILABLE;
+    }
+
+    @Transactional(readOnly = true)
+    public PlaceImportView get(Long memberId, Long importId) {
+        PlaceImport placeImport = importRepository.findById(importId)
+                .orElseThrow(PlaceImportNotFoundException::new);
+        if (!placeImport.getMemberId().equals(memberId)) {
+            throw new PlaceImportAccessDeniedException();
+        }
+        return toView(placeImport);
+    }
+
+    private void process(PlaceImport placeImport, ContentSourceType sourceType) {
+        ContentMetadata metadata = metadataService.fetch(
+                placeImport.getCanonicalUrl(),
+                sourceType
+        );
+        List<ExtractedPlace> extractedPlaces = placeAnalyzer.analyze(metadata).stream()
+                .limit(properties.maxCandidates())
+                .toList();
+        List<VerifiedCandidate> candidates = new ArrayList<>();
+        for (ExtractedPlace extractedPlace : extractedPlaces) {
+            VerifiedPlace verifiedPlace = placeVerifier.verify(extractedPlace);
+            if (verifiedPlace == null) {
+                continue;
+            }
+            candidates.add(new VerifiedCandidate(extractedPlace, verifiedPlace));
+        }
+        if (candidates.isEmpty()) {
+            placeImport.fail(ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant());
+            importRepository.save(placeImport);
+            return;
+        }
+        resultWriter.saveSuccess(placeImport.getId(), metadata, candidates);
+    }
+
+    private void validateDailyLimit(Long memberId) {
+        Instant since = clock.instant().minusSeconds(24 * 60 * 60);
+        if (importRepository.countByMemberIdAndCreatedAtGreaterThanEqual(memberId, since)
+                >= properties.dailyLimit()) {
+            throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED);
+        }
+    }
+
+    private Member lockActiveMember(Long memberId) {
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
+        return member;
+    }
+
+    private PlaceImportView toView(PlaceImport placeImport) {
+        List<PlaceCandidateView> candidates = candidateRepository
+                .findAllByImportIdOrderByIdAsc(placeImport.getId())
+                .stream()
+                .map(this::toCandidateView)
+                .toList();
+        return new PlaceImportView(
+                placeImport.getId(),
+                placeImport.getSourceType(),
+                placeImport.getStatus(),
+                placeImport.getFailureCode(),
+                candidates
+        );
+    }
+
+    private PlaceCandidateView toCandidateView(PlaceCandidate candidate) {
+        Place place = placeRepository.findById(candidate.getPlaceId()).orElse(null);
+        if (place == null) {
+            return new PlaceCandidateView(
+                    candidate.getId(),
+                    null,
+                    candidate.getExtractedName(),
+                    null,
+                    null,
+                    null,
+                    null
+            );
+        }
+        return new PlaceCandidateView(
+                candidate.getId(),
+                place.getId(),
+                place.getName(),
+                place.getAddress(),
+                place.getRoadAddress(),
+                place.getKakaoPlaceId(),
+                place.getCategory()
+        );
+    }
+}
