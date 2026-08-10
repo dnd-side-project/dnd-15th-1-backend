@@ -42,7 +42,7 @@ place-analysis:
   recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
-  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  public-crawler-enabled: true
 
 gemini:
   enabled: ${GEMINI_ENABLED:false}
@@ -70,7 +70,7 @@ instagram:
     access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
     base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
     oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
-    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+    public-crawler-enabled: true
     timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
 
 couple:
@@ -102,6 +102,7 @@ auth:
       kakao:
         audiences:
           - ${KAKAO_NATIVE_APP_KEY}
+          - ${KAKAO_DEBUG_NATIVE_APP_KEY:}
       apple:
         audiences:
           - ${APPLE_PROD_CLIENT_ID}
