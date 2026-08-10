@@ -19,7 +19,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class KakaoPlaceVerifierTest {
 
     @Test
-    void capsFallbackSearchesPerCandidate() {
+    void deduplicatesFallbackSearchQueriesWithoutArtificialCandidateLimit() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoProperties properties = new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3);
@@ -32,6 +32,7 @@ class KakaoPlaceVerifierTest {
         expectEmpty(server, "하나 둘 셋 넷 다섯");
         expectEmpty(server, "하나 둘 셋 넷");
         expectEmpty(server, "하나 둘 셋");
+        expectEmpty(server, "하나 둘");
 
         assertThat(verifier.verify(new ExtractedPlace(name, null, null, "INFERRED"))).isNull();
 

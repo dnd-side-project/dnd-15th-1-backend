@@ -19,8 +19,6 @@ import java.util.Set;
 @Component
 public class KakaoPlaceVerifier implements PlaceVerifier {
 
-    private static final int MAX_SEARCH_QUERIES_PER_CANDIDATE = 6;
-
     private final KakaoProperties properties;
     private final KakaoPlaceSearchClient searchClient;
     private final KakaoPlaceMatcher placeMatcher;
@@ -73,27 +71,24 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
     private List<PlaceSearchResult> searchCandidates(ExtractedPlace extractedPlace) {
         Map<String, PlaceSearchResult> results = new LinkedHashMap<>();
         Set<String> searchedQueries = new LinkedHashSet<>();
-        QueryBudget budget = new QueryBudget(MAX_SEARCH_QUERIES_PER_CANDIDATE);
-        searchAndAdd(results, searchedQueries, query(extractedPlace), budget);
+        searchAndAdd(results, searchedQueries, query(extractedPlace));
         if (extractedPlace.addressHint() != null && !extractedPlace.addressHint().isBlank()) {
             searchAndAdd(
                     results,
                     searchedQueries,
-                    extractedPlace.name() + " " + region(extractedPlace.addressHint()),
-                    budget
+                    extractedPlace.name() + " " + region(extractedPlace.addressHint())
             );
         }
         List<PlaceSearchResult> nameResults = searchAndAdd(
                 results,
                 searchedQueries,
-                extractedPlace.name(),
-                budget
+                extractedPlace.name()
         );
         if (placeMatcher.hasPreciseAddress(extractedPlace.addressHint())) {
-            searchAndAdd(results, searchedQueries, extractedPlace.addressHint(), budget);
+            searchAndAdd(results, searchedQueries, extractedPlace.addressHint());
         }
         if (nameResults.isEmpty()) {
-            searchShorterNames(results, searchedQueries, extractedPlace.name(), budget);
+            searchShorterNames(results, searchedQueries, extractedPlace.name());
         }
         return results.values().stream().toList();
     }
@@ -101,11 +96,10 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
     private List<PlaceSearchResult> searchAndAdd(
             Map<String, PlaceSearchResult> target,
             Set<String> searchedQueries,
-            String query,
-            QueryBudget budget
+            String query
     ) {
         String normalizedQuery = query == null ? "" : query.strip();
-        if (normalizedQuery.isBlank() || !searchedQueries.add(normalizedQuery) || !budget.tryUse()) {
+        if (normalizedQuery.isBlank() || !searchedQueries.add(normalizedQuery)) {
             return List.of();
         }
         List<PlaceSearchResult> results = searchClient.search(normalizedQuery);
@@ -125,13 +119,12 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
     private void searchShorterNames(
             Map<String, PlaceSearchResult> target,
             Set<String> searchedQueries,
-            String name,
-            QueryBudget budget
+            String name
     ) {
         String[] words = name.strip().split("\\s+");
         for (int wordCount = words.length - 1; wordCount >= 2; wordCount--) {
             String query = String.join(" ", java.util.Arrays.copyOf(words, wordCount));
-            List<PlaceSearchResult> results = searchAndAdd(target, searchedQueries, query, budget);
+            List<PlaceSearchResult> results = searchAndAdd(target, searchedQueries, query);
             if (!results.isEmpty()) {
                 return;
             }
@@ -150,23 +143,6 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
                 result.category(),
                 result.thumbnailUrl()
         );
-    }
-
-    private static final class QueryBudget {
-
-        private int remaining;
-
-        private QueryBudget(int maxQueries) {
-            this.remaining = maxQueries;
-        }
-
-        private boolean tryUse() {
-            if (remaining == 0) {
-                return false;
-            }
-            remaining--;
-            return true;
-        }
     }
 
 }
