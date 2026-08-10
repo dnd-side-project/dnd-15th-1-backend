@@ -10,9 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
-import org.springframework.http.converter.StringHttpMessageConverter;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -20,9 +18,12 @@ import org.springframework.web.util.HtmlUtils;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.http.HttpClient;
+import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -31,6 +32,7 @@ import java.util.regex.Pattern;
 @Component
 public class PublicWebMetadataProvider implements ContentMetadataProvider {
 
+    private static final int MAX_HTML_BYTES = 1_000_000;
     private static final String BROWSER_USER_AGENT = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) "
             + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
     private static final Set<ContentSourceType> SUPPORTED_TYPES = Set.of(
@@ -71,23 +73,31 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     private final PlaceAnalysisProperties properties;
     private final RestClient restClient;
     private final NaverPlaceHtmlParser naverPlaceHtmlParser;
+    private final PublicWebUrlValidator urlValidator;
     private final Clock clock;
 
     @Autowired
-    public PublicWebMetadataProvider(PlaceAnalysisProperties properties, Clock clock) {
-        this(properties, clock, createRestClientBuilder(), new NaverPlaceHtmlParser());
+    public PublicWebMetadataProvider(
+            PlaceAnalysisProperties properties,
+            Clock clock,
+            NaverPlaceHtmlParser naverPlaceHtmlParser,
+            PublicWebUrlValidator urlValidator
+    ) {
+        this(properties, clock, createRestClientBuilder(), naverPlaceHtmlParser, urlValidator);
     }
 
     PublicWebMetadataProvider(
             PlaceAnalysisProperties properties,
             Clock clock,
             RestClient.Builder restClientBuilder,
-            NaverPlaceHtmlParser naverPlaceHtmlParser
+            NaverPlaceHtmlParser naverPlaceHtmlParser,
+            PublicWebUrlValidator urlValidator
     ) {
         this.properties = properties;
         this.clock = clock;
-        this.restClient = configure(restClientBuilder).build();
+        this.restClient = restClientBuilder.build();
         this.naverPlaceHtmlParser = naverPlaceHtmlParser;
+        this.urlValidator = urlValidator;
     }
 
     private static RestClient.Builder createRestClientBuilder() {
@@ -98,13 +108,6 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(Duration.ofSeconds(10));
         return RestClient.builder().requestFactory(factory);
-    }
-
-    private static RestClient.Builder configure(RestClient.Builder builder) {
-        return builder.configureMessageConverters(converters -> converters
-                .registerDefaults()
-                .withStringConverter(new StringHttpMessageConverter(StandardCharsets.UTF_8))
-        );
     }
 
     @Override
@@ -169,32 +172,67 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     ) {
         String currentUrl = canonicalUrl;
         for (int redirect = 0; redirect < 4; redirect++) {
-            validateAllowedUrl(currentUrl);
-            ResponseEntity<String> response = request(currentUrl);
-            if (response.getStatusCode().is3xxRedirection()) {
-                URI location = response.getHeaders().getLocation();
+            urlValidator.validate(currentUrl);
+            FetchedResponse response = request(currentUrl);
+            if (response.status().is3xxRedirection()) {
+                URI location = response.location();
                 if (location == null) {
                     throw new MetadataUnavailableException();
                 }
                 currentUrl = resolve(currentUrl, location);
                 continue;
             }
-            validateHtmlResponse(response.getHeaders().getContentType(), response.getBody());
-            return new FetchedPage(currentUrl, response.getBody());
+            return new FetchedPage(currentUrl, response.body());
         }
         throw new MetadataUnavailableException();
     }
 
-    private ResponseEntity<String> request(String url) {
+    private FetchedResponse request(String url) {
         return restClient.get()
                 .uri(url)
                 .header(HttpHeaders.USER_AGENT, BROWSER_USER_AGENT)
                 .header(HttpHeaders.ACCEPT_LANGUAGE, "ko-KR,ko;q=0.9")
                 .accept(MediaType.TEXT_HTML)
-                .retrieve()
-                .onStatus(HttpStatusCode::is3xxRedirection, (request, response) -> {
-                })
-                .toEntity(String.class);
+                .exchange((request, response) -> readResponse(
+                        response.getStatusCode(),
+                        response.getHeaders(),
+                        response.getBody()
+                ));
+    }
+
+    private FetchedResponse readResponse(
+            HttpStatusCode status,
+            HttpHeaders headers,
+            InputStream bodyStream
+    ) throws IOException {
+        if (status.is3xxRedirection()) {
+            return new FetchedResponse(status, headers.getLocation(), null);
+        }
+        if (!status.is2xxSuccessful()) {
+            throw new MetadataUnavailableException();
+        }
+        MediaType contentType = headers.getContentType();
+        validateHtmlHeaders(contentType, headers.getContentLength());
+        byte[] body = readLimited(bodyStream);
+        Charset charset = contentType != null && contentType.getCharset() != null
+                ? contentType.getCharset()
+                : StandardCharsets.UTF_8;
+        return new FetchedResponse(status, null, new String(body, charset));
+    }
+
+    private void validateHtmlHeaders(MediaType contentType, long contentLength) {
+        if (contentLength > MAX_HTML_BYTES
+                || contentType != null && !MediaType.TEXT_HTML.isCompatibleWith(contentType)) {
+            throw new MetadataUnavailableException();
+        }
+    }
+
+    private byte[] readLimited(InputStream bodyStream) throws IOException {
+        byte[] body = bodyStream.readNBytes(MAX_HTML_BYTES + 1);
+        if (body.length > MAX_HTML_BYTES) {
+            throw new MetadataUnavailableException();
+        }
+        return body;
     }
 
     private ContentMetadata fetchNaverPlaceMetadata(
@@ -239,12 +277,12 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     }
 
     private String followRedirect(String currentUrl) {
-        validateAllowedUrl(currentUrl);
+        urlValidator.validate(currentUrl);
         var response = request(currentUrl);
-        if (!response.getStatusCode().is3xxRedirection()) {
+        if (!response.status().is3xxRedirection()) {
             throw new MetadataUnavailableException();
         }
-        URI location = response.getHeaders().getLocation();
+        URI location = response.location();
         if (location == null) {
             throw new MetadataUnavailableException();
         }
@@ -269,41 +307,10 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
             if (!"https".equalsIgnoreCase(resolved.getScheme())) {
                 throw new MetadataUnavailableException();
             }
-            validateAllowedUrl(resolved.toString());
+            urlValidator.validate(resolved.toString());
             return resolved.toString();
         } catch (URISyntaxException exception) {
             throw new MetadataUnavailableException(exception);
-        }
-    }
-
-    private void validateAllowedUrl(String url) {
-        try {
-            URI uri = new URI(url);
-            String host = uri.getHost();
-            boolean allowedHost = "naver.me".equalsIgnoreCase(host)
-                    || isHostOrSubdomain(host, "naver.com")
-                    || isHostOrSubdomain(host, "tistory.com");
-            if (!"https".equalsIgnoreCase(uri.getScheme())
-                    || uri.getUserInfo() != null
-                    || uri.getPort() != -1
-                    || !allowedHost) {
-                throw new MetadataUnavailableException();
-            }
-        } catch (URISyntaxException exception) {
-            throw new MetadataUnavailableException(exception);
-        }
-    }
-
-    private boolean isHostOrSubdomain(String host, String domain) {
-        return domain.equalsIgnoreCase(host)
-                || host != null && host.toLowerCase().endsWith("." + domain);
-    }
-
-    private void validateHtmlResponse(MediaType contentType, String body) {
-        if (body == null
-                || body.length() > 1_000_000
-                || contentType != null && !MediaType.TEXT_HTML.isCompatibleWith(contentType)) {
-            throw new MetadataUnavailableException();
         }
     }
 
@@ -328,6 +335,13 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     }
 
     private record FetchedPage(String url, String body) {
+    }
+
+    private record FetchedResponse(
+            HttpStatusCode status,
+            URI location,
+            String body
+    ) {
     }
 
 }

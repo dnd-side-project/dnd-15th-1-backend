@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
+import kr.omong.dulpick.domain.place.application.exception.MetadataUnavailableException;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -9,11 +10,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
+import tools.jackson.databind.ObjectMapper;
 
+import java.net.InetAddress;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
@@ -32,12 +37,7 @@ class PublicWebMetadataProviderTest {
     void resolvesNaverShortLinkAndExtractsPlaceFromMobileHtml() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        PublicWebMetadataProvider provider = new PublicWebMetadataProvider(
-                properties(),
-                Clock.systemUTC(),
-                builder,
-                new NaverPlaceHtmlParser()
-        );
+        PublicWebMetadataProvider provider = provider(builder);
         expectRedirect(server, SHORT_URL, MAP_URL);
         expectRedirect(server, MOBILE_URL, DETAIL_URL);
         server.expect(once(), requestTo(DETAIL_URL))
@@ -55,6 +55,69 @@ class PublicWebMetadataProviderTest {
         assertThat(metadata.title()).isEqualTo("을지식당");
         assertThat(metadata.caption()).isEqualTo("서울 중구 을지로40길 17");
         server.verify();
+    }
+
+    @Test
+    void rejectsRedirectToDisallowedHost() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        expectRedirect(server, SHORT_URL, "https://example.com/private");
+
+        assertThatThrownBy(() -> provider.fetch(SHORT_URL, ContentSourceType.NAVER_SHORT_LINK))
+                .isInstanceOf(MetadataUnavailableException.class);
+
+        server.verify();
+    }
+
+    @Test
+    void rejectsHtmlFromContentLengthBeforeReadingBody() {
+        String url = "https://sample.tistory.com/entry/place";
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        server.expect(once(), requestTo(url))
+                .andRespond(withSuccess("small", MediaType.TEXT_HTML)
+                        .header(HttpHeaders.CONTENT_LENGTH, "1000001"));
+
+        assertThatThrownBy(() -> provider.fetch(url, ContentSourceType.TISTORY))
+                .isInstanceOf(MetadataUnavailableException.class);
+
+        server.verify();
+    }
+
+    @Test
+    void rejectsHtmlThatExceedsStreamingLimit() {
+        String url = "https://sample.tistory.com/entry/place";
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        server.expect(once(), requestTo(url))
+                .andRespond(withSuccess("x".repeat(1_000_001), MediaType.TEXT_HTML));
+
+        assertThatThrownBy(() -> provider.fetch(url, ContentSourceType.TISTORY))
+                .isInstanceOf(MetadataUnavailableException.class);
+
+        server.verify();
+    }
+
+    private PublicWebMetadataProvider provider(RestClient.Builder builder) {
+        HostAddressResolver resolver = host -> List.of(publicAddress());
+        return new PublicWebMetadataProvider(
+                properties(),
+                Clock.systemUTC(),
+                builder,
+                new NaverPlaceHtmlParser(new ObjectMapper()),
+                new PublicWebUrlValidator(resolver)
+        );
+    }
+
+    private InetAddress publicAddress() {
+        try {
+            return InetAddress.getByAddress(new byte[]{8, 8, 8, 8});
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
     }
 
     private void expectRedirect(
