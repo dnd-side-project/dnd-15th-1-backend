@@ -58,6 +58,49 @@ class PublicWebMetadataProviderTest {
     }
 
     @Test
+    void followsNaverBlogMainFrameAndExtractsMetadata() {
+        String blogUrl = "https://blog.naver.com/dulpick/123";
+        String frameUrl = "https://blog.naver.com/PostView.naver?blogId=dulpick&logNo=123";
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        server.expect(once(), requestTo(blogUrl))
+                .andRespond(withSuccess("""
+                        <iframe id="mainFrame" src="/PostView.naver?blogId=dulpick&amp;logNo=123"></iframe>
+                        """, MediaType.TEXT_HTML));
+        server.expect(once(), requestTo(frameUrl))
+                .andRespond(withSuccess("""
+                        <meta property="og:title" content="성수 카페 기록">
+                        <meta property="og:description" content="서울 성동구 카페 세 곳">
+                        """, MediaType.TEXT_HTML));
+
+        var metadata = provider.fetch(blogUrl, ContentSourceType.NAVER_BLOG);
+
+        assertThat(metadata.title()).isEqualTo("성수 카페 기록");
+        assertThat(metadata.caption()).isEqualTo("서울 성동구 카페 세 곳");
+        server.verify();
+    }
+
+    @Test
+    void extractsTistoryMetadataWithoutChangingExistingFlow() {
+        String url = "https://sample.tistory.com/entry/place";
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        server.expect(once(), requestTo(url))
+                .andRespond(withSuccess("""
+                        <meta property="og:title" content="부산 여행 장소">
+                        <meta property="og:description" content="해운대에서 찾은 장소">
+                        """, MediaType.TEXT_HTML));
+
+        var metadata = provider.fetch(url, ContentSourceType.TISTORY);
+
+        assertThat(metadata.title()).isEqualTo("부산 여행 장소");
+        assertThat(metadata.caption()).isEqualTo("해운대에서 찾은 장소");
+        server.verify();
+    }
+
+    @Test
     void rejectsRedirectToDisallowedHost() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

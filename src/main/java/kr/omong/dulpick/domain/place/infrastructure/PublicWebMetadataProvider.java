@@ -163,7 +163,10 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         if (!frame.find()) {
             return html;
         }
-        String frameUrl = resolve(page.url(), URI.create(frame.group(1)));
+        String frameUrl = resolve(
+                page.url(),
+                URI.create(HtmlUtils.htmlUnescape(frame.group(1)))
+        );
         return fetchFollowingRedirects(frameUrl).body();
     }
 
