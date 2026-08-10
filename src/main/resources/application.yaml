@@ -29,15 +29,15 @@ couple:
     previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
     previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
-    preview-per-minute: 5
-    preview-per-hour: 20
-    connect-per-minute: 3
-    connect-per-day: 10
-    state-changes-per-day: 10
-    code-failures-per-ten-minutes: 5
-    ip-failures-per-hour: 50
+    preview-per-minute: 10
+    preview-per-hour: 30
+    connect-per-minute: 10
+    connect-per-day: 30
+    state-changes-per-day: 50
+    code-failures-per-ten-minutes: 15
+    ip-failures-per-hour: 100
     ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
-    failure-block-duration: 15m
+    failure-block-duration: 10m
     retention: 30d
     cleanup-delay: 1h
 

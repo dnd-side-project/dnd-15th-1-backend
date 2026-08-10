@@ -71,7 +71,15 @@ couple:
     previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
     previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
+    preview-per-minute: ${COUPLE_PREVIEW_PER_MINUTE:10}
+    preview-per-hour: ${COUPLE_PREVIEW_PER_HOUR:30}
+    connect-per-minute: ${COUPLE_CONNECT_PER_MINUTE:10}
+    connect-per-day: ${COUPLE_CONNECT_PER_DAY:30}
+    state-changes-per-day: ${COUPLE_STATE_CHANGES_PER_DAY:50}
+    code-failures-per-ten-minutes: ${COUPLE_CODE_FAILURES_PER_TEN_MINUTES:15}
+    ip-failures-per-hour: ${COUPLE_IP_FAILURES_PER_HOUR:100}
     ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
+    failure-block-duration: ${COUPLE_FAILURE_BLOCK_DURATION:10m}
 
 auth:
   jwt:

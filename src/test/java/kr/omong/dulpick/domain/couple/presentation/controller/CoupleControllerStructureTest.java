@@ -36,11 +36,11 @@ class CoupleControllerStructureTest {
     @Test
     void documentsConnectionRequestLimits() {
         assertThat(operationDescription("preview"))
-                .contains("분당 5회", "시간당 20회", "10분간 5회", "15분간", "시간당 50회");
+                .contains("분당 10회", "시간당 30회", "10분간 15회", "10분간", "시간당 100회");
         assertThat(operationDescription("connect"))
-                .contains("분당 3회", "일일 10회", "10분간 5회", "시간당 50회");
+                .contains("분당 10회", "일일 30회", "10분간 15회", "시간당 100회");
         assertThat(operationDescription("disconnect"))
-                .contains("합산", "일일 10회", "429");
+                .contains("합산", "일일 50회", "429");
     }
 
     private String operationDescription(String methodName) {
