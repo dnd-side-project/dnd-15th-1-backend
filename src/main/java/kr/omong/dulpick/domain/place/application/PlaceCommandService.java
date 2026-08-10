@@ -212,6 +212,13 @@ public class PlaceCommandService {
         if (invalid) {
             throw new InvalidPlaceCandidateException();
         }
+        long distinctPlaceCount = selections.stream()
+                .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
+                .distinct()
+                .count();
+        if (distinctPlaceCount != selections.size()) {
+            throw new InvalidPlaceCandidateException();
+        }
     }
 
     private boolean isConfirmable(PlaceVerificationStatus status) {

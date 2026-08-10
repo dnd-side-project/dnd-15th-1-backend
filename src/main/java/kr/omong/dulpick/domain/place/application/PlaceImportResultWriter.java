@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
@@ -19,7 +20,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -216,6 +219,7 @@ public class PlaceImportResultWriter {
             ContentMetadata metadata,
             List<VerifiedCandidate> verifiedCandidates
     ) {
+        List<VerifiedCandidate> uniqueCandidates = uniqueCandidates(verifiedCandidates);
         PlaceImport placeImport = importRepository.findById(importId)
                 .orElseThrow(IllegalStateException::new);
         Long contentId = placeImport.getContentId();
@@ -228,7 +232,7 @@ public class PlaceImportResultWriter {
         if (resolvedContentId != null) {
             contentPlaceRepository.deleteAllByContentId(resolvedContentId);
         }
-        List<PlaceCandidate> candidates = verifiedCandidates.stream()
+        List<PlaceCandidate> candidates = uniqueCandidates.stream()
                 .map(candidate -> saveCandidate(importId, resolvedContentId, candidate))
                 .toList();
         candidateRepository.saveAll(candidates);
@@ -267,6 +271,25 @@ public class PlaceImportResultWriter {
                 clock.instant()
         );
         recordSourceMetadata(placeImport, metadata);
+    }
+
+    private List<VerifiedCandidate> uniqueCandidates(List<VerifiedCandidate> candidates) {
+        Map<String, VerifiedCandidate> unique = new LinkedHashMap<>();
+        candidates.forEach(candidate -> unique.merge(
+                candidate.verified().kakaoPlaceId(),
+                candidate,
+                this::preferVerified
+        ));
+        return unique.values().stream().toList();
+    }
+
+    private VerifiedCandidate preferVerified(
+            VerifiedCandidate first,
+            VerifiedCandidate second
+    ) {
+        return first.verificationStatus() == PlaceVerificationStatus.VERIFIED
+                ? first
+                : second;
     }
 
     private PlaceCandidate saveCandidate(

@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
+import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -134,5 +136,109 @@ class PlaceCommandServiceTest {
                 10L,
                 List.of(new PlaceCommandService.PlaceSelection(100L, null, null))
         )).isInstanceOf(PlaceAlreadySavedException.class);
+    }
+
+    @Test
+    void rejectsDifferentCandidatesThatResolveToSamePlace() {
+        ConfirmFixture fixture = new ConfirmFixture();
+        PlaceCandidate first = fixture.candidate(100L, 10L, 20L);
+        PlaceCandidate second = fixture.candidate(101L, 10L, 20L);
+        when(fixture.candidateRepository.findAllById(List.of(100L, 101L)))
+                .thenReturn(List.of(first, second));
+
+        assertThatThrownBy(() -> fixture.service.confirm(
+                1L,
+                10L,
+                List.of(
+                        new PlaceCommandService.PlaceSelection(100L, null, null),
+                        new PlaceCommandService.PlaceSelection(101L, null, null)
+                )
+        )).isInstanceOf(InvalidPlaceCandidateException.class);
+
+        verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
+    }
+
+    @Test
+    void rejectsCandidateOwnedByDifferentImport() {
+        ConfirmFixture fixture = new ConfirmFixture();
+        PlaceCandidate candidate = fixture.candidate(100L, 11L, 20L);
+        when(fixture.candidateRepository.findAllById(List.of(100L)))
+                .thenReturn(List.of(candidate));
+
+        assertThatThrownBy(() -> fixture.service.confirm(
+                1L,
+                10L,
+                List.of(new PlaceCommandService.PlaceSelection(100L, null, null))
+        )).isInstanceOf(InvalidPlaceCandidateException.class);
+
+        verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
+    }
+
+    @Test
+    void rejectsAllSelectionsBeforeSavingWhenOnePlaceAlreadyExists() {
+        ConfirmFixture fixture = new ConfirmFixture();
+        PlaceCandidate first = fixture.candidate(100L, 10L, 20L);
+        PlaceCandidate second = fixture.candidate(101L, 10L, 21L);
+        Place existingPlace = mock(Place.class);
+        MemberPlace existing = mock(MemberPlace.class);
+        when(existingPlace.getId()).thenReturn(21L);
+        when(existing.getPlace()).thenReturn(existingPlace);
+        when(fixture.candidateRepository.findAllById(List.of(100L, 101L)))
+                .thenReturn(List.of(first, second));
+        when(fixture.memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(
+                1L,
+                List.of(20L, 21L)
+        )).thenReturn(List.of(existing));
+
+        assertThatThrownBy(() -> fixture.service.confirm(
+                1L,
+                10L,
+                List.of(
+                        new PlaceCommandService.PlaceSelection(100L, null, null),
+                        new PlaceCommandService.PlaceSelection(101L, null, null)
+                )
+        )).isInstanceOf(PlaceAlreadySavedException.class);
+
+        verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
+    }
+
+    private static final class ConfirmFixture {
+
+        private final PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
+        private final PlaceCandidateRepository candidateRepository =
+                mock(PlaceCandidateRepository.class);
+        private final MemberPlaceRepository memberPlaceRepository =
+                mock(MemberPlaceRepository.class);
+        private final PlaceCommandService service;
+
+        private ConfirmFixture() {
+            MemberRepository memberRepository = mock(MemberRepository.class);
+            Member member = mock(Member.class);
+            PlaceImport placeImport = mock(PlaceImport.class);
+            when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+            when(member.isActive()).thenReturn(true);
+            when(importRepository.findById(10L)).thenReturn(Optional.of(placeImport));
+            when(placeImport.getMemberId()).thenReturn(1L);
+            when(placeImport.getStatus()).thenReturn(PlaceImportStatus.REVIEW_REQUIRED);
+            service = new PlaceCommandService(
+                    importRepository,
+                    candidateRepository,
+                    mock(PlaceRepository.class),
+                    memberRepository,
+                    memberPlaceRepository,
+                    mock(ActiveCoupleMemberRepository.class),
+                    mock(ApplicationEventPublisher.class),
+                    Clock.fixed(Instant.parse("2026-08-10T00:00:00Z"), ZoneOffset.UTC)
+            );
+        }
+
+        private PlaceCandidate candidate(Long id, Long importId, Long placeId) {
+            PlaceCandidate candidate = mock(PlaceCandidate.class);
+            when(candidate.getId()).thenReturn(id);
+            when(candidate.getImportId()).thenReturn(importId);
+            when(candidate.getPlaceId()).thenReturn(placeId);
+            when(candidate.getVerificationStatus()).thenReturn(PlaceVerificationStatus.VERIFIED);
+            return candidate;
+        }
     }
 }
