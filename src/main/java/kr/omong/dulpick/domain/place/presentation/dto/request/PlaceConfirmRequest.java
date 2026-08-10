@@ -17,7 +17,7 @@ public record PlaceConfirmRequest(
 
     public record Selection(
             @NotNull
-            @Schema(description = "분석 결과의 장소 후보 ID")
+            @Schema(description = "URL 경로의 importId에 속한 장소 후보 ID")
             Long candidateId,
             @Size(max = 100)
             @Schema(description = "현재 회원과 연결된 상대방에게 보일 장소 별칭")

@@ -9,6 +9,7 @@ public record PlaceSearchResult(
         String roadAddress,
         BigDecimal latitude,
         BigDecimal longitude,
+        String categoryGroupCode,
         String category,
         String thumbnailUrl
 ) {

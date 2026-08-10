@@ -40,6 +40,12 @@ public class PlaceImportReservationService {
     ) {
         memberRepository.findForUpdateById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
+        PlaceImport existing = importRepository
+                .findByMemberIdAndCanonicalUrlHash(memberId, urlHash)
+                .orElse(null);
+        if (existing != null) {
+            return new Reservation(existing.getId());
+        }
         Instant since = now.minusSeconds(24 * 60 * 60);
         if (importRepository.countByMemberIdAndCreatedAtGreaterThanEqual(memberId, since)
                 >= properties.dailyLimit()) {
@@ -55,8 +61,7 @@ public class PlaceImportReservationService {
         PlaceImport placeImport = importRepository
                 .findByMemberIdAndCanonicalUrlHash(memberId, urlHash)
                 .orElseThrow(IllegalStateException::new);
-        boolean claimed = importRepository.claimReceived(placeImport.getId(), now) == 1;
-        return new Reservation(placeImport.getId(), claimed);
+        return new Reservation(placeImport.getId());
     }
 
     @Transactional
@@ -65,10 +70,10 @@ public class PlaceImportReservationService {
     }
 
     @Transactional
-    public boolean claimChangedCompleted(Long importId, Instant now) {
-        return importRepository.claimChangedCompleted(importId, now) == 1;
+    public boolean requeueRetryable(Long importId, Instant now, Instant staleBefore) {
+        return importRepository.requeueRetryable(importId, now, staleBefore) == 1;
     }
 
-    public record Reservation(Long importId, boolean claimed) {
+    public record Reservation(Long importId) {
     }
 }

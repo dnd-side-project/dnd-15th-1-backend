@@ -10,6 +10,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "place_imports")
@@ -40,6 +41,24 @@ public class PlaceImport {
 
     @Column(name = "source_updated_at")
     private Instant sourceUpdatedAt;
+
+    @Column(name = "source_author_name", length = 255)
+    private String sourceAuthorName;
+
+    @Column(name = "source_author_username", length = 255)
+    private String sourceAuthorUsername;
+
+    @Column(name = "source_published_on")
+    private LocalDate sourcePublishedOn;
+
+    @Column(name = "like_count")
+    private Long likeCount;
+
+    @Column(name = "comment_count")
+    private Long commentCount;
+
+    @Column(name = "engagement_checked_at")
+    private Instant engagementCheckedAt;
 
     @Column(length = 4_000)
     private String title;
@@ -154,6 +173,22 @@ public class PlaceImport {
         this.sourceUpdatedAt = sourceUpdatedAt;
     }
 
+    public void recordSourceMetadata(
+            String sourceAuthorName,
+            String sourceAuthorUsername,
+            LocalDate sourcePublishedOn,
+            Long likeCount,
+            Long commentCount,
+            Instant engagementCheckedAt
+    ) {
+        this.sourceAuthorName = truncate(sourceAuthorName, 255);
+        this.sourceAuthorUsername = truncate(sourceAuthorUsername, 255);
+        this.sourcePublishedOn = sourcePublishedOn;
+        this.likeCount = likeCount;
+        this.commentCount = commentCount;
+        this.engagementCheckedAt = engagementCheckedAt;
+    }
+
     private String truncate(String value, int maxLength) {
         if (value == null || value.length() <= maxLength) {
             return value;
@@ -225,5 +260,33 @@ public class PlaceImport {
 
     public String getThumbnailUrl() {
         return thumbnailUrl;
+    }
+
+    public String getSourceAuthorName() {
+        return sourceAuthorName;
+    }
+
+    public String getSourceAuthorUsername() {
+        return sourceAuthorUsername;
+    }
+
+    public LocalDate getSourcePublishedOn() {
+        return sourcePublishedOn;
+    }
+
+    public Long getLikeCount() {
+        return likeCount;
+    }
+
+    public Long getCommentCount() {
+        return commentCount;
+    }
+
+    public Instant getEngagementCheckedAt() {
+        return engagementCheckedAt;
+    }
+
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 }

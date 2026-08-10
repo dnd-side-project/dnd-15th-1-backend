@@ -70,6 +70,7 @@ public enum ErrorCode {
     PLACE_ALREADY_SAVED(HttpStatus.CONFLICT, "이미 저장된 장소입니다"),
     PLACE_CANDIDATE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "저장할 장소 후보가 올바르지 않습니다"),
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
+    PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
 
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),

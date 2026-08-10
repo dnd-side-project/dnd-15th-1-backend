@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.notification.application.event.ContentSavedEvent;
+import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
@@ -21,6 +22,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
+import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +31,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -84,6 +87,7 @@ public class PlaceCommandService {
                 searchResult.latitude(),
                 searchResult.longitude(),
                 searchResult.category(),
+                searchResult.categoryGroupCode(),
                 searchResult.thumbnailUrl(),
                 clock.instant()
         );
@@ -107,11 +111,15 @@ public class PlaceCommandService {
                     publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
                     return created;
                 });
-        return toView(saved, place);
+        return toView(
+                saved,
+                place,
+                ownershipStatus(partnerId, place.getId())
+        );
     }
 
     @Transactional
-    public List<MemberPlaceView> confirm(
+    public PlaceConfirmationView confirm(
             Long memberId,
             Long importId,
             List<PlaceSelection> selections
@@ -120,29 +128,24 @@ public class PlaceCommandService {
                 != selections.size()) {
             throw new InvalidPlaceCandidateException();
         }
+        lockActiveMember(memberId);
         PlaceImport placeImport = importRepository.findById(importId)
                 .orElseThrow(PlaceImportNotFoundException::new);
         if (!placeImport.getMemberId().equals(memberId)) {
             throw new PlaceImportAccessDeniedException();
         }
-        if (placeImport.getStatus() != PlaceImportStatus.REVIEW_REQUIRED) {
-            throw new InvalidPlaceCandidateException();
-        }
-        Member member = memberRepository.findForUpdateById(memberId)
-                .orElseThrow(MemberNotFoundException::new);
-        if (!member.isActive()) {
-            throw new MemberNotActiveException();
-        }
         Map<Long, PlaceCandidate> candidates = candidateRepository
                 .findAllById(selections.stream().map(PlaceSelection::candidateId).toList())
                 .stream()
                 .collect(Collectors.toMap(PlaceCandidate::getId, Function.identity()));
+        validateCandidates(importId, selections, candidates);
+        rejectInvalidStateOrDuplicates(memberId, placeImport, selections, candidates);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
         Instant now = clock.instant();
-        List<MemberPlaceView> savedPlaces = selections.stream()
+        List<PlaceConfirmationView.SavedPlaceView> savedPlaces = selections.stream()
                 .map(selection -> saveSelection(
                         memberId,
                         importId,
@@ -155,10 +158,14 @@ public class PlaceCommandService {
                 .toList();
         placeImport.markCompleted(now);
         importRepository.save(placeImport);
-        return savedPlaces;
+        return new PlaceConfirmationView(
+                importId,
+                placeImport.getStatus(),
+                savedPlaces
+        );
     }
 
-    private MemberPlaceView saveSelection(
+    private PlaceConfirmationView.SavedPlaceView saveSelection(
             Long memberId,
             Long importId,
             PlaceSelection selection,
@@ -167,30 +174,81 @@ public class PlaceCommandService {
             Long partnerId,
             Instant now
     ) {
-        if (candidate == null
-                || !candidate.getImportId().equals(importId)
-                || candidate.getVerificationStatus() != PlaceVerificationStatus.VERIFIED
-                || candidate.getPlaceId() == null) {
-            throw new InvalidPlaceCandidateException();
-        }
         Place place = findPlace(candidate.getPlaceId());
-        MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, place.getId())
-                .orElseGet(() -> {
-                    MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
-                            memberId,
-                            place,
-                            importId,
-                            selection.alias(),
-                            selection.memo(),
-                            now
-                    ));
-                    publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
-                    return created;
-                });
-        return toView(saved, place);
+        MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
+                memberId,
+                place,
+                importId,
+                selection.alias(),
+                selection.memo(),
+                now
+        ));
+        publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
+        return new PlaceConfirmationView.SavedPlaceView(
+                toView(created, place, ownershipStatus(partnerId, place.getId())),
+                true
+        );
     }
 
-    private MemberPlaceView toView(MemberPlace saved, Place place) {
+    private void lockActiveMember(Long memberId) {
+        Member member = memberRepository.findForUpdateById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
+    }
+
+    private void validateCandidates(
+            Long importId,
+            List<PlaceSelection> selections,
+            Map<Long, PlaceCandidate> candidates
+    ) {
+        boolean invalid = selections.stream()
+                .map(selection -> candidates.get(selection.candidateId()))
+                .anyMatch(candidate -> candidate == null
+                        || !candidate.getImportId().equals(importId)
+                        || candidate.getVerificationStatus() != PlaceVerificationStatus.VERIFIED
+                        || candidate.getPlaceId() == null);
+        if (invalid) {
+            throw new InvalidPlaceCandidateException();
+        }
+    }
+
+    private void rejectInvalidStateOrDuplicates(
+            Long memberId,
+            PlaceImport placeImport,
+            List<PlaceSelection> selections,
+            Map<Long, PlaceCandidate> candidates
+    ) {
+        Set<Long> existingPlaceIds = existingPlaceIds(memberId, selections, candidates);
+        if (!existingPlaceIds.isEmpty()) {
+            throw new PlaceAlreadySavedException();
+        }
+        if (placeImport.getStatus() != PlaceImportStatus.REVIEW_REQUIRED) {
+            throw new InvalidPlaceCandidateException();
+        }
+    }
+
+    private Set<Long> existingPlaceIds(
+            Long memberId,
+            List<PlaceSelection> selections,
+            Map<Long, PlaceCandidate> candidates
+    ) {
+        List<Long> placeIds = selections.stream()
+                .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
+                .distinct()
+                .toList();
+        return memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(memberId, placeIds)
+                .stream()
+                .map(memberPlace -> memberPlace.getPlace().getId())
+                .collect(Collectors.toSet());
+    }
+
+    private MemberPlaceView toView(
+            MemberPlace saved,
+            Place place,
+            PlaceOwnershipStatus ownershipStatus
+    ) {
         return new MemberPlaceView(
                 saved.getMemberId(),
                 place.getId(),
@@ -200,6 +258,8 @@ public class PlaceCommandService {
                 place.getLatitude(),
                 place.getLongitude(),
                 place.getCategory(),
+                place.getCategoryName(),
+                ownershipStatus,
                 saved.getAlias(),
                 saved.getMemo(),
                 saved.getSavedAt()
@@ -240,6 +300,15 @@ public class PlaceCommandService {
                 .filter(id -> !id.equals(memberId))
                 .findFirst()
                 .orElse(null);
+    }
+
+    private PlaceOwnershipStatus ownershipStatus(Long partnerId, Long placeId) {
+        if (partnerId == null) {
+            return PlaceOwnershipStatus.MINE;
+        }
+        return memberPlaceRepository.findByMemberIdAndPlaceId(partnerId, placeId).isPresent()
+                ? PlaceOwnershipStatus.TOGETHER
+                : PlaceOwnershipStatus.MINE;
     }
 
     public record PlaceSelection(

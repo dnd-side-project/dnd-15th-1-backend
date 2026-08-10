@@ -1,25 +1,23 @@
 package kr.omong.dulpick.domain.place.application;
 
-import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 
-import java.util.List;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 public record PublicContentView(
         Long contentId,
-        String originalUrl,
+        String canonicalUrl,
         ContentSourceType sourceType,
         ContentAuthorView author,
         LocalDate publishedOn,
         ContentEngagementView engagement,
         String title,
-        String content,
+        String caption,
         String thumbnailUrl,
         int placeCount,
-        ContentPublicationStatus publicationStatus,
-        List<MemberPlaceView> places
+        List<PublicPlaceView> places
 ) {
 
     public record ContentAuthorView(

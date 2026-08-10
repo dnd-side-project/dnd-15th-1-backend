@@ -39,6 +39,9 @@ public class Place {
     @Column(length = 100)
     private String category;
 
+    @Column(name = "category_group_code", length = 3)
+    private String categoryGroupCode;
+
     @Column(name = "thumbnail_url", length = 1_000)
     private String thumbnailUrl;
 
@@ -59,6 +62,7 @@ public class Place {
             BigDecimal latitude,
             BigDecimal longitude,
             String category,
+            String categoryGroupCode,
             String thumbnailUrl,
             Instant now
     ) {
@@ -69,6 +73,7 @@ public class Place {
         this.latitude = latitude;
         this.longitude = longitude;
         this.category = category;
+        this.categoryGroupCode = categoryGroupCode;
         this.thumbnailUrl = thumbnailUrl;
         this.createdAt = now;
         this.updatedAt = now;
@@ -82,6 +87,7 @@ public class Place {
             BigDecimal latitude,
             BigDecimal longitude,
             String category,
+            String categoryGroupCode,
             String thumbnailUrl,
             Instant now
     ) {
@@ -93,6 +99,7 @@ public class Place {
                 latitude,
                 longitude,
                 category,
+                categoryGroupCode,
                 thumbnailUrl,
                 now
         );
@@ -128,6 +135,14 @@ public class Place {
 
     public String getCategory() {
         return category;
+    }
+
+    public String getCategoryGroupCode() {
+        return categoryGroupCode;
+    }
+
+    public String getCategoryName() {
+        return DulpickPlaceCategory.fromKakao(categoryGroupCode, category).getDisplayName();
     }
 
     public String getThumbnailUrl() {

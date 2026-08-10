@@ -2,6 +2,8 @@ package kr.omong.dulpick.domain.place.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 @ConfigurationProperties("place-analysis")
 public record PlaceAnalysisProperties(
         boolean enabled,
@@ -11,7 +13,10 @@ public record PlaceAnalysisProperties(
         boolean publicCrawlerEnabled,
         int staleTimeoutSeconds,
         int retryCooldownSeconds,
-        int maxRetryCount
+        int maxRetryCount,
+        Duration recoveryDelay,
+        int recoveryBatchSize,
+        int workerConcurrency
 ) {
 
     public PlaceAnalysisProperties {
@@ -32,6 +37,15 @@ public record PlaceAnalysisProperties(
         }
         if (maxRetryCount <= 0) {
             maxRetryCount = 3;
+        }
+        if (recoveryDelay == null || recoveryDelay.isNegative() || recoveryDelay.isZero()) {
+            recoveryDelay = Duration.ofSeconds(5);
+        }
+        if (recoveryBatchSize <= 0) {
+            recoveryBatchSize = 20;
+        }
+        if (workerConcurrency <= 0) {
+            workerConcurrency = 2;
         }
     }
 }

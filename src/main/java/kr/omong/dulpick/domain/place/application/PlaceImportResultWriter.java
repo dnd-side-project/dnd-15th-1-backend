@@ -101,20 +101,17 @@ public class PlaceImportResultWriter {
             List<ExtractedPlace> candidates,
             Instant analyzedAt
     ) {
-        Optional<Content> cachedContent = contentRepository.findById(contentId)
-                .filter(c -> c.isClaimedBy(claimToken));
-        if (cachedContent.isEmpty()) {
-            return false;
-        }
         try {
-            cachedContent.get().updateExtractedAnalysis(
+            String candidatesJson = objectMapper.writeValueAsString(candidates);
+            return contentRepository.completeAnalysis(
+                    contentId,
+                    claimToken,
                     contentHash,
                     analyzerModel,
                     promptVersion,
-                    objectMapper.writeValueAsString(candidates),
+                    candidatesJson,
                     analyzedAt
-            );
-            return true;
+            ) == 1;
         } catch (Exception exception) {
             throw new IllegalStateException("Failed to cache place analysis", exception);
         }
@@ -122,9 +119,7 @@ public class PlaceImportResultWriter {
 
     @Transactional
     public void failAnalysis(Long contentId, String claimToken) {
-        contentRepository.findById(contentId)
-                .filter(content -> content.isClaimedBy(claimToken))
-                .ifPresent(Content::failAnalysis);
+        contentRepository.failAnalysis(contentId, claimToken);
     }
 
     @Transactional
@@ -168,6 +163,7 @@ public class PlaceImportResultWriter {
                 metadata.contentHash(),
                 metadata.sourceUpdatedAt()
         );
+        recordSourceMetadata(placeImport, metadata);
         return content.getId();
     }
 
@@ -270,6 +266,7 @@ public class PlaceImportResultWriter {
                 metadata.sourceUpdatedAt(),
                 clock.instant()
         );
+        recordSourceMetadata(placeImport, metadata);
     }
 
     private PlaceCandidate saveCandidate(
@@ -286,6 +283,7 @@ public class PlaceImportResultWriter {
                 verified.latitude(),
                 verified.longitude(),
                 verified.category(),
+                verified.categoryGroupCode(),
                 verified.thumbnailUrl(),
                 clock.instant()
         );
@@ -340,5 +338,16 @@ public class PlaceImportResultWriter {
         }
         firstLine = firstLine.replaceAll("^[\\\"'‘’“”]+|[\\\"'‘’“”]+$", "").strip();
         return fitTitle(firstLine.length() > 200 ? firstLine.substring(0, 200).strip() : firstLine);
+    }
+
+    private void recordSourceMetadata(PlaceImport placeImport, ContentMetadata metadata) {
+        placeImport.recordSourceMetadata(
+                metadata.sourceAuthorName(),
+                metadata.sourceAuthorUsername(),
+                metadata.sourcePublishedOn(),
+                metadata.likeCount(),
+                metadata.commentCount(),
+                metadata.engagementCheckedAt()
+        );
     }
 }

@@ -208,29 +208,6 @@ public class Content {
         this.analysisClaimToken = null;
     }
 
-    public void startAnalysis(Instant startedAt) {
-        this.analysisStatus = "PROCESSING";
-        this.analysisStartedAt = startedAt;
-    }
-
-    public boolean isClaimedBy(String claimToken) {
-        return "PROCESSING".equals(analysisStatus)
-                && claimToken != null
-                && claimToken.equals(analysisClaimToken);
-    }
-
-    public void releaseAnalysis(String claimToken) {
-        if (isClaimedBy(claimToken)) {
-            failAnalysis();
-        }
-    }
-
-    public void failAnalysis() {
-        this.analysisStatus = "FAILED";
-        this.analysisStartedAt = null;
-        this.analysisClaimToken = null;
-    }
-
     public Long getId() {
         return id;
     }

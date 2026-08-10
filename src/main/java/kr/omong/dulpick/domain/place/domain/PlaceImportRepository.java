@@ -1,12 +1,14 @@
 package kr.omong.dulpick.domain.place.domain;
 
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
-
-import java.time.Instant;
-import java.util.Optional;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 
 public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> {
 
@@ -18,6 +20,21 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
     long countByMemberIdAndCreatedAtGreaterThanEqual(
             Long memberId,
             Instant createdAt
+    );
+
+    @Query("""
+            SELECT placeImport.id
+              FROM PlaceImport placeImport
+             WHERE (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.RECEIVED
+                    AND placeImport.updatedAt <= :receivedBefore)
+                OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
+                    AND placeImport.updatedAt < :processingBefore)
+             ORDER BY placeImport.updatedAt ASC, placeImport.id ASC
+            """)
+    List<Long> findRecoverableIds(
+            @Param("receivedBefore") Instant receivedBefore,
+            @Param("processingBefore") Instant processingBefore,
+            Pageable pageable
     );
 
     @Modifying
@@ -40,16 +57,6 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
     @Query("""
             UPDATE PlaceImport placeImport
             SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING,
-                placeImport.updatedAt = :now
-            WHERE placeImport.id = :importId
-              AND placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.RECEIVED
-            """)
-    int claimReceived(@Param("importId") Long importId, @Param("now") Instant now);
-
-    @Modifying
-    @Query("""
-            UPDATE PlaceImport placeImport
-            SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING,
                 placeImport.failureCode = null,
                 placeImport.updatedAt = :now
             WHERE placeImport.id = :importId
@@ -67,12 +74,18 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
     @Modifying
     @Query("""
             UPDATE PlaceImport placeImport
-            SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING,
+            SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.RECEIVED,
                 placeImport.failureCode = null,
                 placeImport.updatedAt = :now
             WHERE placeImport.id = :importId
-              AND (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.REVIEW_REQUIRED
-                   OR placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.COMPLETED)
+              AND (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.FAILED
+                   OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
+                       AND placeImport.updatedAt < :staleBefore))
             """)
-    int claimChangedCompleted(@Param("importId") Long importId, @Param("now") Instant now);
+    int requeueRetryable(
+            @Param("importId") Long importId,
+            @Param("now") Instant now,
+            @Param("staleBefore") Instant staleBefore
+    );
+
 }

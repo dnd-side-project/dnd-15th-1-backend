@@ -16,19 +16,19 @@ import org.springframework.web.client.RestClientException;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.List;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Locale;
 
 @Component
 public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
 
     private final KakaoProperties properties;
     private final RestClient restClient;
+    private final KakaoPlaceMatcher placeMatcher;
 
     public KakaoPlaceVerifier(KakaoProperties properties) {
         this.properties = properties;
+        this.placeMatcher = new KakaoPlaceMatcher();
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
         factory.setReadTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
@@ -47,11 +47,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         }
         try {
             List<PlaceSearchResult> results = searchCandidates(extractedPlace);
-            return results.stream()
-                    .map(result -> new RankedPlace(result, score(extractedPlace, result)))
-                    .sorted(Comparator.comparingInt(RankedPlace::score).reversed())
-                    .map(RankedPlace::place)
-                    .findFirst()
+            return placeMatcher.findBest(extractedPlace, results)
                     .map(this::toVerifiedPlace)
                     .orElse(null);
         } catch (RestClientException exception) {
@@ -116,38 +112,6 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         return String.join(" ", java.util.Arrays.copyOf(words, Math.min(words.length, 2)));
     }
 
-    private int score(ExtractedPlace extractedPlace, PlaceSearchResult result) {
-        int score = 0;
-        String extractedName = normalize(extractedPlace.name());
-        String resultName = normalize(result.name());
-        if (resultName.equals(extractedName)) {
-            score += 25;
-        } else if (resultName.contains(extractedName) || extractedName.contains(resultName)) {
-            score += 15;
-        }
-        String rawEvidence = extractedPlace.evidence() == null ? "" : extractedPlace.evidence().strip();
-        String evidence = normalize(rawEvidence);
-        if (evidence.isBlank()) {
-            score -= 40;
-        } else {
-            if (evidence.contains(extractedName)) {
-                score += 30;
-            }
-            if (rawEvidence.contains("위치") || rawEvidence.contains("주소") || rawEvidence.contains("📍")) {
-                score += 20;
-            }
-        }
-        String addressHint = normalize(extractedPlace.addressHint());
-        if (!addressHint.isBlank()) {
-            String address = normalize(result.address() + result.roadAddress());
-            score += address.contains(addressHint) || addressHint.contains(address) ? 20 : -30;
-        }
-        if ("EXPLICIT_VENUE".equalsIgnoreCase(extractedPlace.mentionType())) {
-            score += 10;
-        }
-        return score;
-    }
-
     private List<PlaceSearchResult> searchByNameFallback(String name) {
         String[] words = name.strip().split("\\s+");
         for (int wordCount = words.length; wordCount >= 2; wordCount--) {
@@ -160,14 +124,6 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         return search(name);
     }
 
-    private String normalize(String value) {
-        if (value == null) {
-            return "";
-        }
-        return value.toLowerCase(Locale.ROOT)
-                .replaceAll("[^\\p{L}\\p{N}]", "");
-    }
-
     private PlaceSearchResult toSearchResult(Map<String, Object> document) {
         return new PlaceSearchResult(
                 text(document, "id"),
@@ -176,6 +132,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
                 text(document, "road_address_name"),
                 decimal(document, "y"),
                 decimal(document, "x"),
+                text(document, "category_group_code"),
                 text(document, "category_name"),
                 null
         );
@@ -189,6 +146,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
                 result.roadAddress(),
                 result.latitude(),
                 result.longitude(),
+                result.categoryGroupCode(),
                 result.category(),
                 result.thumbnailUrl()
         );
@@ -202,8 +160,5 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private BigDecimal decimal(Map<String, Object> document, String key) {
         String value = text(document, key);
         return value.isBlank() ? null : new BigDecimal(value);
-    }
-
-    private record RankedPlace(PlaceSearchResult place, int score) {
     }
 }

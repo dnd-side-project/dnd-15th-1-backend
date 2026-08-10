@@ -58,6 +58,7 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'notification.fcm.enabled', 'false'
+    systemProperty 'place-analysis.recovery-enabled', 'false'
     jvmArgs += '-Xshare:off'
     jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 }

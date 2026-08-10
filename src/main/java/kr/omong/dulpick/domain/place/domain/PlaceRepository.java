@@ -15,11 +15,12 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     @Query(value = """
             INSERT INTO places
                 (kakao_place_id, name, address, road_address, latitude, longitude,
-                 category, thumbnail_url, created_at, updated_at)
+                 category, category_group_code, thumbnail_url, created_at, updated_at)
             VALUES
                 (:kakaoId, :name, :address, :roadAddress, :latitude, :longitude,
-                 :category, :thumbnail, :now, :now)
-            ON DUPLICATE KEY UPDATE kakao_place_id = kakao_place_id
+                 :category, :categoryGroupCode, :thumbnail, :now, :now)
+            ON DUPLICATE KEY UPDATE
+                category_group_code = COALESCE(category_group_code, :categoryGroupCode)
             """, nativeQuery = true)
     void insertIfAbsent(
             @Param("kakaoId") String kakaoId,
@@ -29,6 +30,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
             @Param("latitude") java.math.BigDecimal latitude,
             @Param("longitude") java.math.BigDecimal longitude,
             @Param("category") String category,
+            @Param("categoryGroupCode") String categoryGroupCode,
             @Param("thumbnail") String thumbnail,
             @Param("now") java.time.Instant now
     );
