@@ -15,6 +15,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class PlaceQueryServiceTest {
@@ -70,7 +71,7 @@ class PlaceQueryServiceTest {
     }
 
     @Test
-    void marksOwnPlaceAsMineWithoutActiveCouple() {
+    void doesNotExposeFormerPartnerPlacesWithoutActiveCouple() {
         Place place = place(30L);
         MemberPlace mine = memberPlace(1L, place, null, Instant.parse("2026-08-10T00:00:00Z"));
         when(coupleMemberRepository.findByMemberId(1L)).thenReturn(Optional.empty());
@@ -80,6 +81,7 @@ class PlaceQueryServiceTest {
         assertThat(service.getVisiblePlaces(1L)).singleElement().satisfies(saved ->
                 assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.MINE)
         );
+        verify(memberPlaceRepository).findAllByMemberIdInOrderBySavedAtDesc(List.of(1L));
     }
 
     private void connectCouple(Long memberId, Long partnerId) {
