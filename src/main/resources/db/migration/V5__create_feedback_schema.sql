@@ -1,13 +1,13 @@
 CREATE TABLE member_feedbacks
 (
-    id                  BIGINT        NOT NULL AUTO_INCREMENT,
-    member_id           BIGINT        NOT NULL,
-    client_request_id   CHAR(36)      NOT NULL,
-    type                VARCHAR(30)   NOT NULL,
-    content             VARCHAR(1000) NOT NULL,
-    status              VARCHAR(20)   NOT NULL,
-    created_at          DATETIME(6)   NOT NULL,
-    updated_at          DATETIME(6)   NOT NULL,
+    id                BIGINT        NOT NULL AUTO_INCREMENT,
+    member_id         BIGINT        NOT NULL,
+    client_request_id CHAR(36)      NOT NULL,
+    type              VARCHAR(30)   NOT NULL,
+    content           VARCHAR(1000) NOT NULL,
+    status            VARCHAR(20)   NOT NULL,
+    created_at        DATETIME(6)   NOT NULL,
+    updated_at        DATETIME(6)   NOT NULL,
     PRIMARY KEY (id),
     CONSTRAINT uk_member_feedbacks_member_request
         UNIQUE (member_id, client_request_id),
