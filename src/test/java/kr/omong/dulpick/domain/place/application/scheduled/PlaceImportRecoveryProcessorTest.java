@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.place.application.scheduled;
 
-import kr.omong.dulpick.domain.place.application.PlaceImportService;
+import kr.omong.dulpick.domain.place.application.PlaceImportProcessingService;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ class PlaceImportRecoveryProcessorTest {
     void resumesReceivedImportsAfterRecoveryDelay() {
         Instant now = Instant.parse("2026-08-09T12:00:00Z");
         PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
-        PlaceImportService importService = mock(PlaceImportService.class);
+        PlaceImportProcessingService importService = mock(PlaceImportProcessingService.class);
         PlaceAnalysisProperties properties = new PlaceAnalysisProperties(
                 true,
                 100,

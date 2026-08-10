@@ -68,16 +68,32 @@ class PlaceImportServiceTest {
             20,
             2
     );
-    private final PlaceImportService service = new PlaceImportService(
-            memberRepository,
-            importRepository,
+    private final PlaceImportViewMapper viewMapper = new PlaceImportViewMapper(
             candidateRepository,
             placeRepository,
             memberPlaceRepository,
+            properties
+    );
+    private final PlaceImportQueryService queryService = new PlaceImportQueryService(
+            importRepository,
+            viewMapper
+    );
+    private final PlaceImportService service = new PlaceImportService(
+            memberRepository,
+            importRepository,
+            viewMapper,
+            reservationService,
+            urlParser,
+            properties,
+            Clock.fixed(NOW, ZoneOffset.UTC)
+    );
+    private final PlaceImportProcessingService processingService = new PlaceImportProcessingService(
+            importRepository,
+            candidateRepository,
+            placeRepository,
             resultWriter,
             imageEnrichmentService,
             reservationService,
-            urlParser,
             metadataService,
             placeAnalyzer,
             placeVerifier,
@@ -153,7 +169,7 @@ class PlaceImportServiceTest {
                 NOW.minusSeconds(600)
         )).thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isNull();
+        assertThat(processingService.claimPending(1L)).isNull();
 
         verify(reservationService).claimPending(
                 1L,
@@ -170,7 +186,7 @@ class PlaceImportServiceTest {
         when(placeImport.getProcessingClaimToken()).thenReturn("new-claim-token");
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
 
-        service.processClaimed(1L, "stale-claim-token");
+        processingService.processClaimed(1L, "stale-claim-token");
 
         verifyNoInteractions(
                 metadataService,
@@ -242,8 +258,8 @@ class PlaceImportServiceTest {
                         PlaceVerificationStatus.VERIFIED
                 ));
 
-        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        assertThat(processingService.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, times(1)).analyze(metadata);
         verify(placeVerifier, times(2)).verify(extractedPlace);
@@ -293,8 +309,8 @@ class PlaceImportServiceTest {
         ))
                 .thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        assertThat(processingService.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(reservationService).requeueClaimed(1L, IMPORT_CLAIM_TOKEN, NOW);
         verifyNoInteractions(placeVerifier);
@@ -317,7 +333,7 @@ class PlaceImportServiceTest {
         when(candidate.getExtractedName()).thenReturn("밀빛 망원점");
         when(candidate.getExtractedAddressHint()).thenReturn("서울 마포구");
 
-        PlaceImportView view = service.get(1L, 1L);
+        PlaceImportView view = queryService.get(1L, 1L);
 
         assertThat(view.candidates()).singleElement().satisfies(result -> {
             assertThat(result.verificationStatus()).isEqualTo(PlaceVerificationStatus.EXTRACTED);
@@ -347,7 +363,7 @@ class PlaceImportServiceTest {
         when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(1L, List.of(20L)))
                 .thenReturn(List.of(memberPlace));
 
-        PlaceImportView view = service.get(1L, 1L);
+        PlaceImportView view = queryService.get(1L, 1L);
 
         assertThat(view.candidates()).singleElement().satisfies(result ->
                 assertThat(result.place().savedByMe()).isTrue()
@@ -403,7 +419,7 @@ class PlaceImportServiceTest {
                 PlaceVerificationStatus.VERIFIED
         ));
 
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, never()).analyze(any(ContentMetadata.class));
         verify(resultWriter).saveExtractedCandidates(
@@ -420,6 +436,57 @@ class PlaceImportServiceTest {
                         verifiedPlace,
                         PlaceVerificationStatus.VERIFIED
                 ))
+        );
+    }
+
+    @Test
+    void reusesExistingPlaceWithoutCallingKakao() {
+        PlaceImport placeImport = receivedImport();
+        ContentMetadata metadata = new ContentMetadata(
+                "https://naver.me/F1r21MEx",
+                ContentSourceType.NAVER_SHORT_LINK,
+                "을지식당",
+                "서울 중구 을지로40길 17",
+                null,
+                "naver-content-hash",
+                NOW,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        ExtractedPlace extractedPlace = new ExtractedPlace(
+                "을지식당",
+                "서울 중구 을지로40길 17",
+                "을지식당 서울 중구 을지로40길 17",
+                "EXPLICIT_VENUE"
+        );
+        Place cachedPlace = mock(Place.class);
+        when(cachedPlace.getKakaoPlaceId()).thenReturn("18699959");
+        when(cachedPlace.getName()).thenReturn("을지식당");
+        when(cachedPlace.getAddress()).thenReturn("서울 중구 을지로6가 67-3");
+        when(cachedPlace.getRoadAddress()).thenReturn("서울 중구 을지로40길 17");
+        when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
+        when(placeImport.getProcessingClaimToken()).thenReturn(IMPORT_CLAIM_TOKEN);
+        when(placeImport.getSourceType()).thenReturn(ContentSourceType.NAVER_SHORT_LINK);
+        when(placeImport.getCanonicalUrl()).thenReturn("https://naver.me/F1r21MEx");
+        when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
+        when(metadataService.fetch("https://naver.me/F1r21MEx", ContentSourceType.NAVER_SHORT_LINK))
+                .thenReturn(metadata);
+        when(placeRepository.findFirstByNameAndAddressHint(
+                extractedPlace.name(), extractedPlace.addressHint()
+        )).thenReturn(Optional.of(cachedPlace));
+
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+
+        verifyNoInteractions(placeVerifier);
+        verify(resultWriter).saveSuccess(
+                eq(1L),
+                eq(IMPORT_CLAIM_TOKEN),
+                eq(metadata),
+                any()
         );
     }
 

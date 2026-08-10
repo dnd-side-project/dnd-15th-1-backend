@@ -48,7 +48,7 @@ public class PlaceImportReservationService {
             return new Reservation(existing.getId());
         }
         Instant since = now.minusSeconds(24 * 60 * 60);
-        if (importRepository.countByMemberIdAndCreatedAtGreaterThanEqual(memberId, since)
+        if (importRepository.countAnalysisRequiredByMemberIdAndCreatedAtGreaterThanEqual(memberId, since)
                 >= properties.dailyLimit()) {
             throw new BusinessException(ErrorCode.RATE_LIMIT_EXCEEDED);
         }

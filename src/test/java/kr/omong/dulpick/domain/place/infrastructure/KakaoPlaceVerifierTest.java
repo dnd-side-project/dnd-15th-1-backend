@@ -19,12 +19,37 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class KakaoPlaceVerifierTest {
 
     @Test
+    void deduplicatesFallbackSearchQueriesWithoutArtificialCandidateLimit() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoProperties properties = new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3);
+        KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(properties, builder);
+        KakaoPlaceVerifier verifier = new KakaoPlaceVerifier(properties, searchClient, new KakaoPlaceMatcher());
+        String name = "하나 둘 셋 넷 다섯 여섯 일곱 여덟";
+        expectEmpty(server, name);
+        expectEmpty(server, "하나 둘 셋 넷 다섯 여섯 일곱");
+        expectEmpty(server, "하나 둘 셋 넷 다섯 여섯");
+        expectEmpty(server, "하나 둘 셋 넷 다섯");
+        expectEmpty(server, "하나 둘 셋 넷");
+        expectEmpty(server, "하나 둘 셋");
+        expectEmpty(server, "하나 둘");
+
+        assertThat(verifier.verify(new ExtractedPlace(name, null, null, "INFERRED"))).isNull();
+
+        server.verify();
+    }
+
+    @Test
     void searchesPreciseAddressWithoutNameAndReturnsChangedNameForReview() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(
+                new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                builder
+        );
         KakaoPlaceVerifier verifier = new KakaoPlaceVerifier(
                 new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3),
-                builder,
+                searchClient,
                 new KakaoPlaceMatcher()
         );
         expectEmpty(server, "시어풀빌라 경기 가평군 설악면 유명로 100");

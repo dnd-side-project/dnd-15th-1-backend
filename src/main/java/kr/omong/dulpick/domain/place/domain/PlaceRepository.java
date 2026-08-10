@@ -6,10 +6,23 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import org.springframework.data.repository.query.Param;
 
 public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     Optional<Place> findByKakaoPlaceId(String kakaoPlaceId);
+
+    @Query("""
+            SELECT place
+            FROM Place place
+            WHERE place.name = :name
+              AND (place.address = :addressHint OR place.roadAddress = :addressHint)
+            ORDER BY place.id
+            """)
+    Optional<Place> findFirstByNameAndAddressHint(
+            @Param("name") String name,
+            @Param("addressHint") String addressHint
+    );
 
     @Modifying
     @Query(value = """

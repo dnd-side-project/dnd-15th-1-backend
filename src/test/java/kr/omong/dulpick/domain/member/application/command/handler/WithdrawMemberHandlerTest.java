@@ -1,11 +1,11 @@
 package kr.omong.dulpick.domain.member.application.command.handler;
 
-import kr.omong.dulpick.domain.auth.application.support.AppleAccountRevocationService;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.couple.application.support.CoupleDisconnectionService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
-import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
+import kr.omong.dulpick.domain.member.domain.event.MemberWithdrawnEvent;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -25,16 +25,13 @@ class WithdrawMemberHandlerTest {
 
     private final RefreshTokenRepository refreshTokenRepository =
             mock(RefreshTokenRepository.class);
-    private final AppleAccountRevocationService appleAccountRevocationService =
-            mock(AppleAccountRevocationService.class);
     private final CoupleDisconnectionService coupleDisconnectionService =
             mock(CoupleDisconnectionService.class);
-    private final PushDeviceService pushDeviceService = mock(PushDeviceService.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final WithdrawMemberHandler handler = new WithdrawMemberHandler(
             refreshTokenRepository,
-            appleAccountRevocationService,
             coupleDisconnectionService,
-            pushDeviceService,
+            eventPublisher,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
 
@@ -46,10 +43,9 @@ class WithdrawMemberHandlerTest {
 
         handler.handle(1L);
 
-        verify(appleAccountRevocationService).enqueueForMember(1L);
+        verify(eventPublisher).publishEvent(new MemberWithdrawnEvent(1L, NOW));
         verify(coupleDisconnectionService).disconnectForWithdrawal(1L, NOW);
         verify(refreshTokenRepository).revokeAllByMemberId(1L, NOW);
-        verify(pushDeviceService).disableAllForWithdrawal(1L, NOW);
         assertThat(member.isActive()).isFalse();
         assertThat(member.getTokenVersion()).isEqualTo(1);
         assertThat(member.getLastWithdrawnAt()).isEqualTo(NOW);
@@ -66,9 +62,8 @@ class WithdrawMemberHandlerTest {
                 .isInstanceOf(MemberAlreadyWithdrawnException.class);
 
         verifyNoInteractions(
-                appleAccountRevocationService,
                 refreshTokenRepository,
-                pushDeviceService
+                eventPublisher
         );
     }
 }
