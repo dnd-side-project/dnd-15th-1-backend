@@ -10,15 +10,10 @@ import kr.omong.dulpick.domain.place.application.exception.PlaceAnalysisUnavaila
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
-import kr.omong.dulpick.domain.place.domain.MemberPlace;
-import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
-import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
-import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
-import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
@@ -32,11 +27,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 public class PlaceImportService {
@@ -46,9 +37,8 @@ public class PlaceImportService {
     private final MemberRepository memberRepository;
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
-    private final PlaceRepository placeRepository;
-    private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceImportResultWriter resultWriter;
+    private final PlaceImportViewMapper viewMapper;
     private final PlaceImageEnrichmentService imageEnrichmentService;
     private final PlaceImportReservationService reservationService;
     private final ContentSourceUrlParser urlParser;
@@ -62,9 +52,8 @@ public class PlaceImportService {
             MemberRepository memberRepository,
             PlaceImportRepository importRepository,
             PlaceCandidateRepository candidateRepository,
-            PlaceRepository placeRepository,
-            MemberPlaceRepository memberPlaceRepository,
             PlaceImportResultWriter resultWriter,
+            PlaceImportViewMapper viewMapper,
             PlaceImageEnrichmentService imageEnrichmentService,
             PlaceImportReservationService reservationService,
             ContentSourceUrlParser urlParser,
@@ -77,9 +66,8 @@ public class PlaceImportService {
         this.memberRepository = memberRepository;
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
-        this.placeRepository = placeRepository;
-        this.memberPlaceRepository = memberPlaceRepository;
         this.resultWriter = resultWriter;
+        this.viewMapper = viewMapper;
         this.imageEnrichmentService = imageEnrichmentService;
         this.reservationService = reservationService;
         this.urlParser = urlParser;
@@ -109,7 +97,7 @@ public class PlaceImportService {
                     clock.instant().minusSeconds(properties.retryCooldownSeconds()))) {
                 existing = reload(existing);
             }
-            return new PlaceImportSubmissionView(toView(existing));
+            return new PlaceImportSubmissionView(viewMapper.toView(existing));
         }
         Instant now = clock.instant();
         PlaceImportReservationService.Reservation reservation = reservationService.reserve(
@@ -121,7 +109,7 @@ public class PlaceImportService {
         );
         PlaceImport placeImport = importRepository.findById(reservation.importId())
                 .orElseThrow(IllegalStateException::new);
-        return new PlaceImportSubmissionView(toView(placeImport));
+        return new PlaceImportSubmissionView(viewMapper.toView(placeImport));
     }
 
     public String claimPending(Long importId) {
@@ -252,7 +240,7 @@ public class PlaceImportService {
         if (!placeImport.getMemberId().equals(memberId)) {
             throw new PlaceImportAccessDeniedException();
         }
-        return toView(placeImport);
+        return viewMapper.toView(placeImport);
     }
 
     private void process(
@@ -488,172 +476,7 @@ public class PlaceImportService {
         return member;
     }
 
-    private PlaceImportView toView(PlaceImport placeImport) {
-        List<PlaceCandidate> storedCandidates = candidateRepository
-                .findAllByImportIdOrderByIdAsc(placeImport.getId());
-        List<Long> placeIds = storedCandidates.stream()
-                .map(PlaceCandidate::getPlaceId)
-                .filter(java.util.Objects::nonNull)
-                .distinct()
-                .toList();
-        Map<Long, Place> places = findPlaces(placeIds);
-        Set<Long> savedPlaceIds = findSavedPlaceIds(placeImport.getMemberId(), placeIds);
-        List<PlaceCandidateView> candidates = storedCandidates.stream()
-                .map(candidate -> toCandidateView(candidate, places, savedPlaceIds))
-                .toList();
-        return new PlaceImportView(
-                placeImport.getId(),
-                placeImport.getContentId(),
-                placeImport.getCanonicalUrl(),
-                placeImport.getSourceType(),
-                placeImport.getStatus(),
-                nextAction(placeImport),
-                retryAfterSeconds(placeImport),
-                failure(placeImport),
-                content(placeImport),
-                placeImport.getCreatedAt(),
-                placeImport.getUpdatedAt(),
-                candidates
-        );
-    }
-
-    private Map<Long, Place> findPlaces(List<Long> placeIds) {
-        if (placeIds.isEmpty()) {
-            return Map.of();
-        }
-        return placeRepository.findAllById(placeIds).stream()
-                .collect(Collectors.toMap(Place::getId, Function.identity()));
-    }
-
-    private Set<Long> findSavedPlaceIds(Long memberId, List<Long> placeIds) {
-        if (placeIds.isEmpty()) {
-            return Set.of();
-        }
-        return memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(memberId, placeIds)
-                .stream()
-                .map(MemberPlace::getPlace)
-                .map(Place::getId)
-                .collect(Collectors.toSet());
-    }
-
     private PlaceImport reload(PlaceImport placeImport) {
         return importRepository.findById(placeImport.getId()).orElse(placeImport);
-    }
-
-    private PlaceCandidateView toCandidateView(
-            PlaceCandidate candidate,
-            Map<Long, Place> places,
-            Set<Long> savedPlaceIds
-    ) {
-        Long placeId = candidate.getPlaceId();
-        Place place = placeId == null ? null : places.get(placeId);
-        return new PlaceCandidateView(
-                candidate.getId(),
-                candidate.getVerificationStatus(),
-                candidate.getExtractedName(),
-                candidate.getExtractedAddressHint(),
-                toVerifiedPlaceView(place, savedPlaceIds),
-                candidate.getEvidence(),
-                candidate.getMentionType()
-        );
-    }
-
-    private PlaceCandidateView.VerifiedPlaceView toVerifiedPlaceView(
-            Place place,
-            Set<Long> savedPlaceIds
-    ) {
-        if (place == null) {
-            return null;
-        }
-        return new PlaceCandidateView.VerifiedPlaceView(
-                place.getId(),
-                place.getKakaoPlaceId(),
-                place.getName(),
-                place.getAddress(),
-                place.getRoadAddress(),
-                place.getLatitude(),
-                place.getLongitude(),
-                place.getCategory(),
-                place.getCategoryName(),
-                savedPlaceIds.contains(place.getId()),
-                place.getThumbnailUrl(),
-                place.getImageUrls()
-        );
-    }
-
-    private PlaceImportNextAction nextAction(PlaceImport placeImport) {
-        return switch (placeImport.getStatus()) {
-            case RECEIVED, PROCESSING -> PlaceImportNextAction.WAIT;
-            case REVIEW_REQUIRED -> PlaceImportNextAction.SELECT_PLACES;
-            case COMPLETED -> PlaceImportNextAction.COMPLETED;
-            case FAILED -> isRetryableFailure(placeImport)
-                    ? PlaceImportNextAction.RETRY
-                    : PlaceImportNextAction.NONE;
-        };
-    }
-
-    private Long retryAfterSeconds(PlaceImport placeImport) {
-        if (placeImport.getStatus() == PlaceImportStatus.RECEIVED
-                || placeImport.getStatus() == PlaceImportStatus.PROCESSING) {
-            return Math.max(properties.recoveryDelay().toSeconds(), 1L);
-        }
-        if (placeImport.getStatus() == PlaceImportStatus.FAILED
-                && isRetryableFailure(placeImport)) {
-            return (long) properties.retryCooldownSeconds();
-        }
-        return null;
-    }
-
-    private PlaceImportView.FailureView failure(PlaceImport placeImport) {
-        if (placeImport.getFailureCode() == null) {
-            return null;
-        }
-        return new PlaceImportView.FailureView(
-                placeImport.getFailureCode(),
-                isRetryableFailure(placeImport)
-        );
-    }
-
-    private boolean isRetryableFailure(PlaceImport placeImport) {
-        String failureCode = placeImport.getFailureCode();
-        boolean retryableCode = ErrorCode.PLACE_METADATA_UNAVAILABLE.getCode().equals(failureCode)
-                || ErrorCode.PLACE_ANALYSIS_UNAVAILABLE.getCode().equals(failureCode)
-                || ErrorCode.PLACE_VERIFICATION_UNAVAILABLE.getCode().equals(failureCode);
-        return retryableCode && placeImport.getRetryCount() < properties.maxRetryCount();
-    }
-
-    private PlaceImportView.ContentView content(PlaceImport placeImport) {
-        return new PlaceImportView.ContentView(
-                placeImport.getTitle(),
-                placeImport.getContent(),
-                placeImport.getThumbnailUrl(),
-                author(placeImport),
-                placeImport.getSourcePublishedOn(),
-                engagement(placeImport)
-        );
-    }
-
-    private PlaceImportView.AuthorView author(PlaceImport placeImport) {
-        if (placeImport.getSourceAuthorName() == null
-                && placeImport.getSourceAuthorUsername() == null) {
-            return null;
-        }
-        return new PlaceImportView.AuthorView(
-                placeImport.getSourceAuthorName(),
-                placeImport.getSourceAuthorUsername()
-        );
-    }
-
-    private PlaceImportView.EngagementView engagement(PlaceImport placeImport) {
-        if (placeImport.getLikeCount() == null
-                && placeImport.getCommentCount() == null
-                && placeImport.getEngagementCheckedAt() == null) {
-            return null;
-        }
-        return new PlaceImportView.EngagementView(
-                placeImport.getLikeCount(),
-                placeImport.getCommentCount(),
-                placeImport.getEngagementCheckedAt()
-        );
     }
 }

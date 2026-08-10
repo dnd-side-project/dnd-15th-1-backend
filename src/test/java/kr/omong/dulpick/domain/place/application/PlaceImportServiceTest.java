@@ -68,13 +68,18 @@ class PlaceImportServiceTest {
             20,
             2
     );
+    private final PlaceImportViewMapper viewMapper = new PlaceImportViewMapper(
+            candidateRepository,
+            placeRepository,
+            memberPlaceRepository,
+            properties
+    );
     private final PlaceImportService service = new PlaceImportService(
             memberRepository,
             importRepository,
             candidateRepository,
-            placeRepository,
-            memberPlaceRepository,
             resultWriter,
+            viewMapper,
             imageEnrichmentService,
             reservationService,
             urlParser,
