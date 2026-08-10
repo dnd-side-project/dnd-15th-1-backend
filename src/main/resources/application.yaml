@@ -29,15 +29,15 @@ couple:
     previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
     previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
-    preview-per-minute: 5
-    preview-per-hour: 20
-    connect-per-minute: 3
-    connect-per-day: 10
-    state-changes-per-day: 10
-    code-failures-per-ten-minutes: 5
-    ip-failures-per-hour: 50
+    preview-per-minute: 10
+    preview-per-hour: 30
+    connect-per-minute: 10
+    connect-per-day: 30
+    state-changes-per-day: 50
+    code-failures-per-ten-minutes: 15
+    ip-failures-per-hour: 100
     ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
-    failure-block-duration: 15m
+    failure-block-duration: 10m
     retention: 30d
     cleanup-delay: 1h
 
@@ -68,6 +68,49 @@ notification:
     batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
     max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 
+place-analysis:
+  enabled: ${PLACE_ANALYSIS_ENABLED:false}
+  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:100}
+  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:10}
+  max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
+  stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
+  retry-cooldown-seconds: ${PLACE_ANALYSIS_RETRY_COOLDOWN_SECONDS:300}
+  max-retry-count: ${PLACE_ANALYSIS_MAX_RETRY_COUNT:3}
+  recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:true}
+  recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
+  recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
+  worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
+  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+
+instagram:
+  metadata:
+    official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}
+    access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
+    base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
+    oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
+    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+    timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
+
+gemini:
+  enabled: ${GEMINI_ENABLED:false}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:10}
+
+kakao:
+  local:
+    enabled: ${KAKAO_LOCAL_ENABLED:false}
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    timeout-seconds: ${KAKAO_LOCAL_TIMEOUT_SECONDS:3}
+  map-photo-scraping:
+    enabled: ${KAKAO_MAP_PHOTO_SCRAPING_ENABLED:true}
+    base-url: ${KAKAO_MAP_PHOTO_BASE_URL:https://place-api.map.kakao.com}
+    timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
+    max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
+    app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
+
 auth:
   jwt:
     issuer: dulpick
@@ -89,12 +132,15 @@ auth:
         jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
         audiences:
           - ${GOOGLE_SERVER_CLIENT_ID:}
+          - ${GOOGLE_IOS_CLIENT_ID:}
+          - ${GOOGLE_DEV_CLIENT_ID:}
       kakao:
         issuers:
           - https://kauth.kakao.com
         jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
         audiences:
           - ${KAKAO_NATIVE_APP_KEY:}
+          - ${KAKAO_DEBUG_NATIVE_APP_KEY:}
       apple:
         issuers:
           - https://appleid.apple.com

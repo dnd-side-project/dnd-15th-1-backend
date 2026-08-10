@@ -58,6 +58,12 @@ dependencies {
 tasks.named('test') {
     useJUnitPlatform()
     systemProperty 'notification.fcm.enabled', 'false'
+    systemProperty 'place-analysis.recovery-enabled', 'false'
+    systemProperty 'spring.datasource.hikari.maximum-pool-size', '12'
+    systemProperty 'spring.datasource.hikari.minimum-idle', '0'
+    systemProperty 'spring.datasource.hikari.idle-timeout', '10000'
+    systemProperty 'spring.datasource.hikari.connection-timeout', '10000'
+    systemProperty 'spring.test.context.cache.maxSize', '8'
     jvmArgs += '-Xshare:off'
     jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 }
