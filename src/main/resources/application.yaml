@@ -94,7 +94,7 @@ instagram:
 gemini:
   enabled: ${GEMINI_ENABLED:false}
   api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
   base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
   timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:10}
 

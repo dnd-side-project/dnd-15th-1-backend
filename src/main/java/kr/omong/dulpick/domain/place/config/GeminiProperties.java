@@ -13,7 +13,7 @@ public record GeminiProperties(
 
     public GeminiProperties {
         if (model == null || model.isBlank()) {
-            model = "gemini-2.5-flash";
+            model = "gemini-3.5-flash-lite";
         }
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = "https://generativelanguage.googleapis.com";
