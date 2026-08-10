@@ -74,6 +74,10 @@ class PlaceImportServiceTest {
             memberPlaceRepository,
             properties
     );
+    private final PlaceImportQueryService queryService = new PlaceImportQueryService(
+            importRepository,
+            viewMapper
+    );
     private final PlaceImportService service = new PlaceImportService(
             memberRepository,
             importRepository,
@@ -322,7 +326,7 @@ class PlaceImportServiceTest {
         when(candidate.getExtractedName()).thenReturn("밀빛 망원점");
         when(candidate.getExtractedAddressHint()).thenReturn("서울 마포구");
 
-        PlaceImportView view = service.get(1L, 1L);
+        PlaceImportView view = queryService.get(1L, 1L);
 
         assertThat(view.candidates()).singleElement().satisfies(result -> {
             assertThat(result.verificationStatus()).isEqualTo(PlaceVerificationStatus.EXTRACTED);
@@ -352,7 +356,7 @@ class PlaceImportServiceTest {
         when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(1L, List.of(20L)))
                 .thenReturn(List.of(memberPlace));
 
-        PlaceImportView view = service.get(1L, 1L);
+        PlaceImportView view = queryService.get(1L, 1L);
 
         assertThat(view.candidates()).singleElement().satisfies(result ->
                 assertThat(result.place().savedByMe()).isTrue()

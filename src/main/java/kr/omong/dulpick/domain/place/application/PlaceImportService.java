@@ -4,8 +4,6 @@ import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundExcept
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
-import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
-import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceAnalysisUnavailableException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
@@ -19,7 +17,6 @@ import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -231,16 +228,6 @@ public class PlaceImportService {
 
     private String normalizeText(String value) {
         return value == null ? "" : value.toLowerCase().replaceAll("\\s+", "");
-    }
-
-    @Transactional(readOnly = true)
-    public PlaceImportView get(Long memberId, Long importId) {
-        PlaceImport placeImport = importRepository.findById(importId)
-                .orElseThrow(PlaceImportNotFoundException::new);
-        if (!placeImport.getMemberId().equals(memberId)) {
-            throw new PlaceImportAccessDeniedException();
-        }
-        return viewMapper.toView(placeImport);
     }
 
     private void process(

@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.place.application.PlaceCommandService;
 import kr.omong.dulpick.domain.place.application.PlaceImportSubmissionView;
+import kr.omong.dulpick.domain.place.application.PlaceImportQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceImportService;
 import kr.omong.dulpick.domain.place.application.PlaceImportView;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
@@ -38,13 +39,16 @@ import java.util.List;
 public class PlaceImportController {
 
     private final PlaceImportService placeImportService;
+    private final PlaceImportQueryService placeImportQueryService;
     private final PlaceCommandService placeCommandService;
 
     public PlaceImportController(
             PlaceImportService placeImportService,
+            PlaceImportQueryService placeImportQueryService,
             PlaceCommandService placeCommandService
     ) {
         this.placeImportService = placeImportService;
+        this.placeImportQueryService = placeImportQueryService;
         this.placeCommandService = placeCommandService;
     }
 
@@ -82,7 +86,7 @@ public class PlaceImportController {
             @PathVariable Long importId
     ) {
         return ResponseEntity.ok(PlaceImportResponse.from(
-                placeImportService.get(memberId(jwt), importId)
+                placeImportQueryService.get(memberId(jwt), importId)
         ));
     }
 

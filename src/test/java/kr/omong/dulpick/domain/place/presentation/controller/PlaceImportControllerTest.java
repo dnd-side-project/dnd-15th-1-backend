@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.place.presentation.controller;
 
 import kr.omong.dulpick.domain.place.application.PlaceCommandService;
 import kr.omong.dulpick.domain.place.application.PlaceImportNextAction;
+import kr.omong.dulpick.domain.place.application.PlaceImportQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceImportService;
 import kr.omong.dulpick.domain.place.application.PlaceImportSubmissionView;
 import kr.omong.dulpick.domain.place.application.PlaceImportView;
@@ -22,8 +23,10 @@ import static org.mockito.Mockito.when;
 class PlaceImportControllerTest {
 
     private final PlaceImportService importService = mock(PlaceImportService.class);
+    private final PlaceImportQueryService queryService = mock(PlaceImportQueryService.class);
     private final PlaceImportController controller = new PlaceImportController(
             importService,
+            queryService,
             mock(PlaceCommandService.class)
     );
     private final Jwt jwt = mock(Jwt.class);
