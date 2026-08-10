@@ -99,6 +99,8 @@ auth:
       google:
         audiences:
           - ${GOOGLE_SERVER_CLIENT_ID}
+          - ${GOOGLE_IOS_CLIENT_ID:}
+          - ${GOOGLE_DEV_CLIENT_ID:}
       kakao:
         audiences:
           - ${KAKAO_NATIVE_APP_KEY}

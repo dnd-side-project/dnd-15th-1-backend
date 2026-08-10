@@ -132,6 +132,8 @@ auth:
         jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
         audiences:
           - ${GOOGLE_SERVER_CLIENT_ID:}
+          - ${GOOGLE_IOS_CLIENT_ID:}
+          - ${GOOGLE_DEV_CLIENT_ID:}
       kakao:
         issuers:
           - https://kauth.kakao.com
