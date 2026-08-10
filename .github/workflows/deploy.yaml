@@ -132,6 +132,8 @@ jobs:
           TEST_AUTH_ENABLED: ${{ secrets.TEST_AUTH_ENABLED }}
           TEST_AUTH_ACCESS_KEY: ${{ secrets.TEST_AUTH_ACCESS_KEY }}
           PUBLIC_WEB_BASE_URL: ${{ secrets.PUBLIC_WEB_BASE_URL }}
+          PLACE_ANALYSIS_ENABLED: "true"
+          PLACE_PUBLIC_CRAWLER_ENABLED: "false"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         with:
@@ -140,7 +142,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL,GEMINI_API_KEY,KAKAO_REST_API_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL,PLACE_ANALYSIS_ENABLED,PLACE_PUBLIC_CRAWLER_ENABLED,GEMINI_API_KEY,KAKAO_REST_API_KEY
           script: |
             set -Eeuo pipefail
 
@@ -151,6 +153,8 @@ jobs:
             readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
             readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
             readonly FCM_ENABLED_VALUE="${FCM_ENABLED:-false}"
+            readonly PLACE_ANALYSIS_ENABLED_VALUE="${PLACE_ANALYSIS_ENABLED:-false}"
+            readonly PLACE_PUBLIC_CRAWLER_ENABLED_VALUE="${PLACE_PUBLIC_CRAWLER_ENABLED:-false}"
 
             require_value() {
               local key="$1"
@@ -197,6 +201,19 @@ jobs:
                   "PUBLIC_WEB_BASE_URL must be https://dulpick.omong.kr" \
                   >&2
                 exit 1
+              fi
+
+              if [[ "${PLACE_ANALYSIS_ENABLED_VALUE}" != "true" && "${PLACE_ANALYSIS_ENABLED_VALUE}" != "false" ]]; then
+                echo "PLACE_ANALYSIS_ENABLED must be true or false" >&2
+                exit 1
+              fi
+              if [[ "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}" != "true" && "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}" != "false" ]]; then
+                echo "PLACE_PUBLIC_CRAWLER_ENABLED must be true or false" >&2
+                exit 1
+              fi
+              if [[ "${PLACE_ANALYSIS_ENABLED_VALUE}" == "true" ]]; then
+                require_value "GEMINI_API_KEY" "${GEMINI_API_KEY:-}"
+                require_value "KAKAO_REST_API_KEY" "${KAKAO_REST_API_KEY:-}"
               fi
 
               if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
@@ -284,6 +301,10 @@ jobs:
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
             update_env "PUBLIC_WEB_BASE_URL" "${PUBLIC_WEB_BASE_URL}"
+            update_env "PLACE_ANALYSIS_ENABLED" "${PLACE_ANALYSIS_ENABLED_VALUE}"
+            update_env \
+              "PLACE_PUBLIC_CRAWLER_ENABLED" \
+              "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}"
             if [[ -n "${GEMINI_API_KEY:-}" ]]; then
               update_env "GEMINI_ENABLED" "true"
               update_env "GEMINI_API_KEY" "${GEMINI_API_KEY}"
