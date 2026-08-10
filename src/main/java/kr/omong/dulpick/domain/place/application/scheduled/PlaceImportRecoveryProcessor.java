@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.place.application.scheduled;
 
-import kr.omong.dulpick.domain.place.application.PlaceImportService;
+import kr.omong.dulpick.domain.place.application.PlaceImportProcessingService;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import org.slf4j.Logger;
@@ -25,20 +25,20 @@ public class PlaceImportRecoveryProcessor {
     private static final Logger logger = LoggerFactory.getLogger(PlaceImportRecoveryProcessor.class);
 
     private final PlaceImportRepository importRepository;
-    private final PlaceImportService importService;
+    private final PlaceImportProcessingService processingService;
     private final PlaceAnalysisProperties properties;
     private final Clock clock;
     private final Executor executor;
 
     public PlaceImportRecoveryProcessor(
             PlaceImportRepository importRepository,
-            PlaceImportService importService,
+            PlaceImportProcessingService processingService,
             PlaceAnalysisProperties properties,
             Clock clock,
             @Qualifier("placeImportExecutor") Executor executor
     ) {
         this.importRepository = importRepository;
-        this.importService = importService;
+        this.processingService = processingService;
         this.properties = properties;
         this.clock = clock;
         this.executor = executor;
@@ -61,7 +61,7 @@ public class PlaceImportRecoveryProcessor {
 
     private void dispatchSafely(Long importId) {
         try {
-            String claimToken = importService.claimPending(importId);
+            String claimToken = processingService.claimPending(importId);
             if (claimToken != null) {
                 executor.execute(() -> processSafely(importId, claimToken));
             }
@@ -72,7 +72,7 @@ public class PlaceImportRecoveryProcessor {
 
     private void processSafely(Long importId, String claimToken) {
         try {
-            importService.processClaimed(importId, claimToken);
+            processingService.processClaimed(importId, claimToken);
         } catch (RuntimeException exception) {
             logger.error("Place import processing failed: importId={}", importId, exception);
         }

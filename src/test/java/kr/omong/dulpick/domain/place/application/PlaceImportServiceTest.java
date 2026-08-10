@@ -81,12 +81,18 @@ class PlaceImportServiceTest {
     private final PlaceImportService service = new PlaceImportService(
             memberRepository,
             importRepository,
-            candidateRepository,
-            resultWriter,
             viewMapper,
-            imageEnrichmentService,
             reservationService,
             urlParser,
+            properties,
+            Clock.fixed(NOW, ZoneOffset.UTC)
+    );
+    private final PlaceImportProcessingService processingService = new PlaceImportProcessingService(
+            importRepository,
+            candidateRepository,
+            resultWriter,
+            imageEnrichmentService,
+            reservationService,
             metadataService,
             placeAnalyzer,
             placeVerifier,
@@ -162,7 +168,7 @@ class PlaceImportServiceTest {
                 NOW.minusSeconds(600)
         )).thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isNull();
+        assertThat(processingService.claimPending(1L)).isNull();
 
         verify(reservationService).claimPending(
                 1L,
@@ -179,7 +185,7 @@ class PlaceImportServiceTest {
         when(placeImport.getProcessingClaimToken()).thenReturn("new-claim-token");
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
 
-        service.processClaimed(1L, "stale-claim-token");
+        processingService.processClaimed(1L, "stale-claim-token");
 
         verifyNoInteractions(
                 metadataService,
@@ -251,8 +257,8 @@ class PlaceImportServiceTest {
                         PlaceVerificationStatus.VERIFIED
                 ));
 
-        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        assertThat(processingService.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, times(1)).analyze(metadata);
         verify(placeVerifier, times(2)).verify(extractedPlace);
@@ -302,8 +308,8 @@ class PlaceImportServiceTest {
         ))
                 .thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        assertThat(processingService.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(reservationService).requeueClaimed(1L, IMPORT_CLAIM_TOKEN, NOW);
         verifyNoInteractions(placeVerifier);
@@ -412,7 +418,7 @@ class PlaceImportServiceTest {
                 PlaceVerificationStatus.VERIFIED
         ));
 
-        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, never()).analyze(any(ContentMetadata.class));
         verify(resultWriter).saveExtractedCandidates(
