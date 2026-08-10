@@ -40,16 +40,26 @@ class PlaceImportResultWriterTest {
     private final PlaceCandidateRepository candidateRepository = mock(PlaceCandidateRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final ContentRepository contentRepository = mock(ContentRepository.class);
+    private final ContentPlaceRepository contentPlaceRepository = mock(ContentPlaceRepository.class);
+    private final ContentSubmissionRepository submissionRepository = mock(ContentSubmissionRepository.class);
     private final ObjectMapper objectMapper = mock(ObjectMapper.class);
-    private final PlaceImportResultWriter writer = new PlaceImportResultWriter(
+    private final PlaceImportAnalysisWriter analysisWriter =
+            new PlaceImportAnalysisWriter(contentRepository, objectMapper);
+    private final PlaceImportContentWriter contentWriter = new PlaceImportContentWriter(
             importRepository,
             candidateRepository,
             placeRepository,
             contentRepository,
-            mock(ContentPlaceRepository.class),
-            mock(ContentSubmissionRepository.class),
+            contentPlaceRepository,
+            submissionRepository,
+            Clock.fixed(NOW, ZoneOffset.UTC)
+    );
+    private final PlaceImportResultWriter writer = new PlaceImportResultWriter(
+            importRepository,
+            candidateRepository,
             Clock.fixed(NOW, ZoneOffset.UTC),
-            new PlaceImportAnalysisWriter(contentRepository, objectMapper)
+            analysisWriter,
+            contentWriter
     );
 
     @Test
