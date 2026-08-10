@@ -33,7 +33,20 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
             @Param("claimToken") String claimToken
     );
 
-    long countByMemberIdAndCreatedAtGreaterThanEqual(
+    @Query(value = """
+            SELECT COUNT(*)
+              FROM place_imports place_import
+             WHERE place_import.member_id = :memberId
+               AND place_import.created_at >= :createdAt
+               AND NOT EXISTS (
+                   SELECT 1
+                     FROM contents content
+                    WHERE content.id = place_import.content_id
+                      AND content.content_hash IS NOT NULL
+                      AND content.content_hash = place_import.content_hash
+               )
+            """, nativeQuery = true)
+    long countAnalysisRequiredByMemberIdAndCreatedAtGreaterThanEqual(
             Long memberId,
             Instant createdAt
     );
