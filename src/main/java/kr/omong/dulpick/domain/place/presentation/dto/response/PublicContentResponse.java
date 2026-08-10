@@ -85,7 +85,8 @@ public record PublicContentResponse(
             String categoryName,
             @Schema(description = "현재 회원이 이미 저장한 장소이면 true")
             boolean savedByMe,
-            String thumbnailUrl
+            String thumbnailUrl,
+            List<String> imageUrls
     ) {
 
         private static PublicPlaceResponse from(PublicPlaceView view) {
@@ -100,7 +101,8 @@ public record PublicContentResponse(
                     view.category(),
                     view.categoryName(),
                     view.savedByMe(),
-                    view.thumbnailUrl()
+                    view.thumbnailUrl(),
+                    view.imageUrls()
             );
         }
     }

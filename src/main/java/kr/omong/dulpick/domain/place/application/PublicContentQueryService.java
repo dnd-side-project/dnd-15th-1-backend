@@ -135,7 +135,8 @@ public class PublicContentQueryService {
                 place.getCategory(),
                 place.getCategoryName(),
                 savedByMe,
-                place.getThumbnailUrl()
+                place.getThumbnailUrl(),
+                place.getImageUrls()
         );
     }
 

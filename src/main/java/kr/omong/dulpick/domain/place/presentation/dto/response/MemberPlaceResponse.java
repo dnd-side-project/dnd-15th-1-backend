@@ -7,6 +7,7 @@ import kr.omong.dulpick.global.time.ServiceTime;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record MemberPlaceResponse(
         @Schema(description = "별칭·메모·저장 시각의 기준 회원 ID. MINE/TOGETHER는 현재 회원, PARTNER는 상대방")
@@ -30,7 +31,9 @@ public record MemberPlaceResponse(
         PlaceOwnershipStatus ownershipStatus,
         String alias,
         String memo,
-        LocalDateTime savedAt
+        LocalDateTime savedAt,
+        String thumbnailUrl,
+        List<String> imageUrls
 ) {
 
     public static MemberPlaceResponse from(MemberPlaceView view) {
@@ -47,7 +50,9 @@ public record MemberPlaceResponse(
                 view.ownershipStatus(),
                 view.alias(),
                 view.memo(),
-                ServiceTime.toLocalDateTime(view.savedAt())
+                ServiceTime.toLocalDateTime(view.savedAt()),
+                view.thumbnailUrl(),
+                view.imageUrls()
         );
     }
 }

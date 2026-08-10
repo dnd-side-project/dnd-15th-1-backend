@@ -49,6 +49,7 @@ public class PlaceImportService {
     private final PlaceRepository placeRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceImportResultWriter resultWriter;
+    private final PlaceImageEnrichmentService imageEnrichmentService;
     private final PlaceImportReservationService reservationService;
     private final ContentSourceUrlParser urlParser;
     private final MetadataService metadataService;
@@ -64,6 +65,7 @@ public class PlaceImportService {
             PlaceRepository placeRepository,
             MemberPlaceRepository memberPlaceRepository,
             PlaceImportResultWriter resultWriter,
+            PlaceImageEnrichmentService imageEnrichmentService,
             PlaceImportReservationService reservationService,
             ContentSourceUrlParser urlParser,
             MetadataService metadataService,
@@ -78,6 +80,7 @@ public class PlaceImportService {
         this.placeRepository = placeRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.resultWriter = resultWriter;
+        this.imageEnrichmentService = imageEnrichmentService;
         this.reservationService = reservationService;
         this.urlParser = urlParser;
         this.metadataService = metadataService;
@@ -267,6 +270,7 @@ public class PlaceImportService {
                     importClaimToken,
                     metadata
             )) {
+                imageEnrichmentService.enrichImportPlaces(placeImport.getId());
                 return;
             }
             Long contentId = resultWriter.saveMetadata(
@@ -357,6 +361,7 @@ public class PlaceImportService {
                 metadata,
                 candidates
         );
+        imageEnrichmentService.enrichImportPlaces(placeImport.getId());
     }
 
     private List<ExtractedPlace> analyzeWithGemini(
@@ -571,7 +576,8 @@ public class PlaceImportService {
                 place.getCategory(),
                 place.getCategoryName(),
                 savedPlaceIds.contains(place.getId()),
-                place.getThumbnailUrl()
+                place.getThumbnailUrl(),
+                place.getImageUrls()
         );
     }
 

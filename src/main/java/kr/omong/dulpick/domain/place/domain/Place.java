@@ -5,10 +5,16 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "places")
@@ -44,6 +50,12 @@ public class Place {
 
     @Column(name = "thumbnail_url", length = 1_000)
     private String thumbnailUrl;
+
+    @OneToMany
+    @JoinColumn(name = "place_id", insertable = false, updatable = false)
+    @OrderBy("displayOrder ASC")
+    @BatchSize(size = 50)
+    private List<PlaceImage> images = new ArrayList<>();
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -147,5 +159,11 @@ public class Place {
 
     public String getThumbnailUrl() {
         return thumbnailUrl;
+    }
+
+    public List<String> getImageUrls() {
+        return images.stream()
+                .map(PlaceImage::getImageUrl)
+                .toList();
     }
 }

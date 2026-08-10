@@ -162,7 +162,8 @@ public record PlaceImportResponse(
             String categoryName,
             @Schema(description = "현재 회원이 이미 저장한 장소이면 true")
             boolean savedByMe,
-            String thumbnailUrl
+            String thumbnailUrl,
+            List<String> imageUrls
     ) {
 
         private static VerifiedPlaceResponse from(PlaceCandidateView.VerifiedPlaceView view) {
@@ -180,7 +181,8 @@ public record PlaceImportResponse(
                     view.category(),
                     view.categoryName(),
                     view.savedByMe(),
-                    view.thumbnailUrl()
+                    view.thumbnailUrl(),
+                    view.imageUrls()
             );
         }
     }

@@ -20,7 +20,12 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
                 (:kakaoId, :name, :address, :roadAddress, :latitude, :longitude,
                  :category, :categoryGroupCode, :thumbnail, :now, :now)
             ON DUPLICATE KEY UPDATE
-                category_group_code = COALESCE(category_group_code, :categoryGroupCode)
+                category_group_code = COALESCE(category_group_code, :categoryGroupCode),
+                thumbnail_url = COALESCE(:thumbnail, thumbnail_url),
+                updated_at = CASE
+                    WHEN :thumbnail IS NULL THEN updated_at
+                    ELSE :now
+                END
             """, nativeQuery = true)
     void insertIfAbsent(
             @Param("kakaoId") String kakaoId,
@@ -33,5 +38,18 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
             @Param("categoryGroupCode") String categoryGroupCode,
             @Param("thumbnail") String thumbnail,
             @Param("now") java.time.Instant now
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE Place place
+            SET place.thumbnailUrl = :thumbnailUrl,
+                place.updatedAt = :updatedAt
+            WHERE place.id = :placeId
+            """)
+    void updateThumbnail(
+            @Param("placeId") Long placeId,
+            @Param("thumbnailUrl") String thumbnailUrl,
+            @Param("updatedAt") java.time.Instant updatedAt
     );
 }

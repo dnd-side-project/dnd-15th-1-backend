@@ -8,6 +8,7 @@ import kr.omong.dulpick.domain.place.application.PlaceVerificationResult;
 import kr.omong.dulpick.domain.place.application.VerifiedPlace;
 import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.KakaoProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
@@ -29,6 +30,7 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private final RestClient restClient;
     private final KakaoPlaceMatcher placeMatcher;
 
+    @Autowired
     public KakaoPlaceVerifier(KakaoProperties properties) {
         this(properties, createRestClientBuilder(properties), new KakaoPlaceMatcher());
     }

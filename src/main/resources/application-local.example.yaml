@@ -57,6 +57,12 @@ kakao:
     rest-api-key: ${KAKAO_REST_API_KEY:}
     base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
     timeout-seconds: ${KAKAO_LOCAL_TIMEOUT_SECONDS:3}
+  map-photo-scraping:
+    enabled: ${KAKAO_MAP_PHOTO_SCRAPING_ENABLED:true}
+    base-url: ${KAKAO_MAP_PHOTO_BASE_URL:https://place-api.map.kakao.com}
+    timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
+    max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
+    app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
 
 instagram:
   metadata:

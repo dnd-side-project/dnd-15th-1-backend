@@ -274,7 +274,9 @@ public class PlaceCommandService {
                 ownershipStatus,
                 saved.getAlias(),
                 saved.getMemo(),
-                saved.getSavedAt()
+                saved.getSavedAt(),
+                place.getThumbnailUrl(),
+                place.getImageUrls()
         );
     }
 
