@@ -33,7 +33,7 @@ notification:
 place-analysis:
   enabled: ${PLACE_ANALYSIS_ENABLED:true}
   daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:100}
-  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:10}
+  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:20}
   max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
   stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
   retry-cooldown-seconds: ${PLACE_ANALYSIS_RETRY_COOLDOWN_SECONDS:300}
