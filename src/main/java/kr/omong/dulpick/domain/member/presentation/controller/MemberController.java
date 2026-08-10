@@ -67,6 +67,11 @@ public class MemberController {
             summary = "최초 프로필과 데이트 성향 설정",
             description = """
                     최초 프로필과 네 가지 데이트 성향을 저장합니다.
+                    데이트 성향은 다음 네 가지 항목을 각각 하나씩 선택해야 합니다.
+                    indoorOutdoor: INDOOR(실내), OUTDOOR(실외)
+                    activityLevel: ACTIVE(액티비티), STATIC(정적 활동)
+                    dateTime: DAY(낮 데이트), NIGHT(밤 데이트)
+                    dateFocus: FOOD(식사 중심), SIGHTSEEING(볼거리 중심)
                     완료되면 영문 대문자 5자리 연결 코드를 함께 반환합니다.
                     """
     )
