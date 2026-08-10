@@ -293,11 +293,15 @@ public class PlaceImportService {
         }
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (ExtractedPlace extractedPlace : extractedPlaces) {
-            VerifiedPlace verifiedPlace = placeVerifier.verify(extractedPlace);
-            if (verifiedPlace == null) {
+            PlaceVerificationResult verification = placeVerifier.verify(extractedPlace);
+            if (verification == null) {
                 continue;
             }
-            candidates.add(new VerifiedCandidate(extractedPlace, verifiedPlace));
+            candidates.add(new VerifiedCandidate(
+                    extractedPlace,
+                    verification.place(),
+                    verification.status()
+            ));
         }
         if (candidates.isEmpty()) {
             placeImport.fail(ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant());

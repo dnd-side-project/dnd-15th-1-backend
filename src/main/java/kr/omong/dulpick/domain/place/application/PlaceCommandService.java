@@ -207,11 +207,16 @@ public class PlaceCommandService {
                 .map(selection -> candidates.get(selection.candidateId()))
                 .anyMatch(candidate -> candidate == null
                         || !candidate.getImportId().equals(importId)
-                        || candidate.getVerificationStatus() != PlaceVerificationStatus.VERIFIED
+                        || !isConfirmable(candidate.getVerificationStatus())
                         || candidate.getPlaceId() == null);
         if (invalid) {
             throw new InvalidPlaceCandidateException();
         }
+    }
+
+    private boolean isConfirmable(PlaceVerificationStatus status) {
+        return status == PlaceVerificationStatus.VERIFIED
+                || status == PlaceVerificationStatus.REVIEW_REQUIRED;
     }
 
     private void rejectInvalidStateOrDuplicates(

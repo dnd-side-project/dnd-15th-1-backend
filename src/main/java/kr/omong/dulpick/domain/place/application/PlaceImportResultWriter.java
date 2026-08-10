@@ -289,13 +289,14 @@ public class PlaceImportResultWriter {
         );
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
-        return PlaceCandidate.verified(
+        return PlaceCandidate.matched(
                 importId,
                 place.getId(),
                 candidate.extracted().name(),
                 candidate.extracted().addressHint(),
                 candidate.extracted().evidence(),
                 candidate.extracted().mentionType(),
+                candidate.verificationStatus(),
                 clock.instant()
         );
     }

@@ -88,6 +88,32 @@ public class PlaceCandidate {
         );
     }
 
+    public static PlaceCandidate matched(
+            Long importId,
+            Long placeId,
+            String extractedName,
+            String extractedAddressHint,
+            String evidence,
+            String mentionType,
+            PlaceVerificationStatus verificationStatus,
+            Instant createdAt
+    ) {
+        if (verificationStatus != PlaceVerificationStatus.VERIFIED
+                && verificationStatus != PlaceVerificationStatus.REVIEW_REQUIRED) {
+            throw new IllegalArgumentException("Unsupported matched place status");
+        }
+        return new PlaceCandidate(
+                importId,
+                placeId,
+                extractedName,
+                extractedAddressHint,
+                evidence,
+                mentionType,
+                verificationStatus,
+                createdAt
+        );
+    }
+
     public static PlaceCandidate extracted(
             Long importId,
             String extractedName,

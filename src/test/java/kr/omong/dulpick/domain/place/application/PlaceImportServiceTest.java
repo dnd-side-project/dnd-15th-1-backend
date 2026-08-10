@@ -212,7 +212,10 @@ class PlaceImportServiceTest {
         )).thenReturn(true);
         when(placeVerifier.verify(extractedPlace))
                 .thenThrow(new PlaceVerificationUnavailableException())
-                .thenReturn(verifiedPlace);
+                .thenReturn(new PlaceVerificationResult(
+                        verifiedPlace,
+                        PlaceVerificationStatus.VERIFIED
+                ));
 
         assertThat(service.claimPending(1L)).isTrue();
         service.processClaimed(1L);
@@ -222,7 +225,11 @@ class PlaceImportServiceTest {
         verify(resultWriter).saveSuccess(
                 1L,
                 metadata,
-                List.of(new VerifiedCandidate(extractedPlace, verifiedPlace))
+                List.of(new VerifiedCandidate(
+                        extractedPlace,
+                        verifiedPlace,
+                        PlaceVerificationStatus.VERIFIED
+                ))
         );
     }
 
@@ -363,7 +370,10 @@ class PlaceImportServiceTest {
                 "https://naver.me/F1r21MEx",
                 ContentSourceType.NAVER_SHORT_LINK
         )).thenReturn(metadata);
-        when(placeVerifier.verify(extractedPlace)).thenReturn(verifiedPlace);
+        when(placeVerifier.verify(extractedPlace)).thenReturn(new PlaceVerificationResult(
+                verifiedPlace,
+                PlaceVerificationStatus.VERIFIED
+        ));
 
         service.processClaimed(1L);
 
@@ -372,7 +382,11 @@ class PlaceImportServiceTest {
         verify(resultWriter).saveSuccess(
                 1L,
                 metadata,
-                List.of(new VerifiedCandidate(extractedPlace, verifiedPlace))
+                List.of(new VerifiedCandidate(
+                        extractedPlace,
+                        verifiedPlace,
+                        PlaceVerificationStatus.VERIFIED
+                ))
         );
     }
 
