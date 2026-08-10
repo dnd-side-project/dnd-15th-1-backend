@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
+import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
@@ -27,6 +28,7 @@ public class PlaceImportProcessingService {
 
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
+    private final PlaceRepository placeRepository;
     private final PlaceImportResultWriter resultWriter;
     private final PlaceImageEnrichmentService imageEnrichmentService;
     private final PlaceImportReservationService reservationService;
@@ -39,6 +41,7 @@ public class PlaceImportProcessingService {
     public PlaceImportProcessingService(
             PlaceImportRepository importRepository,
             PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
             PlaceImportResultWriter resultWriter,
             PlaceImageEnrichmentService imageEnrichmentService,
             PlaceImportReservationService reservationService,
@@ -50,6 +53,7 @@ public class PlaceImportProcessingService {
     ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
+        this.placeRepository = placeRepository;
         this.resultWriter = resultWriter;
         this.imageEnrichmentService = imageEnrichmentService;
         this.reservationService = reservationService;
@@ -161,7 +165,7 @@ public class PlaceImportProcessingService {
         }
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (ExtractedPlace extractedPlace : extracted) {
-            PlaceVerificationResult verification = placeVerifier.verify(extractedPlace);
+            PlaceVerificationResult verification = verifyCachedOrExternal(extractedPlace);
             if (verification != null) {
                 candidates.add(new VerifiedCandidate(extractedPlace, verification.place(), verification.status()));
             }
@@ -213,6 +217,32 @@ public class PlaceImportProcessingService {
                 .map(candidate -> validateEvidence(candidate, sourceText))
                 .limit(properties.maxCandidates())
                 .toList();
+    }
+
+    private PlaceVerificationResult verifyCachedOrExternal(ExtractedPlace extractedPlace) {
+        if (extractedPlace.addressHint() != null && !extractedPlace.addressHint().isBlank()) {
+            PlaceVerificationResult cached = placeRepository
+                    .findFirstByNameAndAddressHint(extractedPlace.name(), extractedPlace.addressHint())
+                    .map(place -> new PlaceVerificationResult(
+                            new VerifiedPlace(
+                                    place.getKakaoPlaceId(),
+                                    place.getName(),
+                                    place.getAddress(),
+                                    place.getRoadAddress(),
+                                    place.getLatitude(),
+                                    place.getLongitude(),
+                                    place.getCategoryGroupCode(),
+                                    place.getCategory(),
+                                    place.getThumbnailUrl()
+                            ),
+                            PlaceVerificationStatus.VERIFIED
+                    ))
+                    .orElse(null);
+            if (cached != null) {
+                return cached;
+            }
+        }
+        return placeVerifier.verify(extractedPlace);
     }
 
     private List<ExtractedPlace> loadCachedCandidates(PlaceImport placeImport, ContentMetadata metadata,

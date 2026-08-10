@@ -90,6 +90,7 @@ class PlaceImportServiceTest {
     private final PlaceImportProcessingService processingService = new PlaceImportProcessingService(
             importRepository,
             candidateRepository,
+            placeRepository,
             resultWriter,
             imageEnrichmentService,
             reservationService,
@@ -435,6 +436,57 @@ class PlaceImportServiceTest {
                         verifiedPlace,
                         PlaceVerificationStatus.VERIFIED
                 ))
+        );
+    }
+
+    @Test
+    void reusesExistingPlaceWithoutCallingKakao() {
+        PlaceImport placeImport = receivedImport();
+        ContentMetadata metadata = new ContentMetadata(
+                "https://naver.me/F1r21MEx",
+                ContentSourceType.NAVER_SHORT_LINK,
+                "을지식당",
+                "서울 중구 을지로40길 17",
+                null,
+                "naver-content-hash",
+                NOW,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        ExtractedPlace extractedPlace = new ExtractedPlace(
+                "을지식당",
+                "서울 중구 을지로40길 17",
+                "을지식당 서울 중구 을지로40길 17",
+                "EXPLICIT_VENUE"
+        );
+        Place cachedPlace = mock(Place.class);
+        when(cachedPlace.getKakaoPlaceId()).thenReturn("18699959");
+        when(cachedPlace.getName()).thenReturn("을지식당");
+        when(cachedPlace.getAddress()).thenReturn("서울 중구 을지로6가 67-3");
+        when(cachedPlace.getRoadAddress()).thenReturn("서울 중구 을지로40길 17");
+        when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
+        when(placeImport.getProcessingClaimToken()).thenReturn(IMPORT_CLAIM_TOKEN);
+        when(placeImport.getSourceType()).thenReturn(ContentSourceType.NAVER_SHORT_LINK);
+        when(placeImport.getCanonicalUrl()).thenReturn("https://naver.me/F1r21MEx");
+        when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
+        when(metadataService.fetch("https://naver.me/F1r21MEx", ContentSourceType.NAVER_SHORT_LINK))
+                .thenReturn(metadata);
+        when(placeRepository.findFirstByNameAndAddressHint(
+                extractedPlace.name(), extractedPlace.addressHint()
+        )).thenReturn(Optional.of(cachedPlace));
+
+        processingService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+
+        verifyNoInteractions(placeVerifier);
+        verify(resultWriter).saveSuccess(
+                eq(1L),
+                eq(IMPORT_CLAIM_TOKEN),
+                eq(metadata),
+                any()
         );
     }
 
