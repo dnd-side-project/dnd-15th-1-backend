@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.notification.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,7 +22,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.UUID;
 
-@Tag(name = SwaggerTagNames.NOTIFICATION, description = "FCM 디바이스 등록과 받은 알림 관리 API")
+@Tag(
+        name = SwaggerTagNames.NOTIFICATION,
+        description = "알림함 조회·읽음 처리, 알림 수신 설정, iOS 푸시 디바이스 관리 API"
+)
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/push-devices")
@@ -34,12 +38,14 @@ public class PushDeviceController {
     }
 
     @Operation(
-            summary = "FCM 디바이스 등록·갱신",
-            description = "로그인한 iOS 앱 설치의 FCM 등록 토큰을 등록합니다. 같은 deviceId 요청은 최신 토큰으로 갱신됩니다."
+            summary = "현재 iOS 디바이스의 푸시 정보 등록·갱신",
+            description = "로그인한 회원에게 현재 앱 설치의 FCM 토큰을 등록합니다. "
+                    + "앱 설치별로 생성한 동일한 deviceId를 계속 사용하며, FCM 토큰이 변경되면 같은 API로 갱신합니다."
     )
     @PutMapping("/{deviceId}")
     public ResponseEntity<PushDeviceResponse> register(
             @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "앱 설치 시 생성하고 유지하는 디바이스 UUID")
             @PathVariable UUID deviceId,
             @Valid @RequestBody PushDeviceRequest request
     ) {
@@ -51,12 +57,14 @@ public class PushDeviceController {
     }
 
     @Operation(
-            summary = "현재 디바이스 푸시 등록 해제",
-            description = "로그아웃할 iOS 앱 설치를 푸시 발송 대상에서 제외합니다. 이미 해제된 자신의 디바이스 요청은 성공합니다."
+            summary = "현재 iOS 디바이스의 푸시 등록 해제",
+            description = "로그아웃하는 현재 앱 설치를 푸시 발송 대상에서 제외합니다. "
+                    + "이미 해제된 내 디바이스를 다시 요청해도 성공하며, 응답 본문 없이 204를 반환합니다."
     )
     @DeleteMapping("/{deviceId}")
     public ResponseEntity<Void> unregister(
             @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "푸시 등록을 해제할 디바이스 UUID")
             @PathVariable UUID deviceId
     ) {
         pushDeviceService.unregister(memberId(jwt), deviceId);
