@@ -1,22 +1,15 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
 import kr.omong.dulpick.domain.place.application.ExtractedPlace;
-import kr.omong.dulpick.domain.place.application.PlaceVerifier;
-import kr.omong.dulpick.domain.place.application.PlaceSearcher;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
+import kr.omong.dulpick.domain.place.application.PlaceVerifier;
 import kr.omong.dulpick.domain.place.application.PlaceVerificationResult;
 import kr.omong.dulpick.domain.place.application.VerifiedPlace;
 import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.KakaoProperties;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientException;
 
-import java.math.BigDecimal;
-import java.time.Duration;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -24,32 +17,30 @@ import java.util.Map;
 import java.util.Set;
 
 @Component
-public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
+public class KakaoPlaceVerifier implements PlaceVerifier {
+
+    private static final int MAX_SEARCH_QUERIES_PER_CANDIDATE = 6;
 
     private final KakaoProperties properties;
-    private final RestClient restClient;
+    private final KakaoPlaceSearchClient searchClient;
     private final KakaoPlaceMatcher placeMatcher;
 
     @Autowired
-    public KakaoPlaceVerifier(KakaoProperties properties) {
-        this(properties, createRestClientBuilder(properties), new KakaoPlaceMatcher());
+    public KakaoPlaceVerifier(
+            KakaoProperties properties,
+            KakaoPlaceSearchClient searchClient
+    ) {
+        this(properties, searchClient, new KakaoPlaceMatcher());
     }
 
     KakaoPlaceVerifier(
             KakaoProperties properties,
-            RestClient.Builder restClientBuilder,
+            KakaoPlaceSearchClient searchClient,
             KakaoPlaceMatcher placeMatcher
     ) {
         this.properties = properties;
+        this.searchClient = searchClient;
         this.placeMatcher = placeMatcher;
-        this.restClient = restClientBuilder.baseUrl(properties.baseUrl()).build();
-    }
-
-    private static RestClient.Builder createRestClientBuilder(KakaoProperties properties) {
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
-        factory.setReadTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
-        return RestClient.builder().requestFactory(factory);
     }
 
     @Override
@@ -67,39 +58,8 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
                             match.status()
                     ))
                     .orElse(null);
-        } catch (RestClientException exception) {
-            throw new PlaceVerificationUnavailableException(exception);
-        }
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public List<PlaceSearchResult> search(String query) {
-        if (!properties.enabled()
-                || properties.restApiKey() == null
-                || properties.restApiKey().isBlank()) {
-            throw new PlaceVerificationUnavailableException();
-        }
-        try {
-            Map<String, Object> response = restClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/v2/local/search/keyword.json")
-                            .queryParam("query", query)
-                            .queryParam("size", 5)
-                            .build())
-                    .header(
-                            HttpHeaders.AUTHORIZATION,
-                            "KakaoAK " + properties.restApiKey()
-                    )
-                    .retrieve()
-                    .body(Map.class);
-            List<Map<String, Object>> documents = (List<Map<String, Object>>) response.get("documents");
-            if (documents == null) {
-                return List.of();
-            }
-            return documents.stream().map(this::toSearchResult).toList();
-        } catch (RestClientException exception) {
-            throw new PlaceVerificationUnavailableException(exception);
+        } catch (PlaceVerificationUnavailableException exception) {
+            throw exception;
         }
     }
 
@@ -113,24 +73,27 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private List<PlaceSearchResult> searchCandidates(ExtractedPlace extractedPlace) {
         Map<String, PlaceSearchResult> results = new LinkedHashMap<>();
         Set<String> searchedQueries = new LinkedHashSet<>();
-        searchAndAdd(results, searchedQueries, query(extractedPlace));
+        QueryBudget budget = new QueryBudget(MAX_SEARCH_QUERIES_PER_CANDIDATE);
+        searchAndAdd(results, searchedQueries, query(extractedPlace), budget);
         if (extractedPlace.addressHint() != null && !extractedPlace.addressHint().isBlank()) {
             searchAndAdd(
                     results,
                     searchedQueries,
-                    extractedPlace.name() + " " + region(extractedPlace.addressHint())
+                    extractedPlace.name() + " " + region(extractedPlace.addressHint()),
+                    budget
             );
         }
         List<PlaceSearchResult> nameResults = searchAndAdd(
                 results,
                 searchedQueries,
-                extractedPlace.name()
+                extractedPlace.name(),
+                budget
         );
-        if (nameResults.isEmpty()) {
-            searchShorterNames(results, searchedQueries, extractedPlace.name());
-        }
         if (placeMatcher.hasPreciseAddress(extractedPlace.addressHint())) {
-            searchAndAdd(results, searchedQueries, extractedPlace.addressHint());
+            searchAndAdd(results, searchedQueries, extractedPlace.addressHint(), budget);
+        }
+        if (nameResults.isEmpty()) {
+            searchShorterNames(results, searchedQueries, extractedPlace.name(), budget);
         }
         return results.values().stream().toList();
     }
@@ -138,13 +101,14 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private List<PlaceSearchResult> searchAndAdd(
             Map<String, PlaceSearchResult> target,
             Set<String> searchedQueries,
-            String query
+            String query,
+            QueryBudget budget
     ) {
         String normalizedQuery = query == null ? "" : query.strip();
-        if (normalizedQuery.isBlank() || !searchedQueries.add(normalizedQuery)) {
+        if (normalizedQuery.isBlank() || !searchedQueries.add(normalizedQuery) || !budget.tryUse()) {
             return List.of();
         }
-        List<PlaceSearchResult> results = search(normalizedQuery);
+        List<PlaceSearchResult> results = searchClient.search(normalizedQuery);
         addResults(target, results);
         return results;
     }
@@ -161,30 +125,17 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
     private void searchShorterNames(
             Map<String, PlaceSearchResult> target,
             Set<String> searchedQueries,
-            String name
+            String name,
+            QueryBudget budget
     ) {
         String[] words = name.strip().split("\\s+");
         for (int wordCount = words.length - 1; wordCount >= 2; wordCount--) {
             String query = String.join(" ", java.util.Arrays.copyOf(words, wordCount));
-            List<PlaceSearchResult> results = searchAndAdd(target, searchedQueries, query);
+            List<PlaceSearchResult> results = searchAndAdd(target, searchedQueries, query, budget);
             if (!results.isEmpty()) {
                 return;
             }
         }
-    }
-
-    private PlaceSearchResult toSearchResult(Map<String, Object> document) {
-        return new PlaceSearchResult(
-                text(document, "id"),
-                text(document, "place_name"),
-                text(document, "address_name"),
-                text(document, "road_address_name"),
-                decimal(document, "y"),
-                decimal(document, "x"),
-                text(document, "category_group_code"),
-                text(document, "category_name"),
-                null
-        );
     }
 
     private VerifiedPlace toVerifiedPlace(PlaceSearchResult result) {
@@ -201,13 +152,21 @@ public class KakaoPlaceVerifier implements PlaceVerifier, PlaceSearcher {
         );
     }
 
-    private String text(Map<String, Object> document, String key) {
-        Object value = document.get(key);
-        return value == null ? "" : value.toString();
+    private static final class QueryBudget {
+
+        private int remaining;
+
+        private QueryBudget(int maxQueries) {
+            this.remaining = maxQueries;
+        }
+
+        private boolean tryUse() {
+            if (remaining == 0) {
+                return false;
+            }
+            remaining--;
+            return true;
+        }
     }
 
-    private BigDecimal decimal(Map<String, Object> document, String key) {
-        String value = text(document, key);
-        return value.isBlank() ? null : new BigDecimal(value);
-    }
 }
