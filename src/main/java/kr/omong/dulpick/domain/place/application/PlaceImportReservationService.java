@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Service
 public class PlaceImportReservationService {
@@ -65,13 +66,47 @@ public class PlaceImportReservationService {
     }
 
     @Transactional
-    public boolean claimRetryable(Long importId, Instant now, Instant staleBefore) {
-        return importRepository.claimRetryable(importId, now, staleBefore) == 1;
+    public String claimPending(Long importId, Instant now, Instant staleBefore) {
+        String claimToken = UUID.randomUUID().toString();
+        return importRepository.claimPending(importId, claimToken, now, staleBefore) == 1
+                ? claimToken
+                : null;
     }
 
     @Transactional
-    public boolean requeueRetryable(Long importId, Instant now, Instant staleBefore) {
-        return importRepository.requeueRetryable(importId, now, staleBefore) == 1;
+    public boolean requeueRetryable(
+            Long importId,
+            Instant now,
+            Instant staleBefore,
+            Instant retryBefore
+    ) {
+        return importRepository.requeueRetryable(
+                importId,
+                now,
+                staleBefore,
+                retryBefore,
+                properties.maxRetryCount()
+        ) == 1;
+    }
+
+    @Transactional
+    public boolean heartbeatClaim(Long importId, String claimToken, Instant now) {
+        return importRepository.heartbeatClaim(importId, claimToken, now) == 1;
+    }
+
+    @Transactional
+    public boolean requeueClaimed(Long importId, String claimToken, Instant now) {
+        return importRepository.requeueClaimed(importId, claimToken, now) == 1;
+    }
+
+    @Transactional
+    public boolean failClaimed(
+            Long importId,
+            String claimToken,
+            String failureCode,
+            Instant now
+    ) {
+        return importRepository.failClaimed(importId, claimToken, failureCode, now) == 1;
     }
 
     public record Reservation(Long importId) {

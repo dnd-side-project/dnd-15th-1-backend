@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
+import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
@@ -126,7 +127,12 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
-    public void saveExtractedCandidates(Long importId, List<ExtractedPlace> candidates) {
+    public void saveExtractedCandidates(
+            Long importId,
+            String claimToken,
+            List<ExtractedPlace> candidates
+    ) {
+        requireClaim(importId, claimToken);
         candidateRepository.deleteAllByImportId(importId);
         candidateRepository.saveAll(candidates.stream()
                 .map(candidate -> PlaceCandidate.extracted(
@@ -153,9 +159,12 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
-    public Long saveMetadata(Long importId, ContentMetadata metadata) {
-        PlaceImport placeImport = importRepository.findById(importId)
-                .orElseThrow(IllegalStateException::new);
+    public Long saveMetadata(
+            Long importId,
+            String claimToken,
+            ContentMetadata metadata
+    ) {
+        PlaceImport placeImport = requireClaim(importId, claimToken);
         Content content = findOrCreateContent(metadata);
         placeImport.attachContent(content.getId());
         submissionRepository.insertIfAbsent(content.getId(), placeImport.getMemberId(), clock.instant());
@@ -171,7 +180,12 @@ public class PlaceImportResultWriter {
     }
 
     @Transactional
-    public boolean reuseUnchangedContent(Long importId, ContentMetadata metadata) {
+    public boolean reuseUnchangedContent(
+            Long importId,
+            String claimToken,
+            ContentMetadata metadata
+    ) {
+        requireClaim(importId, claimToken);
         if (!metadata.sourceType().storesPublicContent()) {
             return false;
         }
@@ -188,7 +202,7 @@ public class PlaceImportResultWriter {
         if (places.isEmpty()) {
             return false;
         }
-        saveMetadata(importId, metadata);
+        saveMetadata(importId, claimToken, metadata);
         candidateRepository.deleteAllByImportId(importId);
         candidateRepository.saveAll(places.stream()
                 .map(place -> PlaceCandidate.verified(
@@ -201,8 +215,7 @@ public class PlaceImportResultWriter {
                         clock.instant()
                 ))
                 .toList());
-        importRepository.findById(importId).orElseThrow(IllegalStateException::new)
-                .complete(
+        requireClaim(importId, claimToken).complete(
                         displayTitle(metadata),
                         metadata.caption(),
                         metadata.thumbnailUrl(),
@@ -216,12 +229,12 @@ public class PlaceImportResultWriter {
     @Transactional
     public void saveSuccess(
             Long importId,
+            String claimToken,
             ContentMetadata metadata,
             List<VerifiedCandidate> verifiedCandidates
     ) {
         List<VerifiedCandidate> uniqueCandidates = uniqueCandidates(verifiedCandidates);
-        PlaceImport placeImport = importRepository.findById(importId)
-                .orElseThrow(IllegalStateException::new);
+        PlaceImport placeImport = requireClaim(importId, claimToken);
         Long contentId = placeImport.getContentId();
         if (contentId == null && metadata.sourceType().storesPublicContent()) {
             contentId = findOrCreateContent(metadata).getId();
@@ -271,6 +284,11 @@ public class PlaceImportResultWriter {
                 clock.instant()
         );
         recordSourceMetadata(placeImport, metadata);
+    }
+
+    private PlaceImport requireClaim(Long importId, String claimToken) {
+        return importRepository.findClaimedForUpdate(importId, claimToken)
+                .orElseThrow(PlaceImportClaimLostException::new);
     }
 
     private List<VerifiedCandidate> uniqueCandidates(List<VerifiedCandidate> candidates) {

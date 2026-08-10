@@ -39,6 +39,7 @@ import static org.mockito.Mockito.when;
 class PlaceImportServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-09T12:00:00Z");
+    private static final String IMPORT_CLAIM_TOKEN = "import-claim-token";
 
     private final MemberRepository memberRepository = mock(MemberRepository.class);
     private final PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
@@ -143,20 +144,38 @@ class PlaceImportServiceTest {
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
         when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
         when(placeImport.getUpdatedAt()).thenReturn(NOW.minusSeconds(601));
-        when(reservationService.claimRetryable(
+        when(reservationService.claimPending(
                 1L,
                 NOW,
                 NOW.minusSeconds(600)
-        )).thenReturn(false);
+        )).thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isFalse();
+        assertThat(service.claimPending(1L)).isNull();
 
-        verify(reservationService).claimRetryable(
+        verify(reservationService).claimPending(
                 1L,
                 NOW,
                 NOW.minusSeconds(600)
         );
         verifyNoInteractions(metadataService, placeAnalyzer, placeVerifier, resultWriter);
+    }
+
+    @Test
+    void ignoresProcessingRequestWhenImportClaimTokenDoesNotMatch() {
+        PlaceImport placeImport = receivedImport();
+        when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
+        when(placeImport.getProcessingClaimToken()).thenReturn("new-claim-token");
+        when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
+
+        service.processClaimed(1L, "stale-claim-token");
+
+        verifyNoInteractions(
+                metadataService,
+                placeAnalyzer,
+                placeVerifier,
+                resultWriter,
+                reservationService
+        );
     }
 
     @Test
@@ -184,11 +203,14 @@ class PlaceImportServiceTest {
                 null
         );
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
-        when(reservationService.claimRetryable(eq(1L), any(), any())).thenReturn(true);
+        when(reservationService.claimPending(eq(1L), any(), any()))
+                .thenReturn(IMPORT_CLAIM_TOKEN);
+        when(reservationService.heartbeatClaim(1L, IMPORT_CLAIM_TOKEN, NOW)).thenReturn(true);
         when(metadataService.fetch(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_REEL))
                 .thenReturn(metadata);
-        when(resultWriter.reuseUnchangedContent(1L, metadata)).thenReturn(false);
-        when(resultWriter.saveMetadata(1L, metadata)).thenReturn(10L);
+        when(resultWriter.reuseUnchangedContent(1L, IMPORT_CLAIM_TOKEN, metadata))
+                .thenReturn(false);
+        when(resultWriter.saveMetadata(1L, IMPORT_CLAIM_TOKEN, metadata)).thenReturn(10L);
         when(placeAnalyzer.modelKey()).thenReturn("gemini-2.5-flash");
         when(placeAnalyzer.promptVersion()).thenReturn("place-extraction-v3");
         when(resultWriter.loadCachedAnalysis(
@@ -217,13 +239,14 @@ class PlaceImportServiceTest {
                         PlaceVerificationStatus.VERIFIED
                 ));
 
-        assertThat(service.claimPending(1L)).isTrue();
-        service.processClaimed(1L);
+        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, times(1)).analyze(metadata);
         verify(placeVerifier, times(2)).verify(extractedPlace);
         verify(resultWriter).saveSuccess(
                 1L,
+                IMPORT_CLAIM_TOKEN,
                 metadata,
                 List.of(new VerifiedCandidate(
                         extractedPlace,
@@ -241,11 +264,13 @@ class PlaceImportServiceTest {
                 .thenReturn(PlaceImportStatus.PROCESSING);
         ContentMetadata metadata = metadata();
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
-        when(reservationService.claimRetryable(eq(1L), any(), any())).thenReturn(true);
+        when(reservationService.claimPending(eq(1L), any(), any()))
+                .thenReturn(IMPORT_CLAIM_TOKEN);
         when(metadataService.fetch(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_REEL))
                 .thenReturn(metadata);
-        when(resultWriter.reuseUnchangedContent(1L, metadata)).thenReturn(false);
-        when(resultWriter.saveMetadata(1L, metadata)).thenReturn(10L);
+        when(resultWriter.reuseUnchangedContent(1L, IMPORT_CLAIM_TOKEN, metadata))
+                .thenReturn(false);
+        when(resultWriter.saveMetadata(1L, IMPORT_CLAIM_TOKEN, metadata)).thenReturn(10L);
         when(placeAnalyzer.modelKey()).thenReturn("gemini-2.5-flash");
         when(placeAnalyzer.promptVersion()).thenReturn("place-extraction-v3");
         when(resultWriter.loadCachedAnalysis(
@@ -265,11 +290,10 @@ class PlaceImportServiceTest {
         ))
                 .thenReturn(null);
 
-        assertThat(service.claimPending(1L)).isTrue();
-        service.processClaimed(1L);
+        assertThat(service.claimPending(1L)).isEqualTo(IMPORT_CLAIM_TOKEN);
+        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
-        verify(placeImport).requeue(NOW);
-        verify(importRepository).save(placeImport);
+        verify(reservationService).requeueClaimed(1L, IMPORT_CLAIM_TOKEN, NOW);
         verifyNoInteractions(placeVerifier);
         verify(placeAnalyzer, never()).analyze(any(ContentMetadata.class));
     }
@@ -363,6 +387,7 @@ class PlaceImportServiceTest {
                 null
         );
         when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
+        when(placeImport.getProcessingClaimToken()).thenReturn(IMPORT_CLAIM_TOKEN);
         when(placeImport.getSourceType()).thenReturn(ContentSourceType.NAVER_SHORT_LINK);
         when(placeImport.getCanonicalUrl()).thenReturn("https://naver.me/F1r21MEx");
         when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
@@ -375,12 +400,17 @@ class PlaceImportServiceTest {
                 PlaceVerificationStatus.VERIFIED
         ));
 
-        service.processClaimed(1L);
+        service.processClaimed(1L, IMPORT_CLAIM_TOKEN);
 
         verify(placeAnalyzer, never()).analyze(any(ContentMetadata.class));
-        verify(resultWriter).saveExtractedCandidates(1L, List.of(extractedPlace));
+        verify(resultWriter).saveExtractedCandidates(
+                1L,
+                IMPORT_CLAIM_TOKEN,
+                List.of(extractedPlace)
+        );
         verify(resultWriter).saveSuccess(
                 1L,
+                IMPORT_CLAIM_TOKEN,
                 metadata,
                 List.of(new VerifiedCandidate(
                         extractedPlace,
@@ -397,6 +427,7 @@ class PlaceImportServiceTest {
         when(placeImport.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_REEL);
         when(placeImport.getCanonicalUrl()).thenReturn("https://www.instagram.com/reel/example");
         when(placeImport.getContentId()).thenReturn(10L);
+        when(placeImport.getProcessingClaimToken()).thenReturn(IMPORT_CLAIM_TOKEN);
         return placeImport;
     }
 

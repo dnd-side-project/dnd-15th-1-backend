@@ -48,12 +48,12 @@ class PlaceImportRecoveryProcessorTest {
                 now.minusSeconds(600),
                 PageRequest.of(0, 20)
         )).thenReturn(List.of(1L, 2L));
-        when(importService.claimPending(1L)).thenReturn(true);
-        when(importService.claimPending(2L)).thenReturn(true);
+        when(importService.claimPending(1L)).thenReturn("claim-1");
+        when(importService.claimPending(2L)).thenReturn("claim-2");
 
         processor.process();
 
-        verify(importService).processClaimed(1L);
-        verify(importService).processClaimed(2L);
+        verify(importService).processClaimed(1L, "claim-1");
+        verify(importService).processClaimed(2L, "claim-2");
     }
 }

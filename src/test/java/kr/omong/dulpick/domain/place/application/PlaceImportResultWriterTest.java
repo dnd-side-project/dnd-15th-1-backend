@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.application;
 
+import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSubmissionRepository;
@@ -21,12 +22,14 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class PlaceImportResultWriterTest {
@@ -101,7 +104,8 @@ class PlaceImportResultWriterTest {
     void storesOneCandidateForSameNormalizedKakaoPlace() {
         PlaceImport placeImport = mock(PlaceImport.class);
         Place place = mock(Place.class);
-        when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
+        when(importRepository.findClaimedForUpdate(1L, "import-claim"))
+                .thenReturn(Optional.of(placeImport));
         when(placeImport.getContentId()).thenReturn(null);
         when(placeRepository.findByKakaoPlaceId("kakao-1")).thenReturn(Optional.of(place));
         when(place.getId()).thenReturn(20L);
@@ -142,7 +146,12 @@ class PlaceImportResultWriterTest {
                 PlaceVerificationStatus.VERIFIED
         );
 
-        writer.saveSuccess(1L, metadata, List.of(reviewCandidate, verifiedCandidate));
+        writer.saveSuccess(
+                1L,
+                "import-claim",
+                metadata,
+                List.of(reviewCandidate, verifiedCandidate)
+        );
 
         verify(placeRepository, times(1)).insertIfAbsent(
                 eq("kakao-1"),
@@ -161,6 +170,34 @@ class PlaceImportResultWriterTest {
             return saved.size() == 1
                     && saved.getFirst().getVerificationStatus() == PlaceVerificationStatus.VERIFIED;
         }));
+    }
+
+    @Test
+    void rejectsCandidateWritesAfterImportClaimIsLost() {
+        ContentMetadata metadata = new ContentMetadata(
+                "https://map.naver.com/p/entry/place/1",
+                ContentSourceType.NAVER_MAP,
+                "을지식당",
+                "서울 중구 을지로40길 17",
+                null,
+                "hash",
+                NOW,
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertThatThrownBy(() -> writer.saveSuccess(
+                1L,
+                "stale-claim",
+                metadata,
+                List.of()
+        )).isInstanceOf(PlaceImportClaimLostException.class);
+
+        verifyNoInteractions(candidateRepository, placeRepository);
     }
 
     private VerifiedCandidate candidate(

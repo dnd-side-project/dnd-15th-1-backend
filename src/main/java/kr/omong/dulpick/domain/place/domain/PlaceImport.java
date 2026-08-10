@@ -73,6 +73,9 @@ public class PlaceImport {
     @Column(nullable = false, length = 30)
     private PlaceImportStatus status;
 
+    @Column(name = "processing_claim_token", length = 36)
+    private String processingClaimToken;
+
     @Column(name = "failure_code", length = 80)
     private String failureCode;
 
@@ -140,6 +143,7 @@ public class PlaceImport {
 
     public void requeue(Instant now) {
         status = PlaceImportStatus.RECEIVED;
+        processingClaimToken = null;
         failureCode = null;
         updatedAt = now;
     }
@@ -155,6 +159,7 @@ public class PlaceImport {
         recordMetadata(title, content, thumbnailUrl, contentHash, sourceUpdatedAt);
         this.sourceUpdatedAt = sourceUpdatedAt;
         status = PlaceImportStatus.REVIEW_REQUIRED;
+        processingClaimToken = null;
         updatedAt = now;
         completedAt = now;
     }
@@ -198,6 +203,7 @@ public class PlaceImport {
 
     public void fail(String failureCode, Instant now) {
         status = PlaceImportStatus.FAILED;
+        processingClaimToken = null;
         this.failureCode = failureCode;
         retryCount++;
         updatedAt = now;
@@ -236,6 +242,10 @@ public class PlaceImport {
 
     public String getFailureCode() {
         return failureCode;
+    }
+
+    public String getProcessingClaimToken() {
+        return processingClaimToken;
     }
 
     public String getContentHash() {

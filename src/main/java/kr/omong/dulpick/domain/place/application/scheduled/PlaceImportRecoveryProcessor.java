@@ -61,17 +61,18 @@ public class PlaceImportRecoveryProcessor {
 
     private void dispatchSafely(Long importId) {
         try {
-            if (importService.claimPending(importId)) {
-                executor.execute(() -> processSafely(importId));
+            String claimToken = importService.claimPending(importId);
+            if (claimToken != null) {
+                executor.execute(() -> processSafely(importId, claimToken));
             }
         } catch (RuntimeException exception) {
             logger.error("Place import dispatch failed: importId={}", importId, exception);
         }
     }
 
-    private void processSafely(Long importId) {
+    private void processSafely(Long importId, String claimToken) {
         try {
-            importService.processClaimed(importId);
+            importService.processClaimed(importId, claimToken);
         } catch (RuntimeException exception) {
             logger.error("Place import processing failed: importId={}", importId, exception);
         }
