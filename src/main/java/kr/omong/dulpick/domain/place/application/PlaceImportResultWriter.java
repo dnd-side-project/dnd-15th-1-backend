@@ -17,7 +17,6 @@ import kr.omong.dulpick.domain.place.domain.ContentSubmissionRepository;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -25,7 +24,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 @Service
 public class PlaceImportResultWriter {
@@ -37,7 +35,7 @@ public class PlaceImportResultWriter {
     private final ContentPlaceRepository contentPlaceRepository;
     private final ContentSubmissionRepository submissionRepository;
     private final Clock clock;
-    private final ObjectMapper objectMapper;
+    private final PlaceImportAnalysisWriter analysisWriter;
 
     public PlaceImportResultWriter(
             PlaceImportRepository importRepository,
@@ -47,7 +45,7 @@ public class PlaceImportResultWriter {
             ContentPlaceRepository contentPlaceRepository,
             ContentSubmissionRepository submissionRepository,
             Clock clock,
-            ObjectMapper objectMapper
+            PlaceImportAnalysisWriter analysisWriter
     ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
@@ -56,7 +54,7 @@ public class PlaceImportResultWriter {
         this.contentPlaceRepository = contentPlaceRepository;
         this.submissionRepository = submissionRepository;
         this.clock = clock;
-        this.objectMapper = objectMapper;
+        this.analysisWriter = analysisWriter;
     }
 
     @Transactional(readOnly = true)
@@ -66,12 +64,7 @@ public class PlaceImportResultWriter {
             String analyzerModel,
             String promptVersion
     ) {
-        return contentRepository.findById(contentId)
-                .filter(content -> contentHash.equals(content.getAnalysisContentHash()))
-                .filter(content -> analyzerModel.equals(content.getAnalyzerModel()))
-                .filter(content -> promptVersion.equals(content.getPromptVersion()))
-                .filter(content -> content.getAnalyzedAt() != null)
-                .flatMap(this::readCandidates);
+        return analysisWriter.loadCachedAnalysis(contentId, contentHash, analyzerModel, promptVersion);
     }
 
     @Transactional
@@ -83,16 +76,7 @@ public class PlaceImportResultWriter {
             Instant now,
             Instant staleBefore
     ) {
-        String claimToken = UUID.randomUUID().toString();
-        return contentRepository.claimAnalysis(
-                contentId,
-                contentHash,
-                analyzerModel,
-                promptVersion,
-                claimToken,
-                now,
-                staleBefore
-        ) == 1 ? claimToken : null;
+        return analysisWriter.claimAnalysis(contentId, contentHash, analyzerModel, promptVersion, now, staleBefore);
     }
 
     @Transactional
@@ -105,25 +89,13 @@ public class PlaceImportResultWriter {
             List<ExtractedPlace> candidates,
             Instant analyzedAt
     ) {
-        try {
-            String candidatesJson = objectMapper.writeValueAsString(candidates);
-            return contentRepository.completeAnalysis(
-                    contentId,
-                    claimToken,
-                    contentHash,
-                    analyzerModel,
-                    promptVersion,
-                    candidatesJson,
-                    analyzedAt
-            ) == 1;
-        } catch (Exception exception) {
-            throw new IllegalStateException("Failed to cache place analysis", exception);
-        }
+        return analysisWriter.saveAnalysis(contentId, claimToken, contentHash, analyzerModel,
+                promptVersion, candidates, analyzedAt);
     }
 
     @Transactional
     public void failAnalysis(Long contentId, String claimToken) {
-        contentRepository.failAnalysis(contentId, claimToken);
+        analysisWriter.failAnalysis(contentId, claimToken);
     }
 
     @Transactional
@@ -144,18 +116,6 @@ public class PlaceImportResultWriter {
                         clock.instant()
                 ))
                 .toList());
-    }
-
-    private Optional<List<ExtractedPlace>> readCandidates(Content content) {
-        try {
-            ExtractedPlace[] candidates = objectMapper.readValue(
-                    content.getExtractedCandidatesJson(),
-                    ExtractedPlace[].class
-            );
-            return Optional.of(List.of(candidates));
-        } catch (Exception exception) {
-            return Optional.empty();
-        }
     }
 
     @Transactional

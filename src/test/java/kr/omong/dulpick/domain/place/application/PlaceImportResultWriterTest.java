@@ -49,7 +49,7 @@ class PlaceImportResultWriterTest {
             mock(ContentPlaceRepository.class),
             mock(ContentSubmissionRepository.class),
             Clock.fixed(NOW, ZoneOffset.UTC),
-            objectMapper
+            new PlaceImportAnalysisWriter(contentRepository, objectMapper)
     );
 
     @Test
