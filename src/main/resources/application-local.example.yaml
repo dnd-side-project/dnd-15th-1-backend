@@ -14,6 +14,14 @@ springdoc:
   swagger-ui:
     enabled: true
 
+monitoring:
+  error-alert:
+    discord:
+      enabled: ${DISCORD_ERROR_ALERT_ENABLED:false}
+      webhook-url: ${DISCORD_ERROR_ALERT_WEBHOOK_URL:}
+      connect-timeout: ${DISCORD_ERROR_ALERT_CONNECT_TIMEOUT:1s}
+      read-timeout: ${DISCORD_ERROR_ALERT_READ_TIMEOUT:1s}
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}
