@@ -18,6 +18,7 @@ import java.io.IOException;
 public class SecurityExceptionHandler implements AuthenticationEntryPoint, AccessDeniedHandler {
 
     private final ObjectMapper objectMapper;
+    private final ErrorMonitoringService errorMonitoringService;
 
     @Override
     public void commence(
@@ -25,6 +26,12 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
             HttpServletResponse response,
             AuthenticationException exception
     ) throws IOException, ServletException {
+        errorMonitoringService.record(
+                ErrorLevel.WARNING,
+                ErrorCode.AUTHENTICATION_FAILED,
+                exception,
+                request
+        );
         write(response, ErrorCode.AUTHENTICATION_FAILED);
     }
 
@@ -34,6 +41,12 @@ public class SecurityExceptionHandler implements AuthenticationEntryPoint, Acces
             HttpServletResponse response,
             AccessDeniedException exception
     ) throws IOException, ServletException {
+        errorMonitoringService.record(
+                ErrorLevel.WARNING,
+                ErrorCode.ACCESS_DENIED,
+                exception,
+                request
+        );
         write(response, ErrorCode.ACCESS_DENIED);
     }
 

@@ -11,6 +11,14 @@ spring:
 server:
   forward-headers-strategy: framework
 
+monitoring:
+  error-alert:
+    discord:
+      enabled: ${DISCORD_ERROR_ALERT_ENABLED:true}
+      webhook-url: ${DISCORD_ERROR_ALERT_WEBHOOK_URL:}
+      connect-timeout: ${DISCORD_ERROR_ALERT_CONNECT_TIMEOUT:1s}
+      read-timeout: ${DISCORD_ERROR_ALERT_READ_TIMEOUT:1s}
+
 management:
   endpoints:
     web:
