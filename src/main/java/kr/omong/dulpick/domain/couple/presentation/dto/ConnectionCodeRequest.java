@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import kr.omong.dulpick.domain.couple.domain.ConnectionCodeFormat;
 
+@Schema(description = "커플 연결 요청. 상대방의 영문 대문자 5자리 연결 코드를 입력합니다.")
 public record ConnectionCodeRequest(
         @NotBlank
         @Schema(

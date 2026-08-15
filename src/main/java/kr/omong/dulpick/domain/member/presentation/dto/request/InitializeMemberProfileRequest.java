@@ -8,10 +8,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
 
+@Schema(description = "최초 온보딩 요청. nickname과 profileIcon은 필수이고 datePreferences는 선택입니다.")
 public record InitializeMemberProfileRequest(
         @NotBlank
         @Schema(
-                description = "닉네임. 앞뒤 공백을 제외한 사용자 인식 문자 기준 1~6자",
+                description = "필수 입력. 앞뒤 공백을 제외한 사용자 인식 문자 기준 1~6자",
                 minLength = 1,
                 maxLength = 6,
                 example = "둘픽이"

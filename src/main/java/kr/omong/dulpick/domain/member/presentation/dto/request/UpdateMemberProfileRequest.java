@@ -5,6 +5,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import kr.omong.dulpick.domain.member.application.command.UpdateMemberProfileCommand;
 
+@Schema(description = "기본 프로필 부분 수정 요청. nickname과 profileIcon 중 하나 이상을 입력해야 합니다.")
 public record UpdateMemberProfileRequest(
         @Schema(
                 description = "선택 입력. 앞뒤 공백을 제외한 사용자 인식 문자 기준 1~6자이며, 생략하면 기존 값을 유지합니다.",
