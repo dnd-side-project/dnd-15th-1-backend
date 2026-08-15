@@ -21,23 +21,25 @@ public record InitializeMemberProfileRequest(
         @Min(1)
         @Max(5)
         @Schema(
-                description = "iOS 프로필 에셋 번호(1~5)",
+                description = "iOS 프로필 에셋 번호(1~5). 최초 화면의 기본값은 1입니다.",
                 minimum = "1",
                 maximum = "5",
                 example = "1"
         )
         Integer profileIcon,
-        @NotNull
         @Valid
-        @Schema(description = "온보딩 완료를 위해 반드시 모두 선택해야 하는 4가지 데이트 성향")
-        DatePreferencesRequest datePreferences
+        @Schema(
+                description = "선택 입력입니다. 생략·null·네 필드 전체 빈 값이면 아직 설정하지 않은 상태로 저장됩니다.",
+                nullable = true
+        )
+        InitializeDatePreferencesRequest datePreferences
 ) {
 
     public InitializeMemberProfileCommand toCommand() {
         return new InitializeMemberProfileCommand(
                 nickname,
                 profileIcon,
-                datePreferences.toDomain()
+                datePreferences == null ? null : datePreferences.toDomainOrNull()
         );
     }
 }
