@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.couple.presentation.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleMemberProfile;
 
+@Schema(description = "커플 구성원의 공개 기본 프로필")
 public record CoupleMemberProfileResponse(
         @Schema(
                 description = "현재 저장된 최신 닉네임. 사용자 인식 문자 기준 1~6자입니다.",

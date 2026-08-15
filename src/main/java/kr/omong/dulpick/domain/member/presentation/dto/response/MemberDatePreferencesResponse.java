@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 
+@Schema(description = "네 가지 데이트 성향. 네 필드는 항상 함께 설정되며, 성향 미설정 상태에서는 객체 전체가 null입니다.")
 public record MemberDatePreferencesResponse(
         @Schema(
                 description = "실내·실외 선호: INDOOR(실내), OUTDOOR(실외)",
