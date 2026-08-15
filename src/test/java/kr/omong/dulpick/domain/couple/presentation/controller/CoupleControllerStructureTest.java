@@ -1,6 +1,8 @@
 package kr.omong.dulpick.domain.couple.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.couple.application.command.CoupleCommandService;
 import kr.omong.dulpick.domain.couple.application.query.CoupleQueryService;
@@ -43,10 +45,41 @@ class CoupleControllerStructureTest {
                 .contains("합산", "일일 50회", "429");
     }
 
+    @Test
+    void documentsConnectedPartnerAndOptionalPreviewFlow() {
+        assertThat(operationDescription("preview"))
+                .contains("현재 iOS 필수 연결 플로우에서는 사용하지 않지만")
+                .contains("영문 대문자 5자리");
+        assertThat(operationDescription("connect"))
+                .contains("connected=true")
+                .contains("partner")
+                .contains("partner=null은 미연결 상태에서만");
+
+        ApiResponse response = method("connect").getAnnotation(ApiResponse.class);
+        assertThat(response).isNotNull();
+        assertThat(response.content()[0].examples())
+                .extracting(ExampleObject::value)
+                .anySatisfy(value -> assertThat(value).contains("\"partner\": {"));
+    }
+
+    @Test
+    void documentsConnectedAndDisconnectedStatusExamples() {
+        ApiResponse response = method("getMyStatus").getAnnotation(ApiResponse.class);
+        assertThat(response).isNotNull();
+        assertThat(response.content()[0].examples())
+                .extracting(ExampleObject::value)
+                .anySatisfy(value -> assertThat(value).contains("\"partner\": null"))
+                .anySatisfy(value -> assertThat(value).contains("\"connected\": true"));
+    }
+
     private String operationDescription(String methodName) {
+        return method(methodName).getAnnotation(Operation.class).description();
+    }
+
+    private Method method(String methodName) {
         for (Method method : CoupleController.class.getDeclaredMethods()) {
             if (method.getName().equals(methodName)) {
-                return method.getAnnotation(Operation.class).description();
+                return method;
             }
         }
         throw new IllegalArgumentException("Controller method not found: " + methodName);

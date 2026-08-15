@@ -35,6 +35,19 @@ class MemberProfileTest {
     }
 
     @Test
+    void createsProfileWithoutDatePreferences() {
+        MemberProfile profile = MemberProfile.create(
+                Member.create(Instant.EPOCH),
+                "둘픽이",
+                1,
+                null,
+                NOW
+        );
+
+        assertThat(profile.getDatePreferences()).isNull();
+    }
+
+    @Test
     void countsExtendedEmojiAsOneUserPerceivedCharacter() {
         MemberProfile profile = MemberProfile.create(
                 Member.create(Instant.EPOCH),
@@ -88,7 +101,15 @@ class MemberProfileTest {
                 DatePreferenceOption.INDOOR,
                 DatePreferenceOption.FOOD,
                 DatePreferenceOption.NIGHT
-        )).isInstanceOf(InvalidMemberProfileException.class);
+                )).isInstanceOf(InvalidMemberProfileException.class);
+    }
+
+    @Test
+    void rejectsClearingDatePreferencesThroughUpdate() {
+        MemberProfile profile = create("둘픽", 1);
+
+        assertThatThrownBy(() -> profile.updateDatePreferences(null, NOW.plusSeconds(1)))
+                .isInstanceOf(InvalidMemberProfileException.class);
     }
 
     @Test

@@ -30,12 +30,23 @@ class MemberControllerStructureTest {
                 "INDOOR(실내)",
                 "OUTDOOR(실외)",
                 "ACTIVE(액티비티)",
-                "STATIC(정적)",
-                "DAY(낮 데이트)",
-                "NIGHT(밤 데이트)",
+                "STATIC(정적 활동)",
+                "DAY(낮)",
+                "NIGHT(밤)",
                 "FOOD(식사 중심)",
                 "SIGHTSEEING(볼거리 중심)"
         );
+    }
+
+    @Test
+    void documentsOptionalDatePreferencesDuringOnboarding() {
+        String description = operationDescription("initializeProfile");
+
+        assertThat(description)
+                .contains("nickname과 profileIcon은 필수")
+                .contains("datePreferences는 선택값")
+                .contains("생략하거나 null")
+                .contains("일부만 입력하면 허용하지 않습니다");
     }
 
     private String operationDescription(String methodName) {
