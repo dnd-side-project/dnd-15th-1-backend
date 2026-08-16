@@ -8,7 +8,7 @@ public record TokenResponse(
         String tokenType,
         @Schema(description = "둘픽 API 요청의 Authorization 헤더에 사용하는 Access Token", example = "eyJhbGciOiJIUzI1NiJ9...", requiredMode = Schema.RequiredMode.REQUIRED)
         String accessToken,
-        @Schema(description = "Access Token 재발급 및 로그아웃에 사용하는 Refresh Token", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "Access Token 재발급 및 로그아웃에 사용하는 Refresh Token", example = "eyJhbGciOiJIUzI1NiJ9.example.refresh", requiredMode = Schema.RequiredMode.REQUIRED)
         String refreshToken,
         @Schema(description = "Access Token 남은 유효 시간(초)", example = "900", requiredMode = Schema.RequiredMode.REQUIRED)
         long expiresIn

@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.notification.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
@@ -47,11 +48,12 @@ public class NotificationController {
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(
                     description = "다음 페이지 조회 토큰. 첫 요청에서는 생략하고, "
-                            + "이후 요청에서는 이전 응답의 nextCursor를 그대로 전달합니다."
+                            + "이후 요청에서는 이전 응답의 nextCursor를 그대로 전달합니다.",
+                    example = "next-cursor-token"
             )
-            @RequestParam(required = false) String cursor,
-            @Parameter(description = "한 번에 조회할 알림 수(기본값 20, 최소 1, 최대 50)")
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @RequestParam(required = false) @Schema(example = "next-cursor-token") String cursor,
+            @Parameter(description = "한 번에 조회할 알림 수(기본값 20, 최소 1, 최대 50)", example = "20")
+            @RequestParam(defaultValue = "20") @Schema(example = "20") @Min(1) @Max(50) int size
     ) {
         return ResponseEntity.ok(NotificationPageResponse.from(
                 notificationInboxService.getPage(memberId(jwt), cursor, size)
@@ -66,8 +68,8 @@ public class NotificationController {
     @PatchMapping("/{notificationId}/read")
     public ResponseEntity<Void> markRead(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "읽음 처리할 알림 ID")
-            @PathVariable Long notificationId
+            @Parameter(description = "읽음 처리할 알림 ID", required = true, example = "501")
+            @PathVariable @Schema(example = "501") Long notificationId
     ) {
         notificationInboxService.markRead(memberId(jwt), notificationId);
         return ResponseEntity.noContent().build();

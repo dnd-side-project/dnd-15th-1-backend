@@ -43,6 +43,7 @@ public record ErrorResponse(
                         requiredMode = Schema.RequiredMode.NOT_REQUIRED
                 )
         )
+        @Schema(example = "[]")
         @JsonInclude(JsonInclude.Include.NON_EMPTY)
         List<FieldErrorResponse> fieldErrors
 ) {

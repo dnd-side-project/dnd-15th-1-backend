@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.notification.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -45,8 +46,12 @@ public class PushDeviceController {
     @PutMapping("/{deviceId}")
     public ResponseEntity<PushDeviceResponse> register(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "앱 설치 시 생성하고 유지하는 디바이스 UUID")
-            @PathVariable UUID deviceId,
+            @Parameter(
+                    description = "앱 설치 시 생성하고 유지하는 디바이스 UUID",
+                    required = true,
+                    example = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            )
+            @PathVariable @Schema(example = "3fa85f64-5717-4562-b3fc-2c963f66afa6") UUID deviceId,
             @Valid @RequestBody PushDeviceRequest request
     ) {
         PushDeviceView device = pushDeviceService.register(
@@ -64,8 +69,12 @@ public class PushDeviceController {
     @DeleteMapping("/{deviceId}")
     public ResponseEntity<Void> unregister(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "푸시 등록을 해제할 디바이스 UUID")
-            @PathVariable UUID deviceId
+            @Parameter(
+                    description = "푸시 등록을 해제할 디바이스 UUID",
+                    required = true,
+                    example = "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+            )
+            @PathVariable @Schema(example = "3fa85f64-5717-4562-b3fc-2c963f66afa6") UUID deviceId
     ) {
         pushDeviceService.unregister(memberId(jwt), deviceId);
         return ResponseEntity.noContent().build();

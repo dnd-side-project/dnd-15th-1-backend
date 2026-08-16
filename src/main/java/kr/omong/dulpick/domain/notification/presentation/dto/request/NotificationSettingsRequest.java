@@ -6,17 +6,19 @@ import kr.omong.dulpick.domain.notification.application.command.NotificationSett
 
 public record NotificationSettingsRequest(
         @NotNull
-        @Schema(description = "상대방의 저장 콘텐츠 누적 알림을 푸시로 받을지 여부")
+        @Schema(description = "상대방의 저장 콘텐츠 누적 알림을 푸시로 받을지 여부", example = "true")
         Boolean contentSavedEnabled,
         @NotNull
-        @Schema(description = "데이트 일정 시작 전 알림을 푸시로 받을지 여부")
+        @Schema(description = "데이트 일정 시작 전 알림을 푸시로 받을지 여부", example = "true")
         Boolean dateScheduleEnabled,
         @NotNull
-        @Schema(description = "마케팅 알림을 알림함과 푸시로 받을지에 대한 동의 여부")
+        @Schema(description = "마케팅 알림을 알림함과 푸시로 받을지에 대한 동의 여부", example = "false")
         Boolean marketingEnabled,
         @Schema(
                 description = "마케팅 수신 동의 버전. marketingEnabled가 true이면 설정 조회 응답의 "
-                        + "availableMarketingConsentVersion을 전달해야 하며, false이면 생략할 수 있습니다."
+                        + "availableMarketingConsentVersion을 전달해야 하며, false이면 생략할 수 있습니다.",
+                example = "2026-08-01",
+                nullable = true
         )
         String marketingConsentVersion
 ) {

@@ -18,7 +18,11 @@ public record SocialLoginResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         boolean onboardingCompleted,
-        @Schema(description = "둘픽 API 인증에 사용할 Access·Refresh Token 묶음입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "둘픽 API 인증에 사용할 Access·Refresh Token 묶음입니다.",
+                example = "{\"tokenType\":\"Bearer\",\"accessToken\":\"eyJhbGciOiJIUzI1NiJ9.example.access\",\"refreshToken\":\"eyJhbGciOiJIUzI1NiJ9.example.refresh\",\"expiresIn\":900}",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         TokenResponse token
 ) {
 

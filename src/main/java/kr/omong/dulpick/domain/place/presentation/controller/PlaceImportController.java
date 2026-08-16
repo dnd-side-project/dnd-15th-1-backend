@@ -133,7 +133,7 @@ public class PlaceImportController {
     public ResponseEntity<PlaceImportResponse> get(
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "회원별 장소 분석 작업 ID", required = true, example = "1001")
-            @PathVariable Long importId
+            @PathVariable @Schema(example = "1001") Long importId
     ) {
         return ResponseEntity.ok(PlaceImportResponse.from(
                 placeImportQueryService.get(memberId(jwt), importId)
@@ -181,7 +181,7 @@ public class PlaceImportController {
     public ResponseEntity<PlaceConfirmResponse> confirm(
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "회원별 장소 분석 작업 ID", required = true, example = "1001")
-            @PathVariable Long importId,
+            @PathVariable @Schema(example = "1001") Long importId,
             @Valid @RequestBody PlaceConfirmRequest request
     ) {
         List<PlaceCommandService.PlaceSelection> selections = request.selections().stream()

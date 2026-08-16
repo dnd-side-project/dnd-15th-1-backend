@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.place.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
@@ -51,8 +52,8 @@ public class PublicContentController {
     @GetMapping("/{contentId}")
     public ResponseEntity<PublicContentResponse> findPublicContent(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "모든 사용자가 공유하는 공개 게시물 ID")
-            @PathVariable Long contentId
+            @Parameter(description = "모든 사용자가 공유하는 공개 게시물 ID", required = true, example = "1001")
+            @PathVariable @Schema(example = "2001") Long contentId
     ) {
         return ResponseEntity.ok(PublicContentResponse.from(
                 queryService.findPublicContent(memberId(jwt), contentId)
