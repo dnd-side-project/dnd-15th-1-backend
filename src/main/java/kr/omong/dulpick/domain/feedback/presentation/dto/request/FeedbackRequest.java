@@ -23,12 +23,13 @@ public record FeedbackRequest(
         @NotNull
         @Schema(
                 description = "피드백 유형",
-                allowableValues = {"INQUIRY", "BUG_REPORT", "FEATURE_SUGGESTION", "OTHER"}
+                allowableValues = {"INQUIRY", "BUG_REPORT", "FEATURE_SUGGESTION", "OTHER"},
+                example = "FEATURE_SUGGESTION"
         )
         FeedbackType type,
         @NotBlank
         @Size(max = 1_000)
-        @Schema(description = "피드백 내용. 앞뒤 공백을 제외한 1~1,000자")
+        @Schema(description = "피드백 내용. 앞뒤 공백을 제외한 1~1,000자", example = "장소 목록에서 지역별 필터를 제공해주세요")
         String content
 ) {
 

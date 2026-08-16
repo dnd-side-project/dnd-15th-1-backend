@@ -28,6 +28,8 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -257,6 +259,111 @@ class TestAuthIntegrationTest {
                 .andExpect(jsonPath(
                         "$.paths['/api/v1/test-auth/logout'].post.security[0].bearerAuth"
                 ).exists());
+    }
+
+    @Test
+    void exposesConcreteExamplesForCommonSwaggerSchemas() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.components.schemas.FeedbackResponse.properties.feedbackId.example")
+                        .value(501))
+                .andExpect(jsonPath("$.components.schemas.NotificationResponse.properties.type.example")
+                        .value("CONTENT_SAVE_MILESTONE"))
+                .andExpect(jsonPath("$.components.schemas.PlaceSearchResponse.properties.kakaoPlaceId.example")
+                        .value("18699959"))
+                .andExpect(jsonPath("$.paths['/api/v1/couple-connections/preview'].post.responses['401'].content['application/json']")
+                        .exists());
+    }
+
+    @Test
+    void exposesExplicitResponsesForDocumentedEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/nonce'].post.responses['400'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/feedbacks'].post.responses['201'].content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/FeedbackResponse"))
+                .andExpect(jsonPath("$.paths['/api/v1/notifications'].get.responses['401'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/members/me/notification-settings'].put.responses['409'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/push-devices/{deviceId}'].put.responses['503'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/connection-codes/me'].get.responses['409'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/contents/{contentId}'].get.responses['404'].content['application/json']")
+                        .exists());
+    }
+
+    @Test
+    void exposesExamplesForEveryPrimitiveSwaggerProperty() throws Exception {
+        String apiDocs = mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsString();
+        Map<String, Object> document = JsonPath.parse(apiDocs).read("$");
+        Map<String, Object> components = castMap(document.get("components"));
+        Map<String, Object> schemas = castMap(components.get("schemas"));
+
+        schemas.forEach((schemaName, schema) -> {
+            if (!"Pageable".equals(schemaName) && !"Sort".equals(schemaName)) {
+                assertPrimitiveExamples(schemaName, castMap(schema));
+            }
+        });
+        Map<String, Object> paths = castMap(document.get("paths"));
+        paths.forEach((path, pathItemValue) -> {
+            Map<String, Object> pathItem = castMap(pathItemValue);
+            List.of("get", "post", "put", "patch", "delete").forEach(method -> {
+                Object operationValue = pathItem.get(method);
+                if (!(operationValue instanceof Map<?, ?> operation)) {
+                    return;
+                }
+                Object parametersValue = operation.get("parameters");
+                if (!(parametersValue instanceof List<?> parameters)) {
+                    return;
+                }
+                parameters.forEach(parameterValue -> {
+                    Map<String, Object> parameter = castMap(parameterValue);
+                    Map<String, Object> schema = castMap(parameter.get("schema"));
+                    assertPrimitiveSchemaExample(path + "[" + method + "]." + parameter.get("name"), schema);
+                });
+            });
+        });
+    }
+
+    private void assertPrimitiveExamples(String path, Map<String, Object> schema) {
+        Object propertiesValue = schema.get("properties");
+        if (propertiesValue instanceof Map<?, ?> properties) {
+            properties.forEach((propertyName, propertyValue) -> {
+                Map<String, Object> property = castMap(propertyValue);
+                assertPrimitiveSchemaExample(path + "." + propertyName, property);
+            });
+        }
+    }
+
+    private void assertPrimitiveSchemaExample(String path, Map<String, Object> schema) {
+        String type = schema.get("type") instanceof String value ? value : null;
+        if (!schema.containsKey("$ref")
+                && type != null
+                && !"null".equals(type)
+                && !"object".equals(type)) {
+            assertThat(schema)
+                    .as("Swagger primitive example: %s", path)
+                    .containsKey("example");
+            assertThat(schema.get("example"))
+                    .as("Swagger placeholder example: %s", path)
+                    .isNotIn("string", "예시 값");
+        }
+        Object itemsValue = schema.get("items");
+        if (itemsValue instanceof Map<?, ?> items) {
+            assertPrimitiveSchemaExample(path + "[]", castMap(items));
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> castMap(Object value) {
+        return (Map<String, Object>) value;
     }
 
     private AuthTokens signUp(String email) throws Exception {

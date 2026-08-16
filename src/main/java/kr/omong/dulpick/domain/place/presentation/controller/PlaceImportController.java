@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.net.URI;
 import java.util.List;
 
-@Tag(name = SwaggerTagNames.PLACE, description = "Instagram 콘텐츠 기반 장소 분석 및 저장 API")
+@Tag(name = SwaggerTagNames.PLACE, description = "Instagram·Naver·Tistory 콘텐츠 기반 장소 분석 및 저장 API")
 @SecurityRequirement(name = "bearerAuth")
 @RestController
 @RequestMapping("/api/v1/place-imports")
@@ -57,8 +57,11 @@ public class PlaceImportController {
     }
 
     @Operation(
-            summary = "Instagram 게시물·릴스 장소 분석 요청",
-            description = "분석 작업만 등록하며 Gemini·Kakao 호출은 백그라운드에서 수행합니다. 202 응답의 Location과 retryAfterSeconds를 사용해 결과를 조회합니다. 이미 완료된 동일 작업은 200으로 반환합니다."
+            summary = "콘텐츠 링크 장소 분석 요청",
+            description = "Instagram 게시물·릴스, Naver 지도·블로그·단축 링크, Tistory 링크를 지원합니다. "
+                    + "분석 작업만 등록하며 Gemini·Kakao 호출은 백그라운드에서 수행합니다. "
+                    + "202 응답의 Location과 retryAfterSeconds를 사용해 결과를 조회합니다. "
+                    + "이미 완료된 동일 작업은 200으로 반환합니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -133,7 +136,7 @@ public class PlaceImportController {
     public ResponseEntity<PlaceImportResponse> get(
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "회원별 장소 분석 작업 ID", required = true, example = "1001")
-            @PathVariable Long importId
+            @PathVariable @Schema(example = "1001") Long importId
     ) {
         return ResponseEntity.ok(PlaceImportResponse.from(
                 placeImportQueryService.get(memberId(jwt), importId)
@@ -181,7 +184,7 @@ public class PlaceImportController {
     public ResponseEntity<PlaceConfirmResponse> confirm(
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "회원별 장소 분석 작업 ID", required = true, example = "1001")
-            @PathVariable Long importId,
+            @PathVariable @Schema(example = "1001") Long importId,
             @Valid @RequestBody PlaceConfirmRequest request
     ) {
         List<PlaceCommandService.PlaceSelection> selections = request.selections().stream()

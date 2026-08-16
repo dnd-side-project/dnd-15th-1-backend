@@ -110,7 +110,7 @@ public class PlaceController {
     @GetMapping("/search")
     public ResponseEntity<List<PlaceSearchResponse>> search(
             @Parameter(description = "Kakao 장소 검색어", required = true, example = "성수동 카페")
-            @RequestParam String query
+            @RequestParam @Schema(example = "성수동 카페") String query
     ) {
         return ResponseEntity.ok(placeSearchService.search(query).stream()
                 .map(PlaceSearchResponse::from)

@@ -45,9 +45,8 @@ public class TestAuthSwaggerConfig {
                 .in(SecurityScheme.In.HEADER)
                 .name(TestAuthAccessKeyFilter.HEADER_NAME)
                 .description(
-                        "인증2 API 접근 키입니다. 로컬 기본값은 "
-                                + "dulpick-local-test-auth-access-key이며, "
-                                + "운영 활성화 시 TEST_AUTH_ACCESS_KEY를 사용합니다."
+                        "인증2 API 접근 키입니다. 로컬 또는 운영 환경에 설정된 "
+                                + "TEST_AUTH_ACCESS_KEY 값을 사용하세요. 키 원문은 문서에 노출하지 않습니다."
                 );
         components.addSecuritySchemes(SECURITY_SCHEME, accessKey);
     }

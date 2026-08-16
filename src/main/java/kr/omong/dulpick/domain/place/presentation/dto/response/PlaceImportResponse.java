@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.presentation.dto.response;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.place.application.PlaceCandidateView;
 import kr.omong.dulpick.domain.place.application.PlaceImportNextAction;
@@ -23,23 +24,41 @@ public record PlaceImportResponse(
         Long importId,
         @Schema(
                 description = "공용 게시물 ID입니다. 공용 콘텐츠로 전환되지 않은 분석 작업에서는 null입니다.",
+                example = "2001",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         Long contentId,
         @Schema(
                 description = "추적 파라미터를 제거한 정규화 게시물 링크입니다. 같은 콘텐츠 재요청을 식별할 때 사용합니다.",
+                example = "https://www.instagram.com/reel/example/",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         String canonicalUrl,
-        @Schema(description = "분석 대상 콘텐츠 유형입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "분석 대상 콘텐츠 유형입니다. INSTAGRAM_REEL, INSTAGRAM_POST, NAVER_MAP, NAVER_BLOG, NAVER_SHORT_LINK, TISTORY 중 하나입니다.",
+                allowableValues = {"INSTAGRAM_REEL", "INSTAGRAM_POST", "NAVER_MAP", "NAVER_BLOG", "NAVER_SHORT_LINK", "TISTORY"},
+                example = "INSTAGRAM_REEL",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         ContentSourceType sourceType,
-        @Schema(description = "분석 작업의 현재 상태입니다. 상태에 따라 nextAction을 수행합니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "분석 작업의 현재 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나이며 상태에 따라 nextAction을 수행합니다.",
+                allowableValues = {"RECEIVED", "PROCESSING", "REVIEW_REQUIRED", "COMPLETED", "FAILED"},
+                example = "REVIEW_REQUIRED",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceImportStatus status,
-        @Schema(description = "현재 상태에서 클라이언트가 수행할 다음 동작입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "현재 상태에서 클라이언트가 수행할 다음 동작입니다. WAIT, SELECT_PLACES, RETRY, COMPLETED, NONE 중 하나입니다.",
+                allowableValues = {"WAIT", "SELECT_PLACES", "RETRY", "COMPLETED", "NONE"},
+                example = "SELECT_PLACES",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceImportNextAction nextAction,
         @Schema(
                 description = "다음 상태 조회 또는 재시도까지 권장하는 대기 시간(초)입니다. 즉시 처리할 필요가 없으면 null입니다.",
+                example = "5",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
@@ -52,9 +71,9 @@ public record PlaceImportResponse(
         FailureResponse failure,
         @Schema(description = "원본 게시물에서 수집한 제목·본문·작성자·반응 정보입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         ContentResponse content,
-        @Schema(description = "분석 작업 생성 시각", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "분석 작업 생성 시각", example = "2026-08-16T14:30:00", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime createdAt,
-        @Schema(description = "분석 작업이 마지막으로 변경된 시각", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "분석 작업이 마지막으로 변경된 시각", example = "2026-08-16T14:30:05", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime updatedAt,
         @Schema(description = "AI가 추출하고 Kakao 검증을 거친 장소 후보 목록입니다. 후보가 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<PlaceCandidateResponse> candidates
@@ -78,9 +97,9 @@ public record PlaceImportResponse(
     }
 
     public record FailureResponse(
-            @Schema(description = "분석 실패 원인 코드", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "분석 실패 원인 코드", example = "PLACE_METADATA_UNAVAILABLE", requiredMode = Schema.RequiredMode.REQUIRED)
             String code,
-            @Schema(description = "동일 요청을 재시도해도 되는 실패인지 여부", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "동일 요청을 재시도해도 되는 실패인지 여부", example = "true", requiredMode = Schema.RequiredMode.REQUIRED)
             boolean retryable
     ) {
 
@@ -90,15 +109,15 @@ public record PlaceImportResponse(
     }
 
     public record ContentResponse(
-            @Schema(description = "게시물 제목. 원본에 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "게시물 제목. 원본에 없으면 null입니다.", example = "서울 데이트 추천 코스", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String title,
-            @Schema(description = "게시물 본문 또는 캡션. 원본에 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "게시물 본문 또는 캡션. 원본에 없으면 null입니다.", example = "분위기 좋은 데이트 장소를 소개합니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String caption,
-            @Schema(description = "게시물 대표 이미지 URL. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "게시물 대표 이미지 URL. 없으면 null입니다.", example = "https://example.com/thumbnail.jpg", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String thumbnailUrl,
             @Schema(description = "게시물 작성자 정보. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             AuthorResponse author,
-            @Schema(description = "게시물 게시일. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "게시물 게시일. 확인할 수 없으면 null입니다.", example = "2026-08-16", format = "date", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             LocalDate publishedOn,
             @Schema(description = "게시물 좋아요·댓글 집계 정보. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             EngagementResponse engagement
@@ -117,9 +136,9 @@ public record PlaceImportResponse(
     }
 
     public record AuthorResponse(
-            @Schema(description = "작성자에게 표시되는 이름. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "작성자에게 표시되는 이름. 없으면 null입니다.", example = "둘픽이", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String displayName,
-            @Schema(description = "작성자 사용자명. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "작성자 사용자명. 없으면 null입니다.", example = "dulpick_user", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String username
     ) {
 
@@ -129,11 +148,11 @@ public record PlaceImportResponse(
     }
 
     public record EngagementResponse(
-            @Schema(description = "좋아요 수. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "좋아요 수. 집계할 수 없으면 null입니다.", example = "128", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             Long likeCount,
-            @Schema(description = "댓글 수. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "댓글 수. 집계할 수 없으면 null입니다.", example = "24", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             Long commentCount,
-            @Schema(description = "반응 수를 확인한 시각. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "반응 수를 확인한 시각. 집계할 수 없으면 null입니다.", example = "2026-08-16T14:30:00", nullable = true, format = "date-time", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             LocalDateTime checkedAt
     ) {
 
@@ -156,17 +175,22 @@ public record PlaceImportResponse(
                     example = "101"
             )
             Long candidateId,
-            @Schema(description = "후보의 분석·검증 상태입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(
+                    description = "후보의 분석·검증 상태입니다. EXTRACTED, VERIFIED, REVIEW_REQUIRED, REJECTED 중 하나입니다.",
+                    allowableValues = {"EXTRACTED", "VERIFIED", "REVIEW_REQUIRED", "REJECTED"},
+                    example = "VERIFIED",
+                    requiredMode = Schema.RequiredMode.REQUIRED
+            )
             PlaceVerificationStatus verificationStatus,
-            @Schema(description = "AI가 추출한 장소명", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "AI가 추출한 장소명", example = "서울숲 카페", requiredMode = Schema.RequiredMode.REQUIRED)
             String extractedName,
-            @Schema(description = "AI가 추출한 주소 힌트. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "AI가 추출한 주소 힌트. 없으면 null입니다.", example = "서울 성동구 서울숲", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String extractedAddressHint,
             @Schema(description = "Kakao 검증이 완료된 장소 정보입니다. EXTRACTED 상태이거나 검증에 실패하면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             VerifiedPlaceResponse place,
-            @Schema(description = "장소로 판단한 근거 문구. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "장소로 판단한 근거 문구. 없으면 null입니다.", example = "서울숲 근처에서 소개한 카페", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String evidence,
-            @Schema(description = "장소가 콘텐츠에서 언급된 방식입니다. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "장소가 콘텐츠에서 언급된 방식입니다. 없으면 null입니다.", example = "장소 소개", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String mentionType
     ) {
 
@@ -186,34 +210,37 @@ public record PlaceImportResponse(
     public record VerifiedPlaceResponse(
             @Schema(
                     description = "모든 콘텐츠와 회원 저장 목록이 공유하는 정규화 장소 ID입니다.",
+                    example = "101",
                     requiredMode = Schema.RequiredMode.REQUIRED
             )
             Long placeId,
-            @Schema(description = "Kakao 장소 검색 결과의 고유 ID", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "Kakao 장소 검색 결과의 고유 ID", example = "18699959", requiredMode = Schema.RequiredMode.REQUIRED)
             String kakaoPlaceId,
-            @Schema(description = "Kakao에서 확인한 장소명", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "Kakao에서 확인한 장소명", example = "서울숲 카페", requiredMode = Schema.RequiredMode.REQUIRED)
             String name,
-            @Schema(description = "Kakao 지번 주소", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "Kakao 지번 주소", example = "서울특별시 성동구 성수동1가 685-700", requiredMode = Schema.RequiredMode.REQUIRED)
             String address,
-            @Schema(description = "Kakao 도로명 주소. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "Kakao 도로명 주소. 없으면 null입니다.", example = "서울특별시 성동구 서울숲2길 10", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String roadAddress,
-            @Schema(description = "WGS84 기준 위도. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "WGS84 기준 위도. 없으면 null입니다.", example = "37.5446", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             BigDecimal latitude,
-            @Schema(description = "WGS84 기준 경도. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "WGS84 기준 경도. 없으면 null입니다.", example = "127.0557", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             BigDecimal longitude,
-            @Schema(description = "Kakao가 제공한 원본 카테고리 경로. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "Kakao가 제공한 원본 카테고리 경로. 없으면 null입니다.", example = "음식점 > 카페", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String category,
             @Schema(
                     description = "둘픽 화면에서 사용하는 장소 분류입니다.",
                     allowableValues = {"맛집", "카페", "놀거리", "쇼핑", "생활 편의", "관광", "숙박"},
+                    example = "카페",
                     requiredMode = Schema.RequiredMode.REQUIRED
             )
             String categoryName,
-            @Schema(description = "현재 회원이 이미 저장한 장소이면 true입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(description = "현재 회원이 이미 저장한 장소이면 true입니다.", example = "false", requiredMode = Schema.RequiredMode.REQUIRED)
             boolean savedByMe,
-            @Schema(description = "대표 장소 이미지 URL. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            @Schema(description = "대표 장소 이미지 URL. 없으면 null입니다.", example = "https://example.com/place.jpg", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String thumbnailUrl,
-            @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+            @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
+            @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 없으면 빈 배열입니다.", example = "[\"https://example.com/place-detail.jpg\"]", requiredMode = Schema.RequiredMode.REQUIRED)
             List<String> imageUrls
     ) {
 

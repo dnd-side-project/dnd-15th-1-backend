@@ -24,6 +24,7 @@ public record ManualPlaceSaveRequest(
         @Size(max = 100)
         @Schema(
                 description = "선택 입력. 연결된 상대방에게 보일 장소 별칭입니다. 생략하거나 null이면 별칭 없이 저장합니다.",
+                example = "주말 데이트 카페",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
