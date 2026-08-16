@@ -10,29 +10,51 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record MemberPlaceResponse(
-        @Schema(description = "별칭·메모·저장 시각의 기준 회원 ID. MINE/TOGETHER는 현재 회원, PARTNER는 상대방")
+        @Schema(
+                description = "별칭과 저장 시각의 기준 회원 ID입니다. MINE/TOGETHER는 현재 회원, PARTNER는 상대방입니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         Long memberId,
-        @Schema(description = "공용 장소 ID. 회원별 저장 기록 자체의 ID가 아님")
+        @Schema(
+                description = "모든 콘텐츠와 회원 저장 기록이 공유하는 공용 장소 ID입니다. 회원별 저장 기록 ID가 아닙니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         Long placeId,
+        @Schema(description = "Kakao에서 확인한 장소명", requiredMode = Schema.RequiredMode.REQUIRED)
         String name,
+        @Schema(description = "Kakao 지번 주소", requiredMode = Schema.RequiredMode.REQUIRED)
         String address,
+        @Schema(description = "Kakao 도로명 주소. 제공되지 않으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String roadAddress,
+        @Schema(description = "WGS84 기준 위도. Kakao가 제공하지 않으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         BigDecimal latitude,
+        @Schema(description = "WGS84 기준 경도. Kakao가 제공하지 않으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         BigDecimal longitude,
-        @Schema(description = "Kakao가 제공한 원본 카테고리 경로")
+        @Schema(description = "Kakao가 제공한 원본 카테고리 경로. 원본 값을 그대로 보존하며 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String category,
-        @Schema(description = "둘픽 장소 분류", allowableValues = {
-                "맛집", "카페", "놀거리", "쇼핑", "생활 편의", "관광", "숙박"
-        })
+        @Schema(
+                description = "둘픽 화면에서 사용하는 장소 분류입니다.",
+                allowableValues = {"맛집", "카페", "놀거리", "쇼핑", "생활 편의", "관광", "숙박"},
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         String categoryName,
-        @Schema(description = "현재 커플 기준 저장 관계", allowableValues = {
-                "MINE", "PARTNER", "TOGETHER"
-        })
+        @Schema(
+                description = "현재 회원과 연결된 상대방의 저장 관계입니다. MINE은 나만 저장, PARTNER는 상대방만 저장, TOGETHER는 둘 다 저장한 장소를 의미합니다.",
+                allowableValues = {"MINE", "PARTNER", "TOGETHER"},
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceOwnershipStatus ownershipStatus,
+        @Schema(
+                description = "회원이 지정한 장소 별칭. 저장 시 별칭을 생략하면 null입니다.",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
         String alias,
-        String memo,
+        @Schema(description = "회원이 저장한 시각", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime savedAt,
+        @Schema(description = "대표 장소 이미지 URL. 이미지가 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String thumbnailUrl,
+        @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 이미지가 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<String> imageUrls
 ) {
 
@@ -49,7 +71,6 @@ public record MemberPlaceResponse(
                 view.categoryName(),
                 view.ownershipStatus(),
                 view.alias(),
-                view.memo(),
                 ServiceTime.toLocalDateTime(view.savedAt()),
                 view.thumbnailUrl(),
                 view.imageUrls()

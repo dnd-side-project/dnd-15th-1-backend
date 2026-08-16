@@ -33,9 +33,6 @@ public class MemberPlace {
     @Column(length = 100)
     private String alias;
 
-    @Column(length = 1_000)
-    private String memo;
-
     @Column(name = "saved_at", nullable = false)
     private Instant savedAt;
 
@@ -47,14 +44,12 @@ public class MemberPlace {
             Place place,
             Long sourceImportId,
             String alias,
-            String memo,
             Instant savedAt
     ) {
         this.memberId = memberId;
         this.place = place;
         this.sourceImportId = sourceImportId;
         this.alias = alias;
-        this.memo = memo;
         this.savedAt = savedAt;
     }
 
@@ -63,7 +58,6 @@ public class MemberPlace {
             Place place,
             Long sourceImportId,
             String alias,
-            String memo,
             Instant savedAt
     ) {
         return new MemberPlace(
@@ -71,7 +65,6 @@ public class MemberPlace {
                 place,
                 sourceImportId,
                 alias,
-                memo,
                 savedAt
         );
     }
@@ -90,10 +83,6 @@ public class MemberPlace {
 
     public String getAlias() {
         return alias;
-    }
-
-    public String getMemo() {
-        return memo;
     }
 
     public Instant getSavedAt() {

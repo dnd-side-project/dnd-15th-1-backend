@@ -18,7 +18,6 @@ public record MemberPlaceView(
         String categoryName,
         PlaceOwnershipStatus ownershipStatus,
         String alias,
-        String memo,
         Instant savedAt,
         String thumbnailUrl,
         List<String> imageUrls
@@ -45,7 +44,6 @@ public record MemberPlaceView(
             String categoryName,
             PlaceOwnershipStatus ownershipStatus,
             String alias,
-            String memo,
             Instant savedAt
     ) {
         this(
@@ -60,7 +58,6 @@ public record MemberPlaceView(
                 categoryName,
                 ownershipStatus,
                 alias,
-                memo,
                 savedAt,
                 null,
                 List.of()
