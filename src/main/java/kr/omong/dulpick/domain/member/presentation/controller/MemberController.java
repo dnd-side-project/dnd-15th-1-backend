@@ -91,6 +91,43 @@ public class MemberController {
 
     @Operation(
             summary = "최초 프로필 설정",
+            requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    required = true,
+                    description = "nickname과 profileIcon은 필수입니다. datePreferences는 생략하거나 null로 보낼 수 있습니다.",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = InitializeMemberProfileRequest.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "데이트 성향 미설정",
+                                            summary = "닉네임과 프로필 아이콘만 설정",
+                                            value = """
+                                                    {
+                                                      "nickname": "둘픽이",
+                                                      "profileIcon": 1,
+                                                      "datePreferences": null
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "데이트 성향 설정",
+                                            summary = "네 가지 성향을 모두 설정",
+                                            value = """
+                                                    {
+                                                      "nickname": "둘픽이",
+                                                      "profileIcon": 1,
+                                                      "datePreferences": {
+                                                        "indoorOutdoor": "INDOOR",
+                                                        "activityLevel": "ACTIVE",
+                                                        "dateTime": "NIGHT",
+                                                        "dateFocus": "FOOD"
+                                                      }
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
             description = """
                     닉네임과 프로필 아이콘을 저장하고 영문 대문자 5자리 연결 코드를 발급합니다.
                     nickname과 profileIcon은 필수입니다. 최초 프로필 아이콘의 앱 기본값은 1입니다.
