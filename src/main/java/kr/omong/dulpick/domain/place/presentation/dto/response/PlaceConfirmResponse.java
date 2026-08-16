@@ -9,7 +9,12 @@ import java.util.List;
 public record PlaceConfirmResponse(
         @Schema(description = "후보 선택을 완료한 회원별 장소 분석 작업 ID", example = "1001", requiredMode = Schema.RequiredMode.REQUIRED)
         Long importId,
-        @Schema(description = "후보 저장 처리 후 분석 작업 상태입니다.", example = "COMPLETED", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "후보 저장 처리 후 분석 작업 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나입니다.",
+                allowableValues = {"RECEIVED", "PROCESSING", "REVIEW_REQUIRED", "COMPLETED", "FAILED"},
+                example = "COMPLETED",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceImportStatus status,
         @Schema(description = "이번 요청으로 저장된 장소 목록입니다. 항상 배열로 반환하며 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<SavedPlaceResponse> savedPlaces

@@ -35,11 +35,26 @@ public record PlaceImportResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         String canonicalUrl,
-        @Schema(description = "분석 대상 콘텐츠 유형입니다.", example = "INSTAGRAM_REEL", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "분석 대상 콘텐츠 유형입니다. INSTAGRAM_REEL, INSTAGRAM_POST, NAVER_MAP, NAVER_BLOG, NAVER_SHORT_LINK, TISTORY 중 하나입니다.",
+                allowableValues = {"INSTAGRAM_REEL", "INSTAGRAM_POST", "NAVER_MAP", "NAVER_BLOG", "NAVER_SHORT_LINK", "TISTORY"},
+                example = "INSTAGRAM_REEL",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         ContentSourceType sourceType,
-        @Schema(description = "분석 작업의 현재 상태입니다. 상태에 따라 nextAction을 수행합니다.", example = "REVIEW_REQUIRED", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "분석 작업의 현재 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나이며 상태에 따라 nextAction을 수행합니다.",
+                allowableValues = {"RECEIVED", "PROCESSING", "REVIEW_REQUIRED", "COMPLETED", "FAILED"},
+                example = "REVIEW_REQUIRED",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceImportStatus status,
-        @Schema(description = "현재 상태에서 클라이언트가 수행할 다음 동작입니다.", example = "SELECT_PLACES", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "현재 상태에서 클라이언트가 수행할 다음 동작입니다. WAIT, SELECT_PLACES, RETRY, COMPLETED, NONE 중 하나입니다.",
+                allowableValues = {"WAIT", "SELECT_PLACES", "RETRY", "COMPLETED", "NONE"},
+                example = "SELECT_PLACES",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         PlaceImportNextAction nextAction,
         @Schema(
                 description = "다음 상태 조회 또는 재시도까지 권장하는 대기 시간(초)입니다. 즉시 처리할 필요가 없으면 null입니다.",
@@ -160,7 +175,12 @@ public record PlaceImportResponse(
                     example = "101"
             )
             Long candidateId,
-            @Schema(description = "후보의 분석·검증 상태입니다.", example = "VERIFIED", requiredMode = Schema.RequiredMode.REQUIRED)
+            @Schema(
+                    description = "후보의 분석·검증 상태입니다. EXTRACTED, VERIFIED, REVIEW_REQUIRED, REJECTED 중 하나입니다.",
+                    allowableValues = {"EXTRACTED", "VERIFIED", "REVIEW_REQUIRED", "REJECTED"},
+                    example = "VERIFIED",
+                    requiredMode = Schema.RequiredMode.REQUIRED
+            )
             PlaceVerificationStatus verificationStatus,
             @Schema(description = "AI가 추출한 장소명", example = "서울숲 카페", requiredMode = Schema.RequiredMode.REQUIRED)
             String extractedName,

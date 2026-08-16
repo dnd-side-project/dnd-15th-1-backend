@@ -17,7 +17,12 @@ public record PublicContentResponse(
         Long contentId,
         @Schema(description = "추적 파라미터를 제거한 정규화 게시물 링크입니다.", example = "https://www.instagram.com/reel/example/", requiredMode = Schema.RequiredMode.REQUIRED)
         String canonicalUrl,
-        @Schema(description = "공개 게시물의 원본 콘텐츠 유형입니다.", example = "INSTAGRAM_REEL", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(
+                description = "공개 게시물의 원본 콘텐츠 유형입니다. INSTAGRAM_REEL 또는 INSTAGRAM_POST입니다.",
+                allowableValues = {"INSTAGRAM_REEL", "INSTAGRAM_POST"},
+                example = "INSTAGRAM_REEL",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         ContentSourceType sourceType,
         @Schema(description = "게시물 작성자 정보. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         AuthorResponse author,
