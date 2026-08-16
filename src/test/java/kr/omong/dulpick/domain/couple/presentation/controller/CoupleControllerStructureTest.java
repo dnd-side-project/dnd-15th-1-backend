@@ -55,7 +55,7 @@ class CoupleControllerStructureTest {
                 .contains("partner")
                 .contains("partner=null은 미연결 상태에서만");
 
-        ApiResponse response = method("connect").getAnnotation(ApiResponse.class);
+        ApiResponse response = response("connect", "201");
         assertThat(response).isNotNull();
         assertThat(response.content()[0].examples())
                 .extracting(ExampleObject::value)
@@ -64,7 +64,7 @@ class CoupleControllerStructureTest {
 
     @Test
     void documentsConnectedAndDisconnectedStatusExamples() {
-        ApiResponse response = method("getMyStatus").getAnnotation(ApiResponse.class);
+        ApiResponse response = response("getMyStatus", "200");
         assertThat(response).isNotNull();
         assertThat(response.content()[0].examples())
                 .extracting(ExampleObject::value)
@@ -83,5 +83,14 @@ class CoupleControllerStructureTest {
             }
         }
         throw new IllegalArgumentException("Controller method not found: " + methodName);
+    }
+
+    private ApiResponse response(String methodName, String responseCode) {
+        for (ApiResponse response : method(methodName).getAnnotationsByType(ApiResponse.class)) {
+            if (response.responseCode().equals(responseCode)) {
+                return response;
+            }
+        }
+        throw new IllegalArgumentException("Swagger response not found: " + responseCode);
     }
 }
