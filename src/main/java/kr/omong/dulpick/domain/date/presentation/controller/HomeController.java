@@ -1,6 +1,8 @@
 package kr.omong.dulpick.domain.date.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
@@ -57,7 +59,8 @@ public class HomeController {
     @GetMapping("/recent-saved-places")
     public ResponseEntity<List<MemberPlaceResponse>> recentSavedPlaces(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam @Min(1) @Max(50) int size
+            @Parameter(description = "조회할 최근 저장 장소 수(최소 1, 최대 50)", required = true, example = "3")
+            @RequestParam @Schema(example = "3") @Min(1) @Max(50) int size
     ) {
         return ResponseEntity.ok(homeQueryService.getRecentSavedPlaces(memberId(jwt), size)
                 .stream()
@@ -86,7 +89,8 @@ public class HomeController {
     @GetMapping("/past-dates")
     public ResponseEntity<List<DateCourseSummaryResponse>> pastDates(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @Parameter(description = "조회할 지난 데이트 수(기본값 20, 최소 1, 최대 50)", example = "20")
+            @RequestParam(defaultValue = "20") @Schema(example = "20") @Min(1) @Max(50) int size
     ) {
         return ResponseEntity.ok(homeQueryService.getPastDates(memberId(jwt), size)
                 .stream()

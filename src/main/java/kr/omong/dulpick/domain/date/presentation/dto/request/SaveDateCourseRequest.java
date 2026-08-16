@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.date.presentation.dto.request;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,7 @@ public record SaveDateCourseRequest(
         LocalTime time,
         @NotNull
         @Schema(description = "데이트 코스 장소 ID 목록. 순서대로 저장됩니다.")
+        @ArraySchema(schema = @Schema(description = "공용 장소 ID", example = "101"))
         List<Long> placeIds,
         @NotNull
         @Schema(

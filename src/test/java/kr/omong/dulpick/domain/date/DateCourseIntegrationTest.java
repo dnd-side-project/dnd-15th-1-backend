@@ -98,10 +98,7 @@ class DateCourseIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andReturn();
-        Long dateCourseId = JsonPath.read(
-                createResult.getResponse().getContentAsString(),
-                "$.dateCourseId"
-        );
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
 
         mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
                         .header("Authorization", bearer(fixture.first()))
@@ -159,10 +156,7 @@ class DateCourseIntegrationTest {
                                 """.formatted(futureDate)))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long dateCourseId = JsonPath.read(
-                createResult.getResponse().getContentAsString(),
-                "$.dateCourseId"
-        );
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
         Place outsider = placeRepository.save(place("outsider", Instant.now()));
 
         mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
@@ -199,10 +193,7 @@ class DateCourseIntegrationTest {
                                 """.formatted(futureDate)))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long dateCourseId = JsonPath.read(
-                createResult.getResponse().getContentAsString(),
-                "$.dateCourseId"
-        );
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
 
         mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
                         .header("Authorization", bearer(fixture.first()))
@@ -254,10 +245,7 @@ class DateCourseIntegrationTest {
                                 """.formatted(pastDate)))
                 .andExpect(status().isCreated())
                 .andReturn();
-        Long dateCourseId = JsonPath.read(
-                createResult.getResponse().getContentAsString(),
-                "$.dateCourseId"
-        );
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
 
         mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
                         .header("Authorization", bearer(fixture.first()))
@@ -316,7 +304,7 @@ class DateCourseIntegrationTest {
 
     private Place savePlaceForMember(Long memberId, String suffix, Instant now) {
         Place place = placeRepository.save(place(suffix, now));
-        memberPlaceRepository.save(MemberPlace.save(memberId, place, null, null, null, now));
+        memberPlaceRepository.save(MemberPlace.save(memberId, place, null, null, now));
         return place;
     }
 
@@ -337,6 +325,11 @@ class DateCourseIntegrationTest {
 
     private String bearer(TestMember member) {
         return "Bearer " + member.tokens().accessToken();
+    }
+
+    private Long readLongFromJson(MvcResult result, String jsonPath) throws Exception {
+        Number value = JsonPath.read(result.getResponse().getContentAsString(), jsonPath);
+        return value.longValue();
     }
 
     private record CoupleFixture(TestMember first, TestMember second) {

@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.date.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -61,13 +62,14 @@ public class DateCourseController {
     @GetMapping("/places")
     public ResponseEntity<DateCoursePlacePoolResponse> getPlacePool(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "지역 필터(예: 성동구, 강남구)")
-            @RequestParam(required = false) String region,
+            @Parameter(description = "지역 필터(예: 성동구, 강남구)", example = "성동구")
+            @RequestParam(required = false) @Schema(example = "성동구") String region,
             @Parameter(
                     description = "일반 카테고리 필터(RESTAURANT, CAFE, ENTERTAINMENT, "
-                            + "SHOPPING, CONVENIENCE, TOURISM, ACCOMMODATION)"
+                            + "SHOPPING, CONVENIENCE, TOURISM, ACCOMMODATION)",
+                    example = "CAFE"
             )
-            @RequestParam(required = false) DulpickPlaceCategory category
+            @RequestParam(required = false) @Schema(example = "CAFE") DulpickPlaceCategory category
     ) {
         return ResponseEntity.ok(DateCoursePlacePoolResponse.from(
                 dateCourseQueryService.getCoupleSavedPlacePool(memberId(jwt), region, category)
@@ -99,7 +101,8 @@ public class DateCourseController {
     @PutMapping("/{dateCourseId}")
     public ResponseEntity<DateCourseResponse> save(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable Long dateCourseId,
+            @Parameter(description = "데이트 코스 ID", required = true, example = "1001")
+            @PathVariable @Schema(example = "1001") Long dateCourseId,
             @Valid @RequestBody SaveDateCourseRequest request
     ) {
         return ResponseEntity.ok(DateCourseResponse.from(
@@ -114,7 +117,8 @@ public class DateCourseController {
     @GetMapping("/{dateCourseId}")
     public ResponseEntity<DateCourseResponse> get(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable Long dateCourseId
+            @Parameter(description = "데이트 코스 ID", required = true, example = "1001")
+            @PathVariable @Schema(example = "1001") Long dateCourseId
     ) {
         return ResponseEntity.ok(DateCourseResponse.from(
                 dateCourseQueryService.getDateCourse(memberId(jwt), dateCourseId)
@@ -141,7 +145,8 @@ public class DateCourseController {
     @GetMapping("/past")
     public ResponseEntity<List<DateCourseSummaryResponse>> past(
             @AuthenticationPrincipal Jwt jwt,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size
+            @Parameter(description = "조회할 지난 데이트 수(기본값 20, 최소 1, 최대 50)", example = "20")
+            @RequestParam(defaultValue = "20") @Schema(example = "20") @Min(1) @Max(50) int size
     ) {
         return ResponseEntity.ok(dateCourseQueryService.getPastConfirmed(memberId(jwt), size)
                 .stream()
