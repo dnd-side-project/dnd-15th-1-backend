@@ -281,6 +281,6 @@ public class SwaggerConfig {
         if (normalizedName.contains("cursor")) {
             return "next-cursor-token";
         }
-        return "예시 값";
+        return null;
     }
 }

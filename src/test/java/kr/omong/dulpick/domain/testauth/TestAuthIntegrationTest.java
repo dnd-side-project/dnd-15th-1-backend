@@ -333,7 +333,7 @@ class TestAuthIntegrationTest {
                     .containsKey("example");
             assertThat(schema.get("example"))
                     .as("Swagger placeholder example: %s", path)
-                    .isNotEqualTo("string");
+                    .isNotIn("string", "예시 값");
         }
         Object itemsValue = schema.get("items");
         if (itemsValue instanceof Map<?, ?> items) {
