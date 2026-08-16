@@ -44,19 +44,19 @@ public class MemberProfile {
     private byte profileIcon;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "indoor_outdoor", nullable = false, length = 20)
+    @Column(name = "indoor_outdoor", length = 20)
     private DatePreferenceOption indoorOutdoor;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "activity_level", nullable = false, length = 20)
+    @Column(name = "activity_level", length = 20)
     private DatePreferenceOption activityLevel;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "date_time", nullable = false, length = 20)
+    @Column(name = "date_time", length = 20)
     private DatePreferenceOption dateTime;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "date_focus", nullable = false, length = 20)
+    @Column(name = "date_focus", length = 20)
     private DatePreferenceOption dateFocus;
 
     @Column(name = "created_at", nullable = false)
@@ -116,6 +116,13 @@ public class MemberProfile {
 
     public void updateDatePreferences(DatePreferences preferences, Instant updatedAt) {
         validateMemberActive();
+        if (preferences == null) {
+            throw new InvalidMemberProfileException(
+                    "datePreferences",
+                    "REQUIRED",
+                    "데이트 성향 네 가지를 모두 입력해야 합니다"
+            );
+        }
         updatePreferences(preferences);
         this.updatedAt = requireUpdatedAt(updatedAt);
     }
@@ -133,6 +140,12 @@ public class MemberProfile {
     }
 
     public DatePreferences getDatePreferences() {
+        if (indoorOutdoor == null
+                && activityLevel == null
+                && dateTime == null
+                && dateFocus == null) {
+            return null;
+        }
         return new DatePreferences(indoorOutdoor, activityLevel, dateTime, dateFocus);
     }
 
@@ -142,11 +155,11 @@ public class MemberProfile {
 
     private void updatePreferences(DatePreferences preferences) {
         if (preferences == null) {
-            throw new InvalidMemberProfileException(
-                    "datePreferences",
-                    "REQUIRED",
-                    "데이트 성향을 입력해야 합니다"
-            );
+            indoorOutdoor = null;
+            activityLevel = null;
+            dateTime = null;
+            dateFocus = null;
+            return;
         }
         indoorOutdoor = preferences.indoorOutdoor();
         activityLevel = preferences.activityLevel();

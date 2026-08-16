@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotNull;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 
+@Schema(description = "데이트 성향 수정 요청. 네 필드를 모두 입력해야 하며 각 필드는 해당 항목의 허용값만 사용할 수 있습니다.")
 public record DatePreferencesRequest(
         @NotNull
         @Schema(

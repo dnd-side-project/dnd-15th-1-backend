@@ -13,7 +13,7 @@ public record ConnectionCodeResponse(
                 example = "ABCDE"
         )
         String code,
-        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL")
+        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL", example = "https://dulpick.omong.kr/connect?code=ABCDE")
         String shareUrl
 ) {
 
