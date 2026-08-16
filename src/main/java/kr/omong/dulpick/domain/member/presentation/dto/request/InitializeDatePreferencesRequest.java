@@ -41,12 +41,21 @@ public record InitializeDatePreferencesRequest(
         if (allUnset()) {
             return null;
         }
-        return new DatePreferences(
-                parse(indoorOutdoor, "indoorOutdoor"),
-                parse(activityLevel, "activityLevel"),
-                parse(dateTime, "dateTime"),
-                parse(dateFocus, "dateFocus")
-        );
+        try {
+            return new DatePreferences(
+                    parse(indoorOutdoor, "indoorOutdoor"),
+                    parse(activityLevel, "activityLevel"),
+                    parse(dateTime, "dateTime"),
+                    parse(dateFocus, "dateFocus")
+            );
+        } catch (InvalidMemberProfileException exception) {
+            var fieldError = exception.getFieldErrors().getFirst();
+            throw new InvalidMemberProfileException(
+                    "datePreferences." + fieldError.field(),
+                    fieldError.reason(),
+                    fieldError.message()
+            );
+        }
     }
 
     private boolean allUnset() {

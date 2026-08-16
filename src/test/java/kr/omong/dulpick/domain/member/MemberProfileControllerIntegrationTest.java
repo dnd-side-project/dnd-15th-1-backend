@@ -177,7 +177,7 @@ class MemberProfileControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.fieldErrors[0].field")
-                        .value("dateFocus"))
+                        .value("datePreferences.dateFocus"))
                 .andExpect(jsonPath("$.fieldErrors[0].reason")
                         .value("INVALID_DATE_PREFERENCE"));
     }
@@ -203,7 +203,8 @@ class MemberProfileControllerIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("indoorOutdoor"))
+                .andExpect(jsonPath("$.fieldErrors[0].field")
+                        .value("datePreferences.indoorOutdoor"))
                 .andExpect(jsonPath("$.fieldErrors[0].reason")
                         .value("INVALID_DATE_PREFERENCE"));
 
