@@ -15,6 +15,9 @@ import java.util.List;
 public class SwaggerConfig {
 
     private static final String NONCE_PATH = "/api/v1/auth/nonce";
+    private static final String ERROR_RESPONSE_SCHEMA = "#/components/schemas/ErrorResponse";
+    private static final String WILDCARD_MEDIA_TYPE = "*/*";
+    private static final String JSON_MEDIA_TYPE = "application/json";
 
     @Bean
     public OpenAPI dulpickOpenApi() {
@@ -49,6 +52,32 @@ public class SwaggerConfig {
                 }
             });
             openApi.setPaths(orderedPaths);
+        };
+    }
+
+    @Bean
+    public OpenApiCustomizer errorResponseMediaTypeCustomizer() {
+        return openApi -> {
+            if (openApi.getPaths() == null) {
+                return;
+            }
+            openApi.getPaths().values().stream()
+                    .flatMap(pathItem -> pathItem.readOperations().stream())
+                    .flatMap(operation -> operation.getResponses().values().stream())
+                    .forEach(apiResponse -> {
+                        if (apiResponse.getContent() == null) {
+                            return;
+                        }
+                        io.swagger.v3.oas.models.media.MediaType wildcardContent =
+                                apiResponse.getContent().get(WILDCARD_MEDIA_TYPE);
+                        if (wildcardContent == null
+                                || wildcardContent.getSchema() == null
+                                || !ERROR_RESPONSE_SCHEMA.equals(wildcardContent.getSchema().get$ref())) {
+                            return;
+                        }
+                        apiResponse.getContent().remove(WILDCARD_MEDIA_TYPE);
+                        apiResponse.getContent().addMediaType(JSON_MEDIA_TYPE, wildcardContent);
+                    });
         };
     }
 }
