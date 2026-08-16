@@ -52,7 +52,7 @@ public class PublicContentController {
     @GetMapping("/{contentId}")
     public ResponseEntity<PublicContentResponse> findPublicContent(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "모든 사용자가 공유하는 공개 게시물 ID", required = true, example = "1001")
+            @Parameter(description = "모든 사용자가 공유하는 공개 게시물 ID", required = true, example = "2001")
             @PathVariable @Schema(example = "2001") Long contentId
     ) {
         return ResponseEntity.ok(PublicContentResponse.from(

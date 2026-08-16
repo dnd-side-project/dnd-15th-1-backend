@@ -13,7 +13,7 @@ public record SocialLoginResponse(
         )
         boolean newMember,
         @Schema(
-                description = "프로필과 데이트 성향을 포함한 최초 온보딩 완료 여부. 로그인 후 화면 분기에 사용합니다.",
+                description = "닉네임과 프로필 아이콘 설정 완료 여부. 데이트 성향을 설정하지 않아도 true일 수 있으며, 로그인 후 화면 분기에 사용합니다.",
                 example = "false",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
