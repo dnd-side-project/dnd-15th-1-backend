@@ -134,6 +134,21 @@ class CoupleConnectionIntegrationTest {
     }
 
     @Test
+    void connectsMembersBeforeDatePreferencesAreSet() throws Exception {
+        TestMember inviter = createProfileMember("성향전", 1, null);
+        TestMember requester = createProfileMember("성향후", 2, null);
+
+        mockMvc.perform(post("/api/v1/couples")
+                        .header("Authorization", bearer(requester))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(connectionRequest(inviter.connectionCode())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.connected").value(true))
+                .andExpect(jsonPath("$.partner.nickname").value("성향전"))
+                .andExpect(jsonPath("$.partner.profileIcon").value(1));
+    }
+
+    @Test
     void returnsDisconnectedStatusWithOnlyMyProfile() throws Exception {
         TestMember member = createProfileMember("미연결", 2);
 
@@ -322,6 +337,14 @@ class CoupleConnectionIntegrationTest {
     }
 
     private TestMember createProfileMember(String nickname, int profileIcon) {
+        return createProfileMember(nickname, profileIcon, PREFERENCES);
+    }
+
+    private TestMember createProfileMember(
+            String nickname,
+            int profileIcon,
+            DatePreferences preferences
+    ) {
         String subject = "couple-" + UUID.randomUUID();
         Member member = socialAccountService.getOrCreate(
                 SocialProvider.KAKAO,
@@ -332,7 +355,7 @@ class CoupleConnectionIntegrationTest {
         IssuedTokens tokens = tokenService.issue(member);
         String code = memberCommandService.initializeProfile(
                 member.getId(),
-                new InitializeMemberProfileCommand(nickname, profileIcon, PREFERENCES)
+                new InitializeMemberProfileCommand(nickname, profileIcon, preferences)
         ).connectionCode().code();
         return new TestMember(member, tokens, code, subject);
     }
