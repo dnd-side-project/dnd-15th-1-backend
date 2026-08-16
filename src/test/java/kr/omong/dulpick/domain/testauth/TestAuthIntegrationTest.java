@@ -276,6 +276,26 @@ class TestAuthIntegrationTest {
     }
 
     @Test
+    void exposesExplicitResponsesForDocumentedEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/auth/nonce'].post.responses['400'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/feedbacks'].post.responses['201'].content['application/json'].schema['$ref']")
+                        .value("#/components/schemas/FeedbackResponse"))
+                .andExpect(jsonPath("$.paths['/api/v1/notifications'].get.responses['401'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/members/me/notification-settings'].put.responses['409'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/push-devices/{deviceId}'].put.responses['503'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/connection-codes/me'].get.responses['409'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/contents/{contentId}'].get.responses['404'].content['application/json']")
+                        .exists());
+    }
+
+    @Test
     void exposesExamplesForEveryPrimitiveSwaggerProperty() throws Exception {
         String apiDocs = mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
