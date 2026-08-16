@@ -125,7 +125,6 @@ class PlaceStorageIntegrationTest {
                 duplicate,
                 null,
                 null,
-                null,
                 NOW
         ));
         entityManager.flush();
@@ -134,8 +133,8 @@ class PlaceStorageIntegrationTest {
                 member.getId(),
                 placeImport.getId(),
                 List.of(
-                        new PlaceCommandService.PlaceSelection(firstCandidate.getId(), null, null),
-                        new PlaceCommandService.PlaceSelection(duplicateCandidate.getId(), null, null)
+                        new PlaceCommandService.PlaceSelection(firstCandidate.getId(), null),
+                        new PlaceCommandService.PlaceSelection(duplicateCandidate.getId(), null)
                 )
         )).isInstanceOf(PlaceAlreadySavedException.class);
 
@@ -164,11 +163,7 @@ class PlaceStorageIntegrationTest {
         assertThatThrownBy(() -> commandService.confirm(
                 member.getId(),
                 requestedImport.getId(),
-                List.of(new PlaceCommandService.PlaceSelection(
-                        otherCandidate.getId(),
-                        null,
-                        null
-                ))
+                List.of(new PlaceCommandService.PlaceSelection(otherCandidate.getId(), null))
         )).isInstanceOf(InvalidPlaceCandidateException.class);
 
         assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))

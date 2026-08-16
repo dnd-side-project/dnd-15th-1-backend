@@ -11,20 +11,28 @@ import java.util.List;
 public record PlaceConfirmRequest(
         @NotEmpty
         @Size(max = 20)
-        @Schema(description = "저장할 검증 완료 장소 후보 목록")
+        @Schema(
+                description = "필수 입력. 저장할 검증 완료 장소 후보 목록입니다. 최소 1개, 최대 20개를 선택할 수 있습니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
         List<@Valid Selection> selections
 ) {
 
     public record Selection(
             @NotNull
-            @Schema(description = "URL 경로의 importId에 속한 장소 후보 ID")
+            @Schema(
+                    description = "필수 입력. URL 경로의 importId에 속한 검증 완료 후보 ID입니다.",
+                    requiredMode = Schema.RequiredMode.REQUIRED,
+                    example = "101"
+            )
             Long candidateId,
             @Size(max = 100)
-            @Schema(description = "현재 회원과 연결된 상대방에게 보일 장소 별칭")
-            String alias,
-            @Size(max = 1_000)
-            @Schema(description = "장소 메모")
-            String memo
+            @Schema(
+                    description = "선택 입력. 현재 회원과 연결된 상대방에게 보일 장소 별칭입니다. 생략하거나 null이면 별칭 없이 저장합니다.",
+                    nullable = true,
+                    requiredMode = Schema.RequiredMode.NOT_REQUIRED
+            )
+            String alias
     ) {
     }
 }

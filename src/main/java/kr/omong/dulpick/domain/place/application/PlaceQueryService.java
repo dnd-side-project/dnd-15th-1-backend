@@ -72,7 +72,6 @@ public class PlaceQueryService {
                 selected.getPlace().getCategoryName(),
                 ownershipStatus(memberId, places),
                 selected.getAlias(),
-                selected.getMemo(),
                 selected.getSavedAt(),
                 selected.getPlace().getThumbnailUrl(),
                 selected.getPlace().getImageUrls()

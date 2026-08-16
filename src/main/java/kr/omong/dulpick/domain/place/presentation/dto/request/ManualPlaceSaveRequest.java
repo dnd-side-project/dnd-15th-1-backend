@@ -7,17 +7,26 @@ import jakarta.validation.constraints.Size;
 public record ManualPlaceSaveRequest(
         @NotBlank
         @Size(min = 1, max = 80)
-        @Schema(description = "Kakao 검색 결과의 장소 ID")
+        @Schema(
+                description = "필수 입력. Kakao 검색 결과의 장소 ID입니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                example = "18699959"
+        )
         String kakaoPlaceId,
         @NotBlank
         @Size(min = 1, max = 200)
-        @Schema(description = "Kakao 검색에 사용한 검색어")
+        @Schema(
+                description = "필수 입력. Kakao 장소를 확인하기 위해 사용한 검색어입니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED,
+                example = "성수동 카페"
+        )
         String query,
         @Size(max = 100)
-        @Schema(description = "연결된 상대방에게 보일 별칭")
-        String alias,
-        @Size(max = 1_000)
-        @Schema(description = "장소 메모")
-        String memo
+        @Schema(
+                description = "선택 입력. 연결된 상대방에게 보일 장소 별칭입니다. 생략하거나 null이면 별칭 없이 저장합니다.",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        String alias
 ) {
 }

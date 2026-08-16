@@ -12,18 +12,27 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record PublicContentResponse(
-        @Schema(description = "모든 사용자가 공유하는 공개 게시물 ID")
+        @Schema(description = "모든 사용자가 공유하는 공개 게시물 ID입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         Long contentId,
-        @Schema(description = "추적 파라미터를 제거한 정규화 게시물 링크")
+        @Schema(description = "추적 파라미터를 제거한 정규화 게시물 링크입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         String canonicalUrl,
+        @Schema(description = "공개 게시물의 원본 콘텐츠 유형입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         ContentSourceType sourceType,
+        @Schema(description = "게시물 작성자 정보. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         AuthorResponse author,
+        @Schema(description = "게시물 게시일. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         LocalDate publishedOn,
+        @Schema(description = "게시물 좋아요·댓글 집계 정보. 확인할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         EngagementResponse engagement,
+        @Schema(description = "게시물 제목. 원본에 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String title,
+        @Schema(description = "게시물 본문 또는 캡션. 원본에 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String caption,
+        @Schema(description = "게시물 대표 이미지 URL. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String thumbnailUrl,
+        @Schema(description = "공개 게시물에 연결된 장소 수", requiredMode = Schema.RequiredMode.REQUIRED)
         int placeCount,
+        @Schema(description = "게시물에 연결된 장소 목록입니다. 장소가 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<PublicPlaceResponse> places
 ) {
 
@@ -43,7 +52,12 @@ public record PublicContentResponse(
         );
     }
 
-    public record AuthorResponse(String displayName, String username) {
+    public record AuthorResponse(
+            @Schema(description = "작성자에게 표시되는 이름. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            String displayName,
+            @Schema(description = "작성자 사용자명. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+            String username
+    ) {
 
         private static AuthorResponse from(PublicContentView.ContentAuthorView view) {
             return view == null ? null : new AuthorResponse(view.displayName(), view.username());
@@ -51,8 +65,11 @@ public record PublicContentResponse(
     }
 
     public record EngagementResponse(
+            @Schema(description = "좋아요 수. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             Long likeCount,
+            @Schema(description = "댓글 수. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             Long commentCount,
+            @Schema(description = "반응 수를 확인한 시각. 집계할 수 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             LocalDateTime checkedAt
     ) {
 
@@ -69,23 +86,33 @@ public record PublicContentResponse(
     }
 
     public record PublicPlaceResponse(
-            @Schema(description = "모든 콘텐츠와 회원 저장 목록이 공유하는 정규화 장소 ID")
+            @Schema(description = "모든 콘텐츠와 회원 저장 목록이 공유하는 정규화 장소 ID입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
             Long placeId,
+            @Schema(description = "Kakao 장소 검색 결과의 고유 ID", requiredMode = Schema.RequiredMode.REQUIRED)
             String kakaoPlaceId,
+            @Schema(description = "Kakao에서 확인한 장소명", requiredMode = Schema.RequiredMode.REQUIRED)
             String name,
+            @Schema(description = "Kakao 지번 주소", requiredMode = Schema.RequiredMode.REQUIRED)
             String address,
+            @Schema(description = "Kakao 도로명 주소. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String roadAddress,
+            @Schema(description = "WGS84 기준 위도. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             BigDecimal latitude,
+            @Schema(description = "WGS84 기준 경도. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             BigDecimal longitude,
-            @Schema(description = "Kakao가 제공한 원본 카테고리 경로")
+            @Schema(description = "Kakao가 제공한 원본 카테고리 경로. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String category,
-            @Schema(description = "둘픽 장소 분류", allowableValues = {
-                    "맛집", "카페", "놀거리", "쇼핑", "생활 편의", "관광", "숙박"
-            })
+            @Schema(
+                    description = "둘픽 화면에서 사용하는 장소 분류입니다.",
+                    allowableValues = {"맛집", "카페", "놀거리", "쇼핑", "생활 편의", "관광", "숙박"},
+                    requiredMode = Schema.RequiredMode.REQUIRED
+            )
             String categoryName,
-            @Schema(description = "현재 회원이 이미 저장한 장소이면 true")
+            @Schema(description = "현재 회원이 이미 저장한 장소이면 true입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
             boolean savedByMe,
+            @Schema(description = "대표 장소 이미지 URL. 없으면 null입니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
             String thumbnailUrl,
+            @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
             List<String> imageUrls
     ) {
 

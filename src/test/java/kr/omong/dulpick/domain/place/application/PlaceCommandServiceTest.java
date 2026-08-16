@@ -81,7 +81,7 @@ class PlaceCommandServiceTest {
         PlaceConfirmationView result = service.confirm(
                 1L,
                 10L,
-                List.of(new PlaceCommandService.PlaceSelection(100L, null, null))
+                List.of(new PlaceCommandService.PlaceSelection(100L, null))
         );
 
         assertThat(result.importId()).isEqualTo(10L);
@@ -134,7 +134,7 @@ class PlaceCommandServiceTest {
         assertThatThrownBy(() -> service.confirm(
                 1L,
                 10L,
-                List.of(new PlaceCommandService.PlaceSelection(100L, null, null))
+                List.of(new PlaceCommandService.PlaceSelection(100L, null))
         )).isInstanceOf(PlaceAlreadySavedException.class);
     }
 
@@ -150,8 +150,8 @@ class PlaceCommandServiceTest {
                 1L,
                 10L,
                 List.of(
-                        new PlaceCommandService.PlaceSelection(100L, null, null),
-                        new PlaceCommandService.PlaceSelection(101L, null, null)
+                        new PlaceCommandService.PlaceSelection(100L, null),
+                        new PlaceCommandService.PlaceSelection(101L, null)
                 )
         )).isInstanceOf(InvalidPlaceCandidateException.class);
 
@@ -168,7 +168,7 @@ class PlaceCommandServiceTest {
         assertThatThrownBy(() -> fixture.service.confirm(
                 1L,
                 10L,
-                List.of(new PlaceCommandService.PlaceSelection(100L, null, null))
+                List.of(new PlaceCommandService.PlaceSelection(100L, null))
         )).isInstanceOf(InvalidPlaceCandidateException.class);
 
         verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
@@ -194,8 +194,8 @@ class PlaceCommandServiceTest {
                 1L,
                 10L,
                 List.of(
-                        new PlaceCommandService.PlaceSelection(100L, null, null),
-                        new PlaceCommandService.PlaceSelection(101L, null, null)
+                        new PlaceCommandService.PlaceSelection(100L, null),
+                        new PlaceCommandService.PlaceSelection(101L, null)
                 )
         )).isInstanceOf(PlaceAlreadySavedException.class);
 

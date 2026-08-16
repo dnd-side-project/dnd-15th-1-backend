@@ -10,10 +10,11 @@ public record ConnectionCodeResponse(
                 pattern = ConnectionCodeFormat.NORMALIZED_PATTERN,
                 minLength = ConnectionCodeFormat.LENGTH,
                 maxLength = ConnectionCodeFormat.LENGTH,
-                example = "ABCDE"
+                example = "ABCDE",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         String code,
-        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL", example = "https://dulpick.omong.kr/connect?code=ABCDE")
+        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL", example = "https://dulpick.omong.kr/connect?code=ABCDE", requiredMode = Schema.RequiredMode.REQUIRED)
         String shareUrl
 ) {
 

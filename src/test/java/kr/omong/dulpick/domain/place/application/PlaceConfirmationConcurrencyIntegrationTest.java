@@ -166,7 +166,7 @@ class PlaceConfirmationConcurrencyIntegrationTest {
                 return commandService.confirm(
                         memberId,
                         importId,
-                        List.of(new PlaceCommandService.PlaceSelection(candidateId, null, null))
+                        List.of(new PlaceCommandService.PlaceSelection(candidateId, null))
                 );
             } catch (PlaceAlreadySavedException exception) {
                 return exception;

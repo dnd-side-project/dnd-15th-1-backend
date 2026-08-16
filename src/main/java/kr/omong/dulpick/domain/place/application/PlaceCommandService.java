@@ -71,8 +71,7 @@ public class PlaceCommandService {
     public MemberPlaceView saveManual(
             Long memberId,
             PlaceSearchResult searchResult,
-            String alias,
-            String memo
+            String alias
     ) {
         Member member = memberRepository.findForUpdateById(memberId)
                 .orElseThrow(MemberNotFoundException::new);
@@ -105,7 +104,6 @@ public class PlaceCommandService {
                             place,
                             null,
                             alias,
-                            memo,
                             now
                     ));
                     publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
@@ -180,7 +178,6 @@ public class PlaceCommandService {
                 place,
                 importId,
                 selection.alias(),
-                selection.memo(),
                 now
         ));
         publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
@@ -273,7 +270,6 @@ public class PlaceCommandService {
                 place.getCategoryName(),
                 ownershipStatus,
                 saved.getAlias(),
-                saved.getMemo(),
                 saved.getSavedAt(),
                 place.getThumbnailUrl(),
                 place.getImageUrls()
@@ -327,8 +323,7 @@ public class PlaceCommandService {
 
     public record PlaceSelection(
             Long candidateId,
-            String alias,
-            String memo
+            String alias
     ) {
     }
 }
