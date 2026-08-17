@@ -9,7 +9,7 @@ import kr.omong.dulpick.domain.couple.application.query.CoupleQueryService;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.lang.reflect.Method;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,11 +18,12 @@ class CoupleControllerStructureTest {
 
     @Test
     void dependsOnlyOnCoupleApplicationFacades() {
-        assertThat(CoupleController.class.getDeclaredFields())
-                .extracting(Field::getType)
+        assertThat(Arrays.stream(CoupleController.class.getDeclaredFields())
+                .map(field -> field.getType().getName())
+                .toList())
                 .containsExactlyInAnyOrder(
-                        CoupleCommandService.class,
-                        CoupleQueryService.class
+                        CoupleCommandService.class.getName(),
+                        CoupleQueryService.class.getName()
                 );
     }
 

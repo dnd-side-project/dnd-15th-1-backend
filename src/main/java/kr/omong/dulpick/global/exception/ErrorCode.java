@@ -72,6 +72,18 @@ public enum ErrorCode {
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
     PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
 
+    // 데이트 코스
+    DATE_COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "데이트 코스를 찾을 수 없습니다"),
+    DATE_COURSE_CONFLICT(HttpStatus.CONFLICT, "다른 수정 요청으로 데이트 코스가 변경되었습니다"),
+    DATE_COURSE_PLACE_NOT_SAVED(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "커플이 저장한 장소만 데이트 코스에 추가할 수 있습니다"
+    ),
+    DATE_COURSE_PLACE_REQUIRED(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "데이트 코스를 확정하려면 최소 한 곳의 장소가 필요합니다"
+    ),
+
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),
     INVALID_CONNECTION_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 연결 코드입니다"),
