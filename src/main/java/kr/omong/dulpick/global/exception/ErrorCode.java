@@ -71,6 +71,10 @@ public enum ErrorCode {
     PLACE_CANDIDATE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "저장할 장소 후보가 올바르지 않습니다"),
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
     PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
+    REGION_TAG_NOT_FOUND(HttpStatus.NOT_FOUND, "지역 태그를 찾을 수 없습니다"),
+
+    // 검색
+    RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),
 
     // 데이트 코스
     DATE_COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "데이트 코스를 찾을 수 없습니다"),
