@@ -23,6 +23,12 @@ public record MemberPlaceResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         Long placeId,
+        @Schema(
+                description = "Kakao 장소 고유 ID. 검색·상세 API 연계에 사용합니다.",
+                example = "18699959",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        String kakaoPlaceId,
         @Schema(description = "Kakao에서 확인한 장소명", example = "서울숲 카페", requiredMode = Schema.RequiredMode.REQUIRED)
         String name,
         @Schema(description = "Kakao 지번 주소", example = "서울특별시 성동구 성수동1가 685-700", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -43,7 +49,7 @@ public record MemberPlaceResponse(
         )
         String categoryName,
         @Schema(
-                description = "현재 회원과 연결된 상대방의 저장 관계입니다. MINE은 나만 저장, PARTNER는 상대방만 저장, TOGETHER는 둘 다 저장한 장소를 의미합니다.",
+                description = "현재 회원과 연결된 상대방의 저장 관계입니다. MINE은 나만 저장, PARTNER는 상대방만 저장, TOGETHER는 커플 중 한 명 이상이 저장한 장소를 의미합니다.",
                 allowableValues = {"MINE", "PARTNER", "TOGETHER"},
                 example = "MINE",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -69,6 +75,7 @@ public record MemberPlaceResponse(
         return new MemberPlaceResponse(
                 view.memberId(),
                 view.placeId(),
+                view.kakaoPlaceId(),
                 view.name(),
                 view.address(),
                 view.roadAddress(),

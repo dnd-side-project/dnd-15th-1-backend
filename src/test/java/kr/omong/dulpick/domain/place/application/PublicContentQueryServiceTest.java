@@ -9,6 +9,8 @@ import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceClassificationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.PageImpl;
@@ -30,11 +32,14 @@ class PublicContentQueryServiceTest {
     private final ContentRepository contentRepository = mock(ContentRepository.class);
     private final ContentPlaceRepository contentPlaceRepository = mock(ContentPlaceRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
+    private final PlaceClassificationRepository placeClassificationRepository =
+            mock(PlaceClassificationRepository.class);
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final PublicContentQueryService service = new PublicContentQueryService(
             contentRepository,
             contentPlaceRepository,
             placeRepository,
+            placeClassificationRepository,
             memberPlaceRepository
     );
 
@@ -52,6 +57,7 @@ class PublicContentQueryServiceTest {
         when(relation.getContentId()).thenReturn(10L);
         when(relation.getPlaceId()).thenReturn(20L);
         when(placeRepository.findAllById(List.of(20L))).thenReturn(List.of(place));
+        when(placeClassificationRepository.findAllById(List.of(20L))).thenReturn(List.of());
         MemberPlace memberPlace = mock(MemberPlace.class);
         when(memberPlace.getPlace()).thenReturn(place);
         when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(1L, List.of(20L)))
@@ -65,6 +71,8 @@ class PublicContentQueryServiceTest {
             assertThat(publicPlace.kakaoPlaceId()).isEqualTo("kakao-place-id");
             assertThat(publicPlace.name()).isEqualTo("밀빛 망원점");
             assertThat(publicPlace.savedByMe()).isTrue();
+            assertThat(publicPlace.dateTraits().status())
+                    .isEqualTo(PlaceClassificationStatus.UNCLASSIFIED);
         });
     }
 
@@ -88,6 +96,31 @@ class PublicContentQueryServiceTest {
 
         verify(contentRepository).findAllByPublicationStatus(
                 ContentPublicationStatus.PUBLIC,
+                expectedPage
+        );
+    }
+
+    @Test
+    void searchesOnlyPublicContentTitleAndBodyWithStablePaging() {
+        Content content = content(10L);
+        PageRequest expectedPage = PageRequest.of(0, 20);
+        when(contentRepository.searchByPublicationStatusAndKeyword(
+                ContentPublicationStatus.PUBLIC.name(),
+                "+서울 +데이트",
+                expectedPage
+        )).thenReturn(new PageImpl<>(List.of(content), expectedPage, 1));
+        when(contentPlaceRepository.findAllByContentIdIn(List.of(10L))).thenReturn(List.of());
+        when(placeRepository.findAllById(List.of())).thenReturn(List.of());
+
+        service.searchPublicContents(
+                1L,
+                "  서울 데이트  ",
+                PageRequest.of(0, 20, Sort.by("title"))
+        );
+
+        verify(contentRepository).searchByPublicationStatusAndKeyword(
+                ContentPublicationStatus.PUBLIC.name(),
+                "+서울 +데이트",
                 expectedPage
         );
     }

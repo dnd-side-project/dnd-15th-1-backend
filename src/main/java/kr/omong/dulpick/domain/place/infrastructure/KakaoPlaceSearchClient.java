@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
+import kr.omong.dulpick.domain.place.application.PlaceKeywordSearch;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
 import kr.omong.dulpick.domain.place.application.PlaceSearcher;
 import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
@@ -18,6 +19,9 @@ import java.util.Map;
 
 @Component
 public class KakaoPlaceSearchClient implements PlaceSearcher {
+
+    static final int SEARCH_SIZE = 10;
+    private static final int MAX_PAGE = 45;
 
     private final KakaoProperties properties;
     private final RestClient restClient;
@@ -40,31 +44,52 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public List<PlaceSearchResult> search(String query) {
+        return search(query, FIRST_PAGE).results();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public PlaceKeywordSearch search(String query, int page) {
         if (!properties.enabled()
                 || properties.restApiKey() == null
                 || properties.restApiKey().isBlank()) {
             throw new PlaceVerificationUnavailableException();
         }
+        int kakaoPage = Math.clamp(page, FIRST_PAGE, MAX_PAGE);
         try {
             Map<String, Object> response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
                             .path("/v2/local/search/keyword.json")
                             .queryParam("query", query)
-                            .queryParam("size", 5)
+                            .queryParam("size", SEARCH_SIZE)
+                            .queryParam("page", kakaoPage)
                             .build())
                     .header(HttpHeaders.AUTHORIZATION, "KakaoAK " + properties.restApiKey())
                     .retrieve()
                     .body(Map.class);
-            List<Map<String, Object>> documents = (List<Map<String, Object>>) response.get("documents");
-            if (documents == null) {
-                return List.of();
+            if (response == null) {
+                return new PlaceKeywordSearch(List.of(), true);
             }
-            return documents.stream().map(this::toSearchResult).toList();
+            List<Map<String, Object>> documents = (List<Map<String, Object>>) response.get("documents");
+            List<PlaceSearchResult> results = documents == null
+                    ? List.of()
+                    : documents.stream().map(this::toSearchResult).toList();
+            return new PlaceKeywordSearch(results, isLastPage(response, results.size()));
         } catch (RestClientException exception) {
             throw new PlaceVerificationUnavailableException(exception);
         }
+    }
+
+    private boolean isLastPage(Map<String, Object> response, int resultCount) {
+        Object metaValue = response.get("meta");
+        if (metaValue instanceof Map<?, ?> meta) {
+            Object isEnd = meta.get("is_end");
+            if (isEnd instanceof Boolean lastPage) {
+                return lastPage;
+            }
+        }
+        return resultCount < SEARCH_SIZE;
     }
 
     private PlaceSearchResult toSearchResult(Map<String, Object> document) {
@@ -77,6 +102,8 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
                 decimal(document, "x"),
                 text(document, "category_group_code"),
                 text(document, "category_name"),
+                optionalText(document, "phone"),
+                optionalText(document, "place_url"),
                 null
         );
     }
@@ -84,6 +111,11 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
     private String text(Map<String, Object> document, String key) {
         Object value = document.get(key);
         return value == null ? "" : value.toString();
+    }
+
+    private String optionalText(Map<String, Object> document, String key) {
+        String value = text(document, key);
+        return value.isBlank() ? null : value;
     }
 
     private BigDecimal decimal(Map<String, Object> document, String key) {

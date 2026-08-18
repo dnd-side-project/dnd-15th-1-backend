@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import org.junit.jupiter.api.Test;
@@ -53,7 +54,7 @@ class PlaceQueryServiceTest {
     }
 
     @Test
-    void marksPartnerOnlyPlaceAsPartner() {
+    void marksPartnerOnlyPlaceAsTogetherWhenCoupleIsActive() {
         Place place = place(20L);
         MemberPlace partner = memberPlace(
                 2L,
@@ -66,7 +67,7 @@ class PlaceQueryServiceTest {
                 .thenReturn(List.of(partner));
 
         assertThat(service.getVisiblePlaces(1L)).singleElement().satisfies(saved ->
-                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.PARTNER)
+                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER)
         );
     }
 
@@ -82,6 +83,31 @@ class PlaceQueryServiceTest {
                 assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.MINE)
         );
         verify(memberPlaceRepository).findAllByMemberIdInOrderBySavedAtDesc(List.of(1L));
+    }
+
+    @Test
+    void filtersVisiblePlacesByCategoryAndOwnership() {
+        Place place = place(40L);
+        when(place.getCategoryName()).thenReturn("카페");
+        MemberPlace mine = memberPlace(
+                1L,
+                place,
+                null,
+                Instant.parse("2026-08-10T00:00:00Z")
+        );
+        when(coupleMemberRepository.findByMemberId(1L)).thenReturn(Optional.empty());
+        when(memberPlaceRepository.findAllByMemberIdInOrderBySavedAtDesc(List.of(1L)))
+                .thenReturn(List.of(mine));
+
+        List<MemberPlaceView> result = service.getVisiblePlaces(
+                1L,
+                DulpickPlaceCategory.CAFE,
+                PlaceOwnershipStatus.MINE
+        );
+
+        assertThat(result).singleElement().satisfies(saved ->
+                assertThat(saved.placeId()).isEqualTo(40L)
+        );
     }
 
     private void connectCouple(Long memberId, Long partnerId) {

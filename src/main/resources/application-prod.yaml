@@ -35,6 +35,10 @@ springdoc:
   swagger-ui:
     enabled: true
 
+ops:
+  username: ${OPS_USERNAME}
+  password: ${OPS_PASSWORD}
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}

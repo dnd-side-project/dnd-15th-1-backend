@@ -14,6 +14,10 @@ springdoc:
   swagger-ui:
     enabled: true
 
+ops:
+  username: ${OPS_USERNAME:admin}
+  password: ${OPS_PASSWORD:admin}
+
 monitoring:
   error-alert:
     discord:

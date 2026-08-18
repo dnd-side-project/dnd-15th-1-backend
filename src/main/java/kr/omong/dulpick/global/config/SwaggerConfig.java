@@ -27,14 +27,23 @@ public class SwaggerConfig {
                 .type(SecurityScheme.Type.HTTP)
                 .scheme("bearer")
                 .bearerFormat("JWT");
+        SecurityScheme basicAuth = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("basic");
         return new OpenAPI()
-                .components(new Components().addSecuritySchemes("bearerAuth", bearerAuth))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", bearerAuth)
+                        .addSecuritySchemes("basicAuth", basicAuth))
                 .tags(List.of(
                         new Tag().name(SwaggerTagNames.AUTH),
                         new Tag().name(SwaggerTagNames.MEMBER),
                         new Tag().name(SwaggerTagNames.COUPLE_CONNECTION),
                         new Tag().name(SwaggerTagNames.FEEDBACK),
                         new Tag().name(SwaggerTagNames.NOTIFICATION),
+                        new Tag().name(SwaggerTagNames.SEARCH),
+                        new Tag().name(SwaggerTagNames.PLACE),
+                        new Tag().name(SwaggerTagNames.OPS),
+                        new Tag().name(SwaggerTagNames.DATE),
                         new Tag().name(SwaggerTagNames.SERVER)
                 ));
     }
@@ -99,8 +108,18 @@ public class SwaggerConfig {
                             ? java.util.stream.Stream.empty()
                             : operation.getParameters().stream())
                     .forEach(parameter -> {
-                        if (isMissingExample(parameter.getExample()) && parameter.getSchema() != null) {
-                            parameter.setExample(exampleFor(parameter.getName(), parameter.getSchema()));
+                        if (parameter.getSchema() == null) {
+                            return;
+                        }
+                        Object example = exampleFor(parameter.getName(), parameter.getSchema());
+                        if (example == null) {
+                            return;
+                        }
+                        if (isMissingExample(parameter.getSchema().getExample())) {
+                            parameter.getSchema().setExample(example);
+                        }
+                        if (isMissingExample(parameter.getExample())) {
+                            parameter.setExample(example);
                         }
                     });
         };
@@ -110,7 +129,7 @@ public class SwaggerConfig {
         if (schema == null) {
             return;
         }
-        if (isMissingExample(schema.getExample()) && propertyName != null) {
+        if (isMissingExample(schema.getExample())) {
             Object example = exampleFor(propertyName, schema);
             if (example != null) {
                 schema.setExample(example);
@@ -132,6 +151,9 @@ public class SwaggerConfig {
     private Object exampleFor(String propertyName, Schema<?> schema) {
         if (schema.getEnum() != null && !schema.getEnum().isEmpty()) {
             return schema.getEnum().getFirst();
+        }
+        if (propertyName == null) {
+            return null;
         }
 
         String normalizedName = propertyName.toLowerCase(Locale.ROOT);

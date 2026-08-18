@@ -55,7 +55,7 @@ public class DateCourseController {
             summary = "데이트 코스 장소 선택용 커플 저장 장소 조회",
             description = """
                     현재 커플이 저장한 장소만 조회합니다.
-                    region(지역)과 category(일반 카테고리) 필터를 선택적으로 적용할 수 있습니다.
+                    region 문자열, category(일반 카테고리) 필터를 선택적으로 적용할 수 있습니다.
                     category는 RESTAURANT, CAFE, ENTERTAINMENT, SHOPPING, CONVENIENCE, TOURISM, ACCOMMODATION 값을 사용합니다.
                     """
     )
@@ -72,7 +72,11 @@ public class DateCourseController {
             @RequestParam(required = false) @Schema(example = "CAFE") DulpickPlaceCategory category
     ) {
         return ResponseEntity.ok(DateCoursePlacePoolResponse.from(
-                dateCourseQueryService.getCoupleSavedPlacePool(memberId(jwt), region, category)
+                dateCourseQueryService.getCoupleSavedPlacePool(
+                        memberId(jwt),
+                        region,
+                        category
+                )
         ));
     }
 

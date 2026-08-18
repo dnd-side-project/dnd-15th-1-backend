@@ -12,6 +12,8 @@ public record VerifiedPlace(
         BigDecimal longitude,
         String categoryGroupCode,
         String category,
+        String phone,
+        String kakaoPlaceUrl,
         String thumbnailUrl,
         List<String> imageUrls
 ) {
@@ -49,6 +51,65 @@ public record VerifiedPlace(
                 longitude,
                 categoryGroupCode,
                 category,
+                null,
+                null,
+                thumbnailUrl,
+                List.of()
+        );
+    }
+
+    public VerifiedPlace(
+            String kakaoPlaceId,
+            String name,
+            String address,
+            String roadAddress,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String categoryGroupCode,
+            String category,
+            String thumbnailUrl,
+            List<String> imageUrls
+    ) {
+        this(
+                kakaoPlaceId,
+                name,
+                address,
+                roadAddress,
+                latitude,
+                longitude,
+                categoryGroupCode,
+                category,
+                null,
+                null,
+                thumbnailUrl,
+                imageUrls
+        );
+    }
+
+    public VerifiedPlace(
+            String kakaoPlaceId,
+            String name,
+            String address,
+            String roadAddress,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String categoryGroupCode,
+            String category,
+            String phone,
+            String kakaoPlaceUrl,
+            String thumbnailUrl
+    ) {
+        this(
+                kakaoPlaceId,
+                name,
+                address,
+                roadAddress,
+                latitude,
+                longitude,
+                categoryGroupCode,
+                category,
+                phone,
+                kakaoPlaceUrl,
                 thumbnailUrl,
                 List.of()
         );

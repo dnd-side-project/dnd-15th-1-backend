@@ -78,6 +78,7 @@ public class PlaceCommandService {
         if (!member.isActive()) {
             throw new MemberNotActiveException();
         }
+        Instant now = clock.instant();
         placeRepository.insertIfAbsent(
                 searchResult.kakaoPlaceId(),
                 searchResult.name(),
@@ -87,8 +88,10 @@ public class PlaceCommandService {
                 searchResult.longitude(),
                 searchResult.category(),
                 searchResult.categoryGroupCode(),
+                searchResult.phone(),
+                searchResult.kakaoPlaceUrl(),
                 searchResult.thumbnailUrl(),
-                clock.instant()
+                now
         );
         Place place = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
                 .orElseThrow(PlaceNotFoundException::new);
@@ -96,7 +99,6 @@ public class PlaceCommandService {
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
-        Instant now = clock.instant();
         MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, place.getId())
                 .orElseGet(() -> {
                     MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
@@ -261,6 +263,7 @@ public class PlaceCommandService {
         return new MemberPlaceView(
                 saved.getMemberId(),
                 place.getId(),
+                place.getKakaoPlaceId(),
                 place.getName(),
                 place.getAddress(),
                 place.getRoadAddress(),
@@ -316,9 +319,10 @@ public class PlaceCommandService {
         if (partnerId == null) {
             return PlaceOwnershipStatus.MINE;
         }
-        return memberPlaceRepository.findByMemberIdAndPlaceId(partnerId, placeId).isPresent()
-                ? PlaceOwnershipStatus.TOGETHER
-                : PlaceOwnershipStatus.MINE;
+        boolean savedByPartner = memberPlaceRepository
+                .findByMemberIdAndPlaceId(partnerId, placeId)
+                .isPresent();
+        return PlaceOwnershipStatus.resolve(true, true, savedByPartner);
     }
 
     public record PlaceSelection(

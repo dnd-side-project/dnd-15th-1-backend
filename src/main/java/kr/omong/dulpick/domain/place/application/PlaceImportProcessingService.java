@@ -233,6 +233,8 @@ public class PlaceImportProcessingService {
                                     place.getLongitude(),
                                     place.getCategoryGroupCode(),
                                     place.getCategory(),
+                                    place.getPhone(),
+                                    place.getKakaoPlaceUrl(),
                                     place.getThumbnailUrl()
                             ),
                             PlaceVerificationStatus.VERIFIED

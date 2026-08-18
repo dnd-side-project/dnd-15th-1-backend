@@ -72,6 +72,9 @@ public enum ErrorCode {
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
     PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
 
+    // 검색
+    RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),
+
     // 데이트 코스
     DATE_COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "데이트 코스를 찾을 수 없습니다"),
     DATE_COURSE_CONFLICT(HttpStatus.CONFLICT, "다른 수정 요청으로 데이트 코스가 변경되었습니다"),

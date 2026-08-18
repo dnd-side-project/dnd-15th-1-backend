@@ -15,7 +15,8 @@ public record PublicPlaceView(
         String categoryName,
         boolean savedByMe,
         String thumbnailUrl,
-        List<String> imageUrls
+        List<String> imageUrls,
+        PlaceDateTraitsView dateTraits
 ) {
 
     public PublicPlaceView {
@@ -25,6 +26,7 @@ public record PublicPlaceView(
                 .filter(imageUrl -> !imageUrl.equals(thumbnailUrl))
                 .distinct()
                 .toList();
+        dateTraits = dateTraits == null ? PlaceDateTraitsView.unclassified() : dateTraits;
     }
 
     public PublicPlaceView(
@@ -52,7 +54,8 @@ public record PublicPlaceView(
                 categoryName,
                 savedByMe,
                 thumbnailUrl,
-                List.of()
+                List.of(),
+                PlaceDateTraitsView.unclassified()
         );
     }
 }

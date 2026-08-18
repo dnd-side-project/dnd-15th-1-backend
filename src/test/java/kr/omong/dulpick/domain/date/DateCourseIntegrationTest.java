@@ -84,6 +84,12 @@ class DateCourseIntegrationTest {
                 .andExpect(jsonPath("$.places.length()").value(2))
                 .andExpect(jsonPath("$.availableCategories.length()").isNotEmpty());
 
+        mockMvc.perform(get("/api/v1/date-courses/places")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("region", "성동구"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(2));
+
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(3);
         MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
                         .header("Authorization", bearer(fixture.first()))

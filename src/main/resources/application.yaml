@@ -49,6 +49,14 @@ couple:
     retention: 30d
     cleanup-delay: 1h
 
+search:
+  recent:
+    max-per-type: ${SEARCH_RECENT_MAX_PER_TYPE:50}
+
+ops:
+  username: ${OPS_USERNAME:admin}
+  password: ${OPS_PASSWORD:admin}
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}

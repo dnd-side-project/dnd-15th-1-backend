@@ -151,14 +151,16 @@ public class PlaceImportContentWriter {
 
     private PlaceCandidate saveCandidate(Long importId, Long contentId, VerifiedCandidate candidate) {
         VerifiedPlace verified = candidate.verified();
+        Instant now = clock.instant();
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),
-                verified.categoryGroupCode(), verified.thumbnailUrl(), clock.instant());
+                verified.categoryGroupCode(), verified.phone(), verified.kakaoPlaceUrl(),
+                verified.thumbnailUrl(), now);
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
         return PlaceCandidate.matched(importId, place.getId(), candidate.extracted().name(),
                 candidate.extracted().addressHint(), candidate.extracted().evidence(),
-                candidate.extracted().mentionType(), candidate.verificationStatus(), clock.instant());
+                candidate.extracted().mentionType(), candidate.verificationStatus(), now);
     }
 
     private Content findOrCreateContent(ContentMetadata metadata) {

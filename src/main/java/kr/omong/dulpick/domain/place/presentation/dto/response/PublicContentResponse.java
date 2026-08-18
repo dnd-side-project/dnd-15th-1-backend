@@ -121,7 +121,9 @@ public record PublicContentResponse(
             String thumbnailUrl,
             @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
             @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 없으면 빈 배열입니다.", example = "[\"https://example.com/place-detail.jpg\"]", requiredMode = Schema.RequiredMode.REQUIRED)
-            List<String> imageUrls
+            List<String> imageUrls,
+            @Schema(description = "운영자가 수동으로 저장한 데이트 유형입니다. 콘텐츠 추천에서 사용합니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+            PlaceDateTraitsResponse dateTraits
     ) {
 
         private static PublicPlaceResponse from(PublicPlaceView view) {
@@ -137,7 +139,8 @@ public record PublicContentResponse(
                     view.categoryName(),
                     view.savedByMe(),
                     view.thumbnailUrl(),
-                    view.imageUrls()
+                    view.imageUrls(),
+                    PlaceDateTraitsResponse.from(view.dateTraits())
             );
         }
     }

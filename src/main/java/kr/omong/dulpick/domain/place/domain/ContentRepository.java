@@ -23,6 +23,28 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
 
     Page<Content> findAllByPublicationStatus(ContentPublicationStatus status, Pageable pageable);
 
+    @Query(
+            value = """
+                    SELECT *
+                    FROM contents
+                    WHERE publication_status = :status
+                      AND MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)
+                    ORDER BY created_at DESC, id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM contents
+                    WHERE publication_status = :status
+                      AND MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)
+                    """,
+            nativeQuery = true
+    )
+    Page<Content> searchByPublicationStatusAndKeyword(
+            @Param("status") String status,
+            @Param("query") String query,
+            Pageable pageable
+    );
+
     @Modifying
     @Query(value = """
             INSERT INTO contents

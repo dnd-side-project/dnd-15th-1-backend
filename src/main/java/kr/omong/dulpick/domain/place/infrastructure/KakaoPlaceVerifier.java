@@ -141,6 +141,8 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
                 result.longitude(),
                 result.categoryGroupCode(),
                 result.category(),
+                result.phone(),
+                result.kakaoPlaceUrl(),
                 result.thumbnailUrl()
         );
     }
