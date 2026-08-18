@@ -48,7 +48,7 @@ class PlaceSearchServiceTest {
                 "FD6",
                 "음식점"
         );
-        when(placeRepository.searchByKeyword(eq("카페"), any(Pageable.class)))
+        when(placeRepository.searchByKeyword(eq("+카페"), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(databasePlace)));
         when(placeSearcher.search("카페", 1)).thenReturn(new PlaceKeywordSearch(
                 List.of(sameKakaoPlace, kakaoOnly),

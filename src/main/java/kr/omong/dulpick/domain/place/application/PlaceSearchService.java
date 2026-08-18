@@ -4,8 +4,8 @@ import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundExceptio
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.global.search.FullTextBooleanQuery;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,12 +46,8 @@ public class PlaceSearchService {
     ) {
         List<Place> databaseResults = page == 0
                 ? placeRepository.searchByKeyword(
-                query.strip(),
-                PageRequest.of(
-                        0,
-                        PAGE_SIZE,
-                        Sort.by(Sort.Direction.DESC, "id")
-                )
+                FullTextBooleanQuery.from(query.strip()),
+                PageRequest.of(0, PAGE_SIZE)
         ).getContent()
                 : List.of();
         PlaceKeywordSearch kakaoSearch = placeSearcher.search(

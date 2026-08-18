@@ -68,7 +68,8 @@ public class PublicContentController {
 
     @Operation(
             summary = "공개 게시물 키워드 검색",
-            description = "공개 상태인 게시물의 제목과 본문에서 키워드를 검색하고 최신순으로 반환합니다."
+            description = "공개 상태인 게시물의 제목과 본문에서 키워드를 검색하고 최신순으로 반환합니다. "
+                    + "MySQL ngram FULLTEXT 인덱스를 사용합니다."
     )
     @ApiResponses({
             @ApiResponse(

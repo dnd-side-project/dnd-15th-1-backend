@@ -103,15 +103,10 @@ class PublicContentQueryServiceTest {
     @Test
     void searchesOnlyPublicContentTitleAndBodyWithStablePaging() {
         Content content = content(10L);
-        PageRequest expectedPage = PageRequest.of(
-                0,
-                20,
-                Sort.by(Sort.Direction.DESC, "createdAt")
-                        .and(Sort.by(Sort.Direction.DESC, "id"))
-        );
+        PageRequest expectedPage = PageRequest.of(0, 20);
         when(contentRepository.searchByPublicationStatusAndKeyword(
-                ContentPublicationStatus.PUBLIC,
-                "서울 데이트",
+                ContentPublicationStatus.PUBLIC.name(),
+                "+서울 +데이트",
                 expectedPage
         )).thenReturn(new PageImpl<>(List.of(content), expectedPage, 1));
         when(contentPlaceRepository.findAllByContentIdIn(List.of(10L))).thenReturn(List.of());
@@ -124,8 +119,8 @@ class PublicContentQueryServiceTest {
         );
 
         verify(contentRepository).searchByPublicationStatusAndKeyword(
-                ContentPublicationStatus.PUBLIC,
-                "서울 데이트",
+                ContentPublicationStatus.PUBLIC.name(),
+                "+서울 +데이트",
                 expectedPage
         );
     }

@@ -18,13 +18,20 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     List<Place> findAllByKakaoPlaceIdIn(Collection<String> kakaoPlaceIds);
 
-    @Query("""
-            SELECT place
-            FROM Place place
-            WHERE LOWER(place.name) LIKE LOWER(CONCAT('%', :query, '%'))
-               OR LOWER(place.address) LIKE LOWER(CONCAT('%', :query, '%'))
-               OR LOWER(COALESCE(place.roadAddress, '')) LIKE LOWER(CONCAT('%', :query, '%'))
-            """)
+    @Query(
+            value = """
+                    SELECT *
+                    FROM places
+                    WHERE MATCH(name, address, road_address) AGAINST(:query IN BOOLEAN MODE)
+                    ORDER BY id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(*)
+                    FROM places
+                    WHERE MATCH(name, address, road_address) AGAINST(:query IN BOOLEAN MODE)
+                    """,
+            nativeQuery = true
+    )
     Page<Place> searchByKeyword(@Param("query") String query, Pageable pageable);
 
     @Query(

@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceClassification;
 import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.global.search.FullTextBooleanQuery;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -67,9 +68,9 @@ public class PublicContentQueryService {
             Pageable pageable
     ) {
         Page<Content> contents = contentRepository.searchByPublicationStatusAndKeyword(
-                ContentPublicationStatus.PUBLIC,
-                query.strip(),
-                orderedPageable(pageable)
+                ContentPublicationStatus.PUBLIC.name(),
+                FullTextBooleanQuery.from(query.strip()),
+                paged(pageable)
         );
         return enrich(memberId, contents);
     }
@@ -80,6 +81,13 @@ public class PublicContentQueryService {
         Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
         Set<Long> savedPlaceIds = findSavedPlaceIds(memberId, placesByContent);
         return contents.map(content -> toView(content, placesByContent, traitsByPlace, savedPlaceIds));
+    }
+
+    private Pageable paged(Pageable pageable) {
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                Math.min(pageable.getPageSize(), MAX_PAGE_SIZE)
+        );
     }
 
     private Pageable orderedPageable(Pageable pageable) {
