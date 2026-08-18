@@ -8,6 +8,8 @@ import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceClassification;
+import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -32,35 +34,60 @@ public class PublicContentQueryService {
     private final ContentRepository contentRepository;
     private final ContentPlaceRepository contentPlaceRepository;
     private final PlaceRepository placeRepository;
+    private final PlaceClassificationRepository placeClassificationRepository;
     private final MemberPlaceRepository memberPlaceRepository;
 
     public PublicContentQueryService(
             ContentRepository contentRepository,
             ContentPlaceRepository contentPlaceRepository,
             PlaceRepository placeRepository,
+            PlaceClassificationRepository placeClassificationRepository,
             MemberPlaceRepository memberPlaceRepository
     ) {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
         this.placeRepository = placeRepository;
+        this.placeClassificationRepository = placeClassificationRepository;
         this.memberPlaceRepository = memberPlaceRepository;
     }
 
     @Transactional(readOnly = true)
     public Page<PublicContentView> findPublicContents(Long memberId, Pageable pageable) {
-        Pageable orderedPageable = PageRequest.of(
+        Page<Content> contents = contentRepository.findAllByPublicationStatus(
+                ContentPublicationStatus.PUBLIC,
+                orderedPageable(pageable)
+        );
+        return enrich(memberId, contents);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PublicContentView> searchPublicContents(
+            Long memberId,
+            String query,
+            Pageable pageable
+    ) {
+        Page<Content> contents = contentRepository.searchByPublicationStatusAndKeyword(
+                ContentPublicationStatus.PUBLIC,
+                query.strip(),
+                orderedPageable(pageable)
+        );
+        return enrich(memberId, contents);
+    }
+
+    private Page<PublicContentView> enrich(Long memberId, Page<Content> contents) {
+        List<Long> contentIds = contents.getContent().stream().map(Content::getId).toList();
+        Map<Long, List<Place>> placesByContent = findPlacesByContent(contentIds);
+        Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
+        Set<Long> savedPlaceIds = findSavedPlaceIds(memberId, placesByContent);
+        return contents.map(content -> toView(content, placesByContent, traitsByPlace, savedPlaceIds));
+    }
+
+    private Pageable orderedPageable(Pageable pageable) {
+        return PageRequest.of(
                 pageable.getPageNumber(),
                 Math.min(pageable.getPageSize(), MAX_PAGE_SIZE),
                 LATEST_FIRST
         );
-        Page<Content> contents = contentRepository.findAllByPublicationStatus(
-                ContentPublicationStatus.PUBLIC,
-                orderedPageable
-        );
-        List<Long> contentIds = contents.getContent().stream().map(Content::getId).toList();
-        Map<Long, List<Place>> placesByContent = findPlacesByContent(contentIds);
-        Set<Long> savedPlaceIds = findSavedPlaceIds(memberId, placesByContent);
-        return contents.map(content -> toView(content, placesByContent, savedPlaceIds));
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +98,13 @@ public class PublicContentQueryService {
                 )
                 .orElseThrow(PublicContentNotFoundException::new);
         Map<Long, List<Place>> placesByContent = findPlacesByContent(List.of(contentId));
-        return toView(content, placesByContent, findSavedPlaceIds(memberId, placesByContent));
+        Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
+        return toView(
+                content,
+                placesByContent,
+                traitsByPlace,
+                findSavedPlaceIds(memberId, placesByContent)
+        );
     }
 
     private Map<Long, List<Place>> findPlacesByContent(List<Long> contentIds) {
@@ -103,10 +136,15 @@ public class PublicContentQueryService {
     private PublicContentView toView(
             Content content,
             Map<Long, List<Place>> placesByContent,
+            Map<Long, PlaceDateTraitsView> traitsByPlace,
             Set<Long> savedPlaceIds
     ) {
         List<PublicPlaceView> places = placesByContent.getOrDefault(content.getId(), List.of()).stream()
-                .map(place -> toPlaceView(place, savedPlaceIds.contains(place.getId())))
+                .map(place -> toPlaceView(
+                        place,
+                        savedPlaceIds.contains(place.getId()),
+                        traitsByPlace.getOrDefault(place.getId(), PlaceDateTraitsView.unclassified())
+                ))
                 .toList();
         return new PublicContentView(
                 content.getId(),
@@ -123,7 +161,11 @@ public class PublicContentQueryService {
         );
     }
 
-    private PublicPlaceView toPlaceView(Place place, boolean savedByMe) {
+    private PublicPlaceView toPlaceView(
+            Place place,
+            boolean savedByMe,
+            PlaceDateTraitsView dateTraits
+    ) {
         return new PublicPlaceView(
                 place.getId(),
                 place.getKakaoPlaceId(),
@@ -136,8 +178,25 @@ public class PublicContentQueryService {
                 place.getCategoryName(),
                 savedByMe,
                 place.getThumbnailUrl(),
-                place.getImageUrls()
+                place.getImageUrls(),
+                dateTraits
         );
+    }
+
+    private Map<Long, PlaceDateTraitsView> findTraitsByPlace(Map<Long, List<Place>> placesByContent) {
+        List<Long> placeIds = placesByContent.values().stream()
+                .flatMap(List::stream)
+                .map(Place::getId)
+                .distinct()
+                .toList();
+        if (placeIds.isEmpty()) {
+            return Map.of();
+        }
+        return placeClassificationRepository.findAllById(placeIds).stream()
+                .collect(Collectors.toMap(
+                        PlaceClassification::getPlaceId,
+                        PlaceDateTraitsView::from
+                ));
     }
 
     private Set<Long> findSavedPlaceIds(
