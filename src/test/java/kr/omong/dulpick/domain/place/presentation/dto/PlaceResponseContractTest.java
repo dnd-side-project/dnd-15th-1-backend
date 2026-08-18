@@ -36,8 +36,7 @@ class PlaceResponseContractTest {
                         "phone",
                         "kakaoPlaceUrl",
                         "savedByMe",
-                        "ownershipStatus",
-                        "regionTags"
+                        "ownershipStatus"
                 );
         assertThat(componentNames(PlaceDetailResponse.class))
                 .contains(
@@ -46,8 +45,7 @@ class PlaceResponseContractTest {
                         "phone",
                         "kakaoPlaceUrl",
                         "savedByMe",
-                        "ownershipStatus",
-                        "regionTags"
+                        "ownershipStatus"
                 );
         assertThat(componentNames(PlaceSearchPageResponse.class))
                 .contains("places", "page", "size", "hasNext");

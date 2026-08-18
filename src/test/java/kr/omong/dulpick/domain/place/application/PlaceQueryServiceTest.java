@@ -12,7 +12,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -25,11 +24,9 @@ class PlaceQueryServiceTest {
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final ActiveCoupleMemberRepository coupleMemberRepository =
             mock(ActiveCoupleMemberRepository.class);
-    private final RegionTagQueryService regionTagQueryService = mock(RegionTagQueryService.class);
     private final PlaceQueryService service = new PlaceQueryService(
             memberPlaceRepository,
-            coupleMemberRepository,
-            regionTagQueryService
+            coupleMemberRepository
     );
 
     @Test
@@ -89,7 +86,7 @@ class PlaceQueryServiceTest {
     }
 
     @Test
-    void filtersVisiblePlacesByCategoryOwnershipAndRegionTag() {
+    void filtersVisiblePlacesByCategoryAndOwnership() {
         Place place = place(40L);
         when(place.getCategoryName()).thenReturn("카페");
         MemberPlace mine = memberPlace(
@@ -98,19 +95,14 @@ class PlaceQueryServiceTest {
                 null,
                 Instant.parse("2026-08-10T00:00:00Z")
         );
-        RegionTagSummaryView seongsu = new RegionTagSummaryView(1L, "성수", 1);
         when(coupleMemberRepository.findByMemberId(1L)).thenReturn(Optional.empty());
         when(memberPlaceRepository.findAllByMemberIdInOrderBySavedAtDesc(List.of(1L)))
                 .thenReturn(List.of(mine));
-        when(regionTagQueryService.getSummary(1L)).thenReturn(seongsu);
-        when(regionTagQueryService.getTagsByPlaceIds(List.of(40L)))
-                .thenReturn(Map.of(40L, List.of(seongsu)));
 
         List<MemberPlaceView> result = service.getVisiblePlaces(
                 1L,
                 DulpickPlaceCategory.CAFE,
-                PlaceOwnershipStatus.MINE,
-                1L
+                PlaceOwnershipStatus.MINE
         );
 
         assertThat(result).singleElement().satisfies(saved ->

@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class PlaceDetailQueryService {
@@ -16,18 +15,15 @@ public class PlaceDetailQueryService {
     private final PlaceRepository placeRepository;
     private final PlaceQueryService placeQueryService;
     private final PlaceSearchService placeSearchService;
-    private final RegionTagQueryService regionTagQueryService;
 
     public PlaceDetailQueryService(
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService,
-            PlaceSearchService placeSearchService,
-            RegionTagQueryService regionTagQueryService
+            PlaceSearchService placeSearchService
     ) {
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
-        this.regionTagQueryService = regionTagQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -62,14 +58,6 @@ public class PlaceDetailQueryService {
                 ? kakao.categoryGroupCode()
                 : place.getCategoryGroupCode();
         String category = place == null ? kakao.category() : place.getCategory();
-        List<RegionTagSummaryView> regionTags = place == null
-                ? regionTagQueryService.matchingTags(
-                kakao.address(),
-                kakao.roadAddress(),
-                regionTagQueryService.getActiveSummaries()
-        )
-                : regionTagQueryService.getTagsByPlaceIds(List.of(placeId))
-                .getOrDefault(placeId, List.of());
         return new PlaceDetailView(
                 placeId,
                 place == null ? kakao.kakaoPlaceId() : place.getKakaoPlaceId(),
@@ -94,8 +82,7 @@ public class PlaceDetailQueryService {
                         place == null ? null : place.getThumbnailUrl(),
                         kakao == null ? null : kakao.thumbnailUrl()
                 ),
-                place == null ? List.of() : place.getImageUrls(),
-                regionTags
+                place == null ? List.of() : place.getImageUrls()
         );
     }
 

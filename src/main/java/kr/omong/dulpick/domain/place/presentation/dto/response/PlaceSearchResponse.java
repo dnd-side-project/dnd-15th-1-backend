@@ -66,10 +66,7 @@ public record PlaceSearchResponse(
         String thumbnailUrl,
         @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
         @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록", example = "[]", requiredMode = Schema.RequiredMode.REQUIRED)
-        List<String> imageUrls,
-        @ArraySchema(schema = @Schema(implementation = RegionTagSummaryResponse.class))
-        @Schema(description = "주소와 연결된 활성 지역 태그", example = "[]", requiredMode = Schema.RequiredMode.REQUIRED)
-        List<RegionTagSummaryResponse> regionTags
+        List<String> imageUrls
 ) {
 
     public static PlaceSearchResponse from(PlaceSearchView view) {
@@ -89,8 +86,7 @@ public record PlaceSearchResponse(
                 view.savedByMe(),
                 view.ownershipStatus(),
                 view.thumbnailUrl(),
-                view.imageUrls(),
-                view.regionTags().stream().map(RegionTagSummaryResponse::from).toList()
+                view.imageUrls()
         );
     }
 }

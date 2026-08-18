@@ -69,16 +69,10 @@ public class DateCourseQueryService {
     public DateCoursePlacePoolView getCoupleSavedPlacePool(
             Long memberId,
             String region,
-            DulpickPlaceCategory category,
-            Long regionTagId
+            DulpickPlaceCategory category
     ) {
         requireCoupleContext(memberId);
-        List<DateCoursePlaceCandidateView> allCandidates = placeQueryService.getVisiblePlaces(
-                        memberId,
-                        null,
-                        null,
-                        regionTagId
-                )
+        List<DateCoursePlaceCandidateView> allCandidates = placeQueryService.getVisiblePlaces(memberId)
                 .stream()
                 .map(this::toCandidateView)
                 .toList();

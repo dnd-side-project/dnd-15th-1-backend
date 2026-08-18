@@ -52,7 +52,6 @@ class PlaceImportResultWriterTest {
             contentRepository,
             contentPlaceRepository,
             submissionRepository,
-            mock(RegionTagAssignmentService.class),
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
     private final PlaceImportResultWriter writer = new PlaceImportResultWriter(

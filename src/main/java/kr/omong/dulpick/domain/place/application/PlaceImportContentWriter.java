@@ -33,7 +33,6 @@ public class PlaceImportContentWriter {
     private final ContentRepository contentRepository;
     private final ContentPlaceRepository contentPlaceRepository;
     private final ContentSubmissionRepository submissionRepository;
-    private final RegionTagAssignmentService regionTagAssignmentService;
     private final Clock clock;
 
     public PlaceImportContentWriter(
@@ -43,7 +42,6 @@ public class PlaceImportContentWriter {
             ContentRepository contentRepository,
             ContentPlaceRepository contentPlaceRepository,
             ContentSubmissionRepository submissionRepository,
-            RegionTagAssignmentService regionTagAssignmentService,
             Clock clock
     ) {
         this.importRepository = importRepository;
@@ -52,7 +50,6 @@ public class PlaceImportContentWriter {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
         this.submissionRepository = submissionRepository;
-        this.regionTagAssignmentService = regionTagAssignmentService;
         this.clock = clock;
     }
 
@@ -161,7 +158,6 @@ public class PlaceImportContentWriter {
                 verified.thumbnailUrl(), now);
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
-        regionTagAssignmentService.assignMatchingTags(place, now);
         return PlaceCandidate.matched(importId, place.getId(), candidate.extracted().name(),
                 candidate.extracted().addressHint(), candidate.extracted().evidence(),
                 candidate.extracted().mentionType(), candidate.verificationStatus(), now);

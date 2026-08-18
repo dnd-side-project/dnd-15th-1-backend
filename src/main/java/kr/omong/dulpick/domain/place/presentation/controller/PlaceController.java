@@ -71,7 +71,7 @@ public class PlaceController {
             summary = "내 장소와 연결된 상대방의 저장 장소 조회",
             description = "본인 저장 장소와 현재 연결된 상대방의 저장 장소를 조회합니다. 연결 해제 후 상대방 저장 정보는 반환하지 않습니다. "
                     + "같은 공용 장소를 커플이 저장한 경우 ownershipStatus=TOGETHER로 반환합니다. "
-                    + "카테고리·저장 주체·지역 태그 필터를 선택적으로 적용할 수 있습니다."
+                    + "카테고리·저장 주체 필터를 선택적으로 적용할 수 있습니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -86,11 +86,6 @@ public class PlaceController {
                     responseCode = "401",
                     description = "Access Token이 없거나 유효하지 않습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "요청한 활성 지역 태그를 찾을 수 없습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     @GetMapping
@@ -100,15 +95,12 @@ public class PlaceController {
             @RequestParam(required = false) @Schema(example = "CAFE") DulpickPlaceCategory category,
             @Parameter(description = "저장 주체 필터", example = "TOGETHER")
             @RequestParam(required = false) @Schema(example = "TOGETHER")
-            PlaceOwnershipStatus ownershipStatus,
-            @Parameter(description = "지역 태그 ID", example = "1")
-            @RequestParam(required = false) @Schema(example = "1") Long regionTagId
+            PlaceOwnershipStatus ownershipStatus
     ) {
         return ResponseEntity.ok(placeQueryService.getVisiblePlaces(
                         memberId(jwt),
                         category,
-                        ownershipStatus,
-                        regionTagId
+                        ownershipStatus
                 )
                 .stream()
                 .map(MemberPlaceResponse::from)
@@ -142,11 +134,6 @@ public class PlaceController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "404",
-                    description = "요청한 활성 지역 태그를 찾을 수 없습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
                     responseCode = "503",
                     description = "Kakao 장소 검색을 일시적으로 사용할 수 없습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
@@ -158,8 +145,6 @@ public class PlaceController {
             @Parameter(description = "Kakao 장소 검색어", required = true, example = "성수동 카페")
             @RequestParam @NotBlank @Size(max = 200)
             @Schema(example = "성수동 카페") String query,
-            @Parameter(description = "지역 태그 ID", example = "1")
-            @RequestParam(required = false) @Schema(example = "1") Long regionTagId,
             @Parameter(description = "0부터 시작하는 페이지 번호. 다음 10건이 필요하면 1, 2, … 로 요청합니다.", example = "0")
             @RequestParam(defaultValue = "0") @Min(0) @Max(44)
             @Schema(example = "0") int page
@@ -167,7 +152,6 @@ public class PlaceController {
         return ResponseEntity.ok(PlaceSearchPageResponse.from(placeSearchService.search(
                 memberId(jwt),
                 query,
-                regionTagId,
                 page
         )));
     }
@@ -228,7 +212,7 @@ public class PlaceController {
 
     @Operation(
             summary = "공용 DB 장소 상세 조회",
-            description = "공용 장소 정보와 현재 활성 커플 기준 저장 여부·저장 주체·지역 태그를 함께 조회합니다."
+            description = "공용 장소 정보와 현재 활성 커플 기준 저장 여부·저장 주체를 함께 조회합니다."
     )
     @ApiResponses({
             @ApiResponse(

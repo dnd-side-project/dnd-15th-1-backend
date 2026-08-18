@@ -44,7 +44,6 @@ public class PlaceCommandService {
     private final MemberRepository memberRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
-    private final RegionTagAssignmentService regionTagAssignmentService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -55,7 +54,6 @@ public class PlaceCommandService {
             MemberRepository memberRepository,
             MemberPlaceRepository memberPlaceRepository,
             ActiveCoupleMemberRepository activeCoupleMemberRepository,
-            RegionTagAssignmentService regionTagAssignmentService,
             ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
@@ -65,7 +63,6 @@ public class PlaceCommandService {
         this.memberRepository = memberRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
-        this.regionTagAssignmentService = regionTagAssignmentService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -98,7 +95,6 @@ public class PlaceCommandService {
         );
         Place place = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
                 .orElseThrow(PlaceNotFoundException::new);
-        regionTagAssignmentService.assignMatchingTags(place, now);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);

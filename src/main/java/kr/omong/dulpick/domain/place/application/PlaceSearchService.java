@@ -23,18 +23,15 @@ public class PlaceSearchService {
     private final PlaceSearcher placeSearcher;
     private final PlaceRepository placeRepository;
     private final PlaceQueryService placeQueryService;
-    private final RegionTagQueryService regionTagQueryService;
 
     public PlaceSearchService(
             PlaceSearcher placeSearcher,
             PlaceRepository placeRepository,
-            PlaceQueryService placeQueryService,
-            RegionTagQueryService regionTagQueryService
+            PlaceQueryService placeQueryService
     ) {
         this.placeSearcher = placeSearcher;
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
-        this.regionTagQueryService = regionTagQueryService;
     }
 
     public List<PlaceSearchResult> search(String query) {
@@ -45,12 +42,8 @@ public class PlaceSearchService {
     public PlaceSearchPage search(
             Long memberId,
             String query,
-            Long regionTagId,
             int page
     ) {
-        RegionTagSummaryView selectedRegionTag = regionTagId == null
-                ? null
-                : regionTagQueryService.getSummary(regionTagId);
         List<Place> databaseResults = page == 0
                 ? placeRepository.searchByKeyword(
                 query.strip(),
@@ -94,20 +87,9 @@ public class PlaceSearchService {
                 .toList();
         Map<Long, PlaceOwnership> ownerships =
                 placeQueryService.getOwnerships(memberId, placeIds);
-        Map<Long, List<RegionTagSummaryView>> tagsByPlaceId =
-                regionTagQueryService.getTagsByPlaceIds(placeIds);
-        List<RegionTagSummaryView> activeTags = regionTagQueryService.getActiveSummaries();
 
         List<PlaceSearchView> places = candidates.values().stream()
-                .map(candidate -> toView(
-                        candidate,
-                        ownerships,
-                        tagsByPlaceId,
-                        activeTags
-                ))
-                .filter(item -> selectedRegionTag == null
-                        || item.view().regionTags().stream().anyMatch(tag ->
-                        tag.regionTagId().equals(selectedRegionTag.regionTagId())))
+                .map(candidate -> toView(candidate, ownerships))
                 .map(PlaceSearchViewWithOwnership::view)
                 .limit(PAGE_SIZE)
                 .toList();
@@ -141,9 +123,7 @@ public class PlaceSearchService {
 
     private PlaceSearchViewWithOwnership toView(
             SearchCandidate candidate,
-            Map<Long, PlaceOwnership> ownerships,
-            Map<Long, List<RegionTagSummaryView>> tagsByPlaceId,
-            List<RegionTagSummaryView> activeTags
+            Map<Long, PlaceOwnership> ownerships
     ) {
         Place place = candidate.place();
         PlaceSearchResult kakao = candidate.kakao();
@@ -154,13 +134,6 @@ public class PlaceSearchService {
                 ? kakao.categoryGroupCode()
                 : place.getCategoryGroupCode();
         String category = place == null ? kakao.category() : place.getCategory();
-        List<RegionTagSummaryView> regionTags = place == null
-                ? regionTagQueryService.matchingTags(
-                kakao.address(),
-                kakao.roadAddress(),
-                activeTags
-        )
-                : tagsByPlaceId.getOrDefault(place.getId(), List.of());
         PlaceSearchView view = new PlaceSearchView(
                 place == null ? null : place.getId(),
                 place == null ? kakao.kakaoPlaceId() : place.getKakaoPlaceId(),
@@ -185,8 +158,7 @@ public class PlaceSearchService {
                         place == null ? null : place.getThumbnailUrl(),
                         kakao == null ? null : kakao.thumbnailUrl()
                 ),
-                place == null ? List.of() : place.getImageUrls(),
-                regionTags
+                place == null ? List.of() : place.getImageUrls()
         );
         return new PlaceSearchViewWithOwnership(view, ownership);
     }

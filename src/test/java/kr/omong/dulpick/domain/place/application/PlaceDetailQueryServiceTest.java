@@ -19,23 +19,18 @@ class PlaceDetailQueryServiceTest {
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceQueryService placeQueryService = mock(PlaceQueryService.class);
     private final PlaceSearchService placeSearchService = mock(PlaceSearchService.class);
-    private final RegionTagQueryService regionTagQueryService = mock(RegionTagQueryService.class);
     private final PlaceDetailQueryService service = new PlaceDetailQueryService(
             placeRepository,
             placeQueryService,
-            placeSearchService,
-            regionTagQueryService
+            placeSearchService
     );
 
     @Test
     void returnsDatabaseDetailsWithCurrentCoupleOwnership() {
         Place place = place();
-        RegionTagSummaryView seongsu = new RegionTagSummaryView(1L, "성수", 1);
         when(placeRepository.findById(10L)).thenReturn(Optional.of(place));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
                 .thenReturn(Map.of(10L, PlaceOwnership.of(true, false, true)));
-        when(regionTagQueryService.getTagsByPlaceIds(List.of(10L)))
-                .thenReturn(Map.of(10L, List.of(seongsu)));
 
         PlaceDetailView result = service.get(1L, 10L);
 
@@ -44,7 +39,6 @@ class PlaceDetailQueryServiceTest {
         assertThat(result.phone()).isEqualTo("02-1234-5678");
         assertThat(result.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER);
         assertThat(result.savedByMe()).isFalse();
-        assertThat(result.regionTags()).containsExactly(seongsu);
     }
 
     @Test
@@ -62,15 +56,8 @@ class PlaceDetailQueryServiceTest {
                 "https://place.map.kakao.com/kakao-20",
                 null
         );
-        RegionTagSummaryView seongsu = new RegionTagSummaryView(1L, "성수", 1);
         when(placeSearchService.resolve("성수 카페", "kakao-20")).thenReturn(kakao);
         when(placeRepository.findByKakaoPlaceId("kakao-20")).thenReturn(Optional.empty());
-        when(regionTagQueryService.getActiveSummaries()).thenReturn(List.of(seongsu));
-        when(regionTagQueryService.matchingTags(
-                kakao.address(),
-                kakao.roadAddress(),
-                List.of(seongsu)
-        )).thenReturn(List.of(seongsu));
 
         PlaceDetailView result = service.getByKakaoPlaceId(
                 1L,
@@ -81,7 +68,6 @@ class PlaceDetailQueryServiceTest {
         assertThat(result.placeId()).isNull();
         assertThat(result.savedByMe()).isFalse();
         assertThat(result.ownershipStatus()).isNull();
-        assertThat(result.regionTags()).containsExactly(seongsu);
     }
 
     private Place place() {

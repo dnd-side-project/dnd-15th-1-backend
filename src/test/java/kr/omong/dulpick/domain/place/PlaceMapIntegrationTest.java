@@ -6,13 +6,10 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.PlaceKeywordSearch;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
-import kr.omong.dulpick.domain.place.application.RegionTagAssignmentService;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
-import kr.omong.dulpick.domain.place.domain.RegionTag;
-import kr.omong.dulpick.domain.place.domain.RegionTagRepository;
 import kr.omong.dulpick.domain.place.infrastructure.KakaoPlaceSearchClient;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +23,6 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -51,12 +47,6 @@ class PlaceMapIntegrationTest {
 
     @Autowired
     private MemberPlaceRepository memberPlaceRepository;
-
-    @Autowired
-    private RegionTagRepository regionTagRepository;
-
-    @Autowired
-    private RegionTagAssignmentService assignmentService;
 
     @MockitoBean
     private KakaoPlaceSearchClient placeSearcher;
@@ -90,20 +80,12 @@ class PlaceMapIntegrationTest {
                 null,
                 now
         ));
-        assignmentService.assignMatchingTags(place, now);
-        RegionTag seongsu = regionTagRepository
-                .findAllByActiveTrueOrderByDisplayOrderAscIdAsc()
-                .stream()
-                .filter(tag -> tag.getName().equals("성수"))
-                .findFirst()
-                .orElseThrow();
         String authorization = "Bearer " + tokens.accessToken();
 
         mockMvc.perform(get("/api/v1/places")
                         .header("Authorization", authorization)
                         .param("category", "CAFE")
-                        .param("ownershipStatus", "MINE")
-                        .param("regionTagId", seongsu.getId().toString()))
+                        .param("ownershipStatus", "MINE"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].placeId").value(place.getId()))
                 .andExpect(jsonPath("$[0].kakaoPlaceId").value(kakaoPlaceId))
@@ -114,8 +96,7 @@ class PlaceMapIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phone").value("02-1234-5678"))
                 .andExpect(jsonPath("$.savedByMe").value(true))
-                .andExpect(jsonPath("$.ownershipStatus").value("MINE"))
-                .andExpect(jsonPath("$.regionTags[0].name").value("성수"));
+                .andExpect(jsonPath("$.ownershipStatus").value("MINE"));
 
         when(placeSearcher.search(searchKeyword, 1)).thenReturn(new PlaceKeywordSearch(
                 java.util.List.of(
@@ -158,7 +139,5 @@ class PlaceMapIntegrationTest {
                 .andExpect(jsonPath("$.places[0].name").value(placeName))
                 .andExpect(jsonPath("$.places[0].ownershipStatus").value("MINE"))
                 .andExpect(jsonPath("$.places[1].placeId").doesNotExist());
-
-        assertThat(regionTagRepository.count()).isGreaterThanOrEqualTo(5);
     }
 }

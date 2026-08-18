@@ -50,7 +50,6 @@ class PlaceCommandServiceTest {
                 memberRepository,
                 memberPlaceRepository,
                 coupleRepository,
-                mock(RegionTagAssignmentService.class),
                 mock(ApplicationEventPublisher.class),
                 Clock.fixed(now, ZoneOffset.UTC)
         );
@@ -109,7 +108,6 @@ class PlaceCommandServiceTest {
                 memberRepository,
                 memberPlaceRepository,
                 mock(ActiveCoupleMemberRepository.class),
-                mock(RegionTagAssignmentService.class),
                 mock(ApplicationEventPublisher.class),
                 Clock.fixed(now, ZoneOffset.UTC)
         );
@@ -229,7 +227,6 @@ class PlaceCommandServiceTest {
                     memberRepository,
                     memberPlaceRepository,
                     mock(ActiveCoupleMemberRepository.class),
-                    mock(RegionTagAssignmentService.class),
                     mock(ApplicationEventPublisher.class),
                     Clock.fixed(Instant.parse("2026-08-10T00:00:00Z"), ZoneOffset.UTC)
             );

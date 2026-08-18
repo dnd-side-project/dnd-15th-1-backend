@@ -25,12 +25,10 @@ class PlaceSearchServiceTest {
     private final PlaceSearcher placeSearcher = mock(PlaceSearcher.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceQueryService placeQueryService = mock(PlaceQueryService.class);
-    private final RegionTagQueryService regionTagQueryService = mock(RegionTagQueryService.class);
     private final PlaceSearchService service = new PlaceSearchService(
             placeSearcher,
             placeRepository,
-            placeQueryService,
-            regionTagQueryService
+            placeQueryService
     );
 
     @Test
@@ -60,10 +58,8 @@ class PlaceSearchServiceTest {
                 .thenReturn(List.of(databasePlace));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
                 .thenReturn(Map.of(10L, PlaceOwnership.of(true, true, true)));
-        when(regionTagQueryService.getTagsByPlaceIds(List.of(10L))).thenReturn(Map.of());
-        when(regionTagQueryService.getActiveSummaries()).thenReturn(List.of());
 
-        PlaceSearchPage result = service.search(1L, "카페", null, 0);
+        PlaceSearchPage result = service.search(1L, "카페", 0);
 
         assertThat(result.places()).hasSize(2);
         assertThat(result.page()).isEqualTo(0);
@@ -85,32 +81,6 @@ class PlaceSearchServiceTest {
     }
 
     @Test
-    void appliesRegionTagFilter() {
-        Place databasePlace = place(10L, "kakao-1", "성수 카페", "서울 성동구 성수동");
-        RegionTagSummaryView seongsu = new RegionTagSummaryView(1L, "성수", 1);
-        when(placeRepository.searchByKeyword(eq("성수"), any(Pageable.class)))
-                .thenReturn(new PageImpl<>(List.of(databasePlace)));
-        when(placeSearcher.search("성수", 1)).thenReturn(new PlaceKeywordSearch(List.of(), true));
-        when(placeRepository.findAllByKakaoPlaceIdIn(List.of("kakao-1")))
-                .thenReturn(List.of(databasePlace));
-        when(placeQueryService.getOwnerships(1L, List.of(10L)))
-                .thenReturn(Map.of(10L, PlaceOwnership.of(true, false, true)));
-        when(regionTagQueryService.getSummary(1L)).thenReturn(seongsu);
-        when(regionTagQueryService.getTagsByPlaceIds(List.of(10L)))
-                .thenReturn(Map.of(10L, List.of(seongsu)));
-        when(regionTagQueryService.getActiveSummaries()).thenReturn(List.of(seongsu));
-
-        PlaceSearchPage result = service.search(1L, "성수", 1L, 0);
-
-        assertThat(result.places()).singleElement().satisfies(place -> {
-            assertThat(place.categoryCode()).isEqualTo(DulpickPlaceCategory.CAFE);
-            assertThat(place.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER);
-            assertThat(place.savedByMe()).isFalse();
-            assertThat(place.regionTags()).containsExactly(seongsu);
-        });
-    }
-
-    @Test
     void requestsNextKakaoPageWithoutRepeatingDatabaseResults() {
         PlaceSearchResult nextPage = searchResult(
                 "kakao-3",
@@ -125,10 +95,8 @@ class PlaceSearchServiceTest {
         ));
         when(placeRepository.findAllByKakaoPlaceIdIn(List.of("kakao-3"))).thenReturn(List.of());
         when(placeQueryService.getOwnerships(1L, List.of())).thenReturn(Map.of());
-        when(regionTagQueryService.getTagsByPlaceIds(List.of())).thenReturn(Map.of());
-        when(regionTagQueryService.getActiveSummaries()).thenReturn(List.of());
 
-        PlaceSearchPage result = service.search(1L, "성수", null, 1);
+        PlaceSearchPage result = service.search(1L, "성수", 1);
 
         verify(placeRepository, never()).searchByKeyword(eq("성수"), any(Pageable.class));
         assertThat(result.page()).isEqualTo(1);

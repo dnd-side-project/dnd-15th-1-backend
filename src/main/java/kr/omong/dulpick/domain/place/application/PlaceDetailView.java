@@ -21,12 +21,10 @@ public record PlaceDetailView(
         boolean savedByMe,
         PlaceOwnershipStatus ownershipStatus,
         String thumbnailUrl,
-        List<String> imageUrls,
-        List<RegionTagSummaryView> regionTags
+        List<String> imageUrls
 ) {
 
     public PlaceDetailView {
         imageUrls = imageUrls == null ? List.of() : imageUrls.stream().distinct().toList();
-        regionTags = regionTags == null ? List.of() : List.copyOf(regionTags);
     }
 }

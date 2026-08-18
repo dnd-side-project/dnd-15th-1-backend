@@ -22,16 +22,13 @@ public class PlaceQueryService {
 
     private final MemberPlaceRepository memberPlaceRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
-    private final RegionTagQueryService regionTagQueryService;
 
     public PlaceQueryService(
             MemberPlaceRepository memberPlaceRepository,
-            ActiveCoupleMemberRepository activeCoupleMemberRepository,
-            RegionTagQueryService regionTagQueryService
+            ActiveCoupleMemberRepository activeCoupleMemberRepository
     ) {
         this.memberPlaceRepository = memberPlaceRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
-        this.regionTagQueryService = regionTagQueryService;
     }
 
     @Transactional(readOnly = true)
@@ -46,34 +43,15 @@ public class PlaceQueryService {
     public List<MemberPlaceView> getVisiblePlaces(
             Long memberId,
             DulpickPlaceCategory category,
-            PlaceOwnershipStatus ownershipStatus,
-            Long regionTagId
+            PlaceOwnershipStatus ownershipStatus
     ) {
-        RegionTagSummaryView selectedRegionTag = regionTagId == null
-                ? null
-                : regionTagQueryService.getSummary(regionTagId);
         boolean hasActiveCouple = hasActiveCouple(memberId);
         List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
-        Map<Long, List<RegionTagSummaryView>> tagsByPlaceId = selectedRegionTag == null
-                ? Map.of()
-                : regionTagQueryService.getTagsByPlaceIds(
-                groupedPlaces.stream()
-                        .map(places -> places.getFirst().getPlace().getId())
-                        .toList()
-        );
         return groupedPlaces.stream()
                 .filter(places -> category == null
                         || category.getDisplayName().equals(places.getFirst().getPlace().getCategoryName()))
                 .filter(places -> ownership(memberId, places, hasActiveCouple)
                         .matchesFilter(ownershipStatus))
-                .filter(places -> selectedRegionTag == null
-                        || tagsByPlaceId.getOrDefault(
-                                places.getFirst().getPlace().getId(),
-                                List.of()
-                        ).stream()
-                        .anyMatch(tag -> tag.regionTagId().equals(
-                                selectedRegionTag.regionTagId()
-                        )))
                 .map(places -> toView(memberId, places))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
