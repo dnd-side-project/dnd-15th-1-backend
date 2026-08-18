@@ -52,6 +52,7 @@ class PlaceImportResultWriterTest {
             contentRepository,
             contentPlaceRepository,
             submissionRepository,
+            mock(RegionTagAssignmentService.class),
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
     private final PlaceImportResultWriter writer = new PlaceImportResultWriter(
@@ -165,6 +166,8 @@ class PlaceImportResultWriterTest {
 
         verify(placeRepository, times(1)).insertIfAbsent(
                 eq("kakao-1"),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
