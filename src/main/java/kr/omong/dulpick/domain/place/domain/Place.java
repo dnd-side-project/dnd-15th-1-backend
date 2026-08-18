@@ -48,6 +48,12 @@ public class Place {
     @Column(name = "category_group_code", length = 3)
     private String categoryGroupCode;
 
+    @Column(length = 50)
+    private String phone;
+
+    @Column(name = "kakao_place_url", length = 1_000)
+    private String kakaoPlaceUrl;
+
     @Column(name = "thumbnail_url", length = 1_000)
     private String thumbnailUrl;
 
@@ -75,6 +81,8 @@ public class Place {
             BigDecimal longitude,
             String category,
             String categoryGroupCode,
+            String phone,
+            String kakaoPlaceUrl,
             String thumbnailUrl,
             Instant now
     ) {
@@ -86,6 +94,8 @@ public class Place {
         this.longitude = longitude;
         this.category = category;
         this.categoryGroupCode = categoryGroupCode;
+        this.phone = phone;
+        this.kakaoPlaceUrl = kakaoPlaceUrl;
         this.thumbnailUrl = thumbnailUrl;
         this.createdAt = now;
         this.updatedAt = now;
@@ -103,6 +113,36 @@ public class Place {
             String thumbnailUrl,
             Instant now
     ) {
+        return create(
+                kakaoPlaceId,
+                name,
+                address,
+                roadAddress,
+                latitude,
+                longitude,
+                category,
+                categoryGroupCode,
+                null,
+                null,
+                thumbnailUrl,
+                now
+        );
+    }
+
+    public static Place create(
+            String kakaoPlaceId,
+            String name,
+            String address,
+            String roadAddress,
+            BigDecimal latitude,
+            BigDecimal longitude,
+            String category,
+            String categoryGroupCode,
+            String phone,
+            String kakaoPlaceUrl,
+            String thumbnailUrl,
+            Instant now
+    ) {
         return new Place(
                 kakaoPlaceId,
                 name,
@@ -112,6 +152,8 @@ public class Place {
                 longitude,
                 category,
                 categoryGroupCode,
+                phone,
+                kakaoPlaceUrl,
                 thumbnailUrl,
                 now
         );
@@ -151,6 +193,14 @@ public class Place {
 
     public String getCategoryGroupCode() {
         return categoryGroupCode;
+    }
+
+    public String getPhone() {
+        return phone;
+    }
+
+    public String getKakaoPlaceUrl() {
+        return kakaoPlaceUrl;
     }
 
     public String getCategoryName() {
