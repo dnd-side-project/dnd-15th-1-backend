@@ -27,8 +27,13 @@ public class SwaggerConfig {
                 .type(SecurityScheme.Type.HTTP)
                 .scheme("bearer")
                 .bearerFormat("JWT");
+        SecurityScheme basicAuth = new SecurityScheme()
+                .type(SecurityScheme.Type.HTTP)
+                .scheme("basic");
         return new OpenAPI()
-                .components(new Components().addSecuritySchemes("bearerAuth", bearerAuth))
+                .components(new Components()
+                        .addSecuritySchemes("bearerAuth", bearerAuth)
+                        .addSecuritySchemes("basicAuth", basicAuth))
                 .tags(List.of(
                         new Tag().name(SwaggerTagNames.AUTH),
                         new Tag().name(SwaggerTagNames.MEMBER),

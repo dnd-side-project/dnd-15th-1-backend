@@ -6,7 +6,7 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.place.application.PlaceClassificationAdminService;
@@ -30,7 +30,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 장소 데이트 유형 분류 API")
-@SecurityRequirements
+@SecurityRequirement(name = "basicAuth")
 @Validated
 @RestController
 @RequestMapping("/api/v1/admin/place-classifications")
@@ -46,7 +46,7 @@ public class PlaceClassificationAdminController {
             summary = "장소 데이트 유형 목록",
             description = "사용자가 저장한 콘텐츠에 연결된 장소만 조회합니다. "
                     + "운영자가 네 축(실내/실외, 액티비티/정적, 낮/밤, 식사/볼거리)을 수동으로 답니다. "
-                    + "인증 없이 사용할 수 있습니다."
+                    + "HTTP Basic 인증이 필요합니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -56,6 +56,11 @@ public class PlaceClassificationAdminController {
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
                             schema = @Schema(implementation = PlaceClassificationAdminPageResponse.class)
                     )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "운영자 아이디 또는 비밀번호가 올바르지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     @GetMapping

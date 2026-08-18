@@ -41,7 +41,7 @@ class SwaggerConfigTest {
         OpenAPI openApi = swaggerConfig.dulpickOpenApi();
 
         assertThat(openApi.getComponents().getSecuritySchemes())
-                .containsKey("bearerAuth");
+                .containsKeys("bearerAuth", "basicAuth");
         assertThat(openApi.getTags())
                 .extracting("name")
                 .containsExactly(

@@ -32,6 +32,11 @@ public class PublicPageController {
         return page("connect.html");
     }
 
+    @GetMapping(value = "/ops/login", produces = HTML_UTF_8)
+    public Resource opsLogin() {
+        return page("ops-login.html");
+    }
+
     @GetMapping(value = {"/ops", "/ops/places"}, produces = HTML_UTF_8)
     public Resource opsPlaces() {
         return page("ops-places.html");

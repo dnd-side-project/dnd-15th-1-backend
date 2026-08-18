@@ -30,6 +30,17 @@
       padding: 16px 20px;
     }
     h1 { margin: 0 0 4px; font-size: 18px; }
+    .header-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .logout {
+      font: inherit;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
     .sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
     .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
     .toolbar input,
@@ -112,8 +123,15 @@
 </head>
 <body>
   <header>
-    <h1>콘텐츠 장소 분류</h1>
-    <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
+    <div class="header-row">
+      <div>
+        <h1>콘텐츠 장소 분류</h1>
+        <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
+      </div>
+      <form method="post" action="/ops/logout">
+        <button class="logout" type="submit">로그아웃</button>
+      </form>
+    </div>
     <div class="toolbar">
       <button type="button" data-status="UNCLASSIFIED" class="active">미분류</button>
       <button type="button" data-status="PARTIALLY_CLASSIFIED">일부</button>
@@ -168,7 +186,7 @@
 
     async function api(path, options) {
       const headers = Object.assign({ Accept: "application/json" }, (options && options.headers) || {});
-      const response = await fetch(path, Object.assign({}, options, { headers: headers }));
+      const response = await fetch(path, Object.assign({ credentials: "same-origin" }, options, { headers: headers }));
       const text = await response.text();
       let body = null;
       if (text) {

@@ -1,5 +1,6 @@
 package kr.omong.dulpick.global.web;
 
+import kr.omong.dulpick.global.security.config.OpsAccessProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -10,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -25,6 +27,9 @@ class UniversalLinkIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private OpsAccessProperties opsAccessProperties;
 
     @Test
     void servesAppleAppSiteAssociationWithoutAuthenticationOrRedirect() throws Exception {
@@ -68,8 +73,10 @@ class UniversalLinkIntegrationTest {
     }
 
     @Test
-    void servesOperatorClassificationPage() throws Exception {
-        mockMvc.perform(get("/ops/places").accept(MediaType.TEXT_HTML))
+    void servesOperatorClassificationPageWithBasicAuth() throws Exception {
+        mockMvc.perform(get("/ops/places")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .accept(MediaType.TEXT_HTML))
                 .andExpect(status().isOk())
                 .andExpect(content().string(containsString("콘텐츠 장소 분류")));
     }

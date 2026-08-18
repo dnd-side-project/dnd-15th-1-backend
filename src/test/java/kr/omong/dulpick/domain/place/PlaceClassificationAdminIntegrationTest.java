@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.global.security.config.OpsAccessProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -21,10 +22,12 @@ import java.util.UUID;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -36,6 +39,9 @@ class PlaceClassificationAdminIntegrationTest {
     private MockMvc mockMvc;
 
     @Autowired
+    private OpsAccessProperties opsAccessProperties;
+
+    @Autowired
     private PlaceRepository placeRepository;
 
     @Autowired
@@ -45,7 +51,7 @@ class PlaceClassificationAdminIntegrationTest {
     private ContentPlaceRepository contentPlaceRepository;
 
     @Test
-    void listsOnlyPlacesLinkedToSavedContentAndClassifiesWithoutAuth() throws Exception {
+    void listsOnlyPlacesLinkedToSavedContentAndClassifiesWithBasicAuth() throws Exception {
         Instant now = Instant.now();
         String uniqueName = "ops-class-" + UUID.randomUUID();
         Place linked = placeRepository.save(Place.create(
@@ -87,6 +93,7 @@ class PlaceClassificationAdminIntegrationTest {
         contentPlaceRepository.save(ContentPlace.create(content.getId(), linked.getId(), now));
 
         mockMvc.perform(get("/api/v1/admin/place-classifications")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .param("status", "UNCLASSIFIED")
                         .param("query", uniqueName))
                 .andExpect(status().isOk())
@@ -96,11 +103,13 @@ class PlaceClassificationAdminIntegrationTest {
                 .andExpect(jsonPath("$.places[0].environment.value").value(nullValue()));
 
         mockMvc.perform(get("/api/v1/admin/place-classifications")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .param("query", uniqueName + "-단독"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.places.length()").value(0));
 
         mockMvc.perform(patch("/api/v1/admin/place-classifications/{placeId}", linked.getId())
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -116,6 +125,7 @@ class PlaceClassificationAdminIntegrationTest {
                 .andExpect(jsonPath("$.environment.source").value("MANUAL"));
 
         mockMvc.perform(get("/api/v1/admin/place-classifications")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .param("status", "UNCLASSIFIED")
                         .param("query", uniqueName)
                         .param("page", "0")
@@ -127,6 +137,7 @@ class PlaceClassificationAdminIntegrationTest {
                 .andExpect(jsonPath("$.counts.classified").value(1));
 
         mockMvc.perform(patch("/api/v1/admin/place-classifications/{placeId}", linked.getId())
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 { "time": null }
@@ -136,14 +147,33 @@ class PlaceClassificationAdminIntegrationTest {
                 .andExpect(jsonPath("$.time.value").value(nullValue()))
                 .andExpect(jsonPath("$.environment.value").value("INDOOR"));
 
-        mockMvc.perform(get("/api/v1/admin/place-classifications/{placeId}", unlinked.getId()))
+        mockMvc.perform(get("/api/v1/admin/place-classifications/{placeId}", unlinked.getId())
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password())))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.placeId").value(unlinked.getId()));
     }
 
     @Test
-    void servesOperatorPageWithoutAuthentication() throws Exception {
+    void rejectsOperatorApiWithoutAuthAndRedirectsHtmlToLogin() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/place-classifications"))
+                .andExpect(status().isUnauthorized());
         mockMvc.perform(get("/ops/places").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isFound())
+                .andExpect(redirectedUrl("/ops/login"));
+    }
+
+    @Test
+    void servesOperatorLoginPageWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/ops/login").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("운영자 계정으로 로그인")));
+    }
+
+    @Test
+    void servesOperatorPageWithBasicAuth() throws Exception {
+        mockMvc.perform(get("/ops/places")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .accept(MediaType.TEXT_HTML))
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("text/html;charset=UTF-8"))
                 .andExpect(content().string(containsString("콘텐츠 장소 분류")))
