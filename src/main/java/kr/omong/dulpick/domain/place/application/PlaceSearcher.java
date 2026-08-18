@@ -4,5 +4,11 @@ import java.util.List;
 
 public interface PlaceSearcher {
 
-    List<PlaceSearchResult> search(String query);
+    int FIRST_PAGE = 1;
+
+    PlaceKeywordSearch search(String query, int page);
+
+    default List<PlaceSearchResult> search(String query) {
+        return search(query, FIRST_PAGE).results();
+    }
 }
