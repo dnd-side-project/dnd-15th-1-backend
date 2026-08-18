@@ -9,12 +9,21 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.place.application.PlaceQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceCommandService;
+import kr.omong.dulpick.domain.place.application.PlaceDetailQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
+import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceSaveRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.response.MemberPlaceResponse;
+import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceDetailResponse;
+import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchPageResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -26,7 +35,9 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -34,28 +45,33 @@ import java.util.List;
 
 @Tag(name = SwaggerTagNames.PLACE, description = "공용 장소와 커플 저장 장소 조회 API")
 @SecurityRequirement(name = "bearerAuth")
+@Validated
 @RestController
 @RequestMapping("/api/v1/places")
 public class PlaceController {
 
     private final PlaceQueryService placeQueryService;
     private final PlaceSearchService placeSearchService;
+    private final PlaceDetailQueryService placeDetailQueryService;
     private final PlaceCommandService placeCommandService;
 
     public PlaceController(
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService,
+            PlaceDetailQueryService placeDetailQueryService,
             PlaceCommandService placeCommandService
     ) {
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
+        this.placeDetailQueryService = placeDetailQueryService;
         this.placeCommandService = placeCommandService;
     }
 
     @Operation(
             summary = "내 장소와 연결된 상대방의 저장 장소 조회",
             description = "본인 저장 장소와 현재 연결된 상대방의 저장 장소를 조회합니다. 연결 해제 후 상대방 저장 정보는 반환하지 않습니다. "
-                    + "같은 공용 장소를 둘 다 저장한 경우 한 항목으로 합쳐서 ownershipStatus=TOGETHER로 반환합니다."
+                    + "같은 공용 장소를 커플이 저장한 경우 ownershipStatus=TOGETHER로 반환합니다. "
+                    + "카테고리·저장 주체·지역 태그 필터를 선택적으로 적용할 수 있습니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -70,30 +86,49 @@ public class PlaceController {
                     responseCode = "401",
                     description = "Access Token이 없거나 유효하지 않습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "요청한 활성 지역 태그를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     @GetMapping
     public ResponseEntity<List<MemberPlaceResponse>> getVisiblePlaces(
-            @AuthenticationPrincipal Jwt jwt
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "둘픽 카테고리 코드", example = "CAFE")
+            @RequestParam(required = false) @Schema(example = "CAFE") DulpickPlaceCategory category,
+            @Parameter(description = "저장 주체 필터", example = "TOGETHER")
+            @RequestParam(required = false) @Schema(example = "TOGETHER")
+            PlaceOwnershipStatus ownershipStatus,
+            @Parameter(description = "지역 태그 ID", example = "1")
+            @RequestParam(required = false) @Schema(example = "1") Long regionTagId
     ) {
-        return ResponseEntity.ok(placeQueryService.getVisiblePlaces(memberId(jwt))
+        return ResponseEntity.ok(placeQueryService.getVisiblePlaces(
+                        memberId(jwt),
+                        category,
+                        ownershipStatus,
+                        regionTagId
+                )
                 .stream()
                 .map(MemberPlaceResponse::from)
                 .toList());
     }
 
     @Operation(
-            summary = "Kakao 장소 검색",
-            description = "AI 분석과 무관하게 Kakao 지도에서 장소를 검색합니다. 검색 결과는 공용 장소 데이터로 정규화됩니다. "
-                    + "검색 결과의 kakaoPlaceId를 장소 저장 요청에 사용합니다."
+            summary = "DB 우선 Kakao 장소 통합 검색",
+            description = "공용 DB와 Kakao 지도에서 장소를 함께 검색하고 kakaoPlaceId로 중복 제거합니다. "
+                    + "Kakao에는 검색어만 보내며, 카테고리는 응답의 Kakao 코드로 매핑합니다. "
+                    + "한 번에 10건을 반환하고 page로 다음 10건을 요청합니다. "
+                    + "첫 페이지는 DB 장소를 앞에 두고, 조회 중 검색 결과를 DB에 저장하지 않습니다."
     )
     @ApiResponses({
             @ApiResponse(
                     responseCode = "200",
-                    description = "Kakao 장소 검색 성공. 결과가 없으면 빈 배열을 반환합니다.",
+                    description = "Kakao 장소 검색 성공. 결과가 없으면 빈 목록을 반환합니다.",
                     content = @Content(
                             mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            array = @ArraySchema(schema = @Schema(implementation = PlaceSearchResponse.class))
+                            schema = @Schema(implementation = PlaceSearchPageResponse.class)
                     )
             ),
             @ApiResponse(
@@ -102,19 +137,128 @@ public class PlaceController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "502",
-                    description = "Kakao 장소 검색에 실패했습니다",
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "요청한 활성 지역 태그를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Kakao 장소 검색을 일시적으로 사용할 수 없습니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
     @GetMapping("/search")
-    public ResponseEntity<List<PlaceSearchResponse>> search(
+    public ResponseEntity<PlaceSearchPageResponse> search(
+            @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "Kakao 장소 검색어", required = true, example = "성수동 카페")
-            @RequestParam @Schema(example = "성수동 카페") String query
+            @RequestParam @NotBlank @Size(max = 200)
+            @Schema(example = "성수동 카페") String query,
+            @Parameter(description = "지역 태그 ID", example = "1")
+            @RequestParam(required = false) @Schema(example = "1") Long regionTagId,
+            @Parameter(description = "0부터 시작하는 페이지 번호. 다음 10건이 필요하면 1, 2, … 로 요청합니다.", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) @Max(44)
+            @Schema(example = "0") int page
     ) {
-        return ResponseEntity.ok(placeSearchService.search(query).stream()
-                .map(PlaceSearchResponse::from)
-                .toList());
+        return ResponseEntity.ok(PlaceSearchPageResponse.from(placeSearchService.search(
+                memberId(jwt),
+                query,
+                regionTagId,
+                page
+        )));
+    }
+
+    @Operation(
+            summary = "Kakao 검색 장소 상세 조회",
+            description = "검색어와 Kakao 장소 ID를 다시 검증해 미저장 장소 상세를 조회합니다. "
+                    + "동일 Kakao 장소가 공용 DB에 있으면 DB 장소 ID와 현재 활성 커플의 저장 상태를 함께 반환합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Kakao 장소 상세 조회 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PlaceDetailResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Kakao 장소 ID나 검색어가 올바르지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "검색 결과에서 Kakao 장소를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "Kakao 장소 검색을 일시적으로 사용할 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/kakao/{kakaoPlaceId}")
+    public ResponseEntity<PlaceDetailResponse> getKakaoPlaceDetail(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "Kakao 장소 고유 ID", required = true, example = "18699959")
+            @PathVariable @NotBlank @Size(max = 80)
+            @Schema(example = "18699959") String kakaoPlaceId,
+            @Parameter(description = "Kakao 장소를 확인할 검색어", required = true, example = "성수동 카페")
+            @RequestParam @NotBlank @Size(max = 200)
+            @Schema(example = "성수동 카페") String query
+    ) {
+        return ResponseEntity.ok(PlaceDetailResponse.from(
+                placeDetailQueryService.getByKakaoPlaceId(
+                        memberId(jwt),
+                        kakaoPlaceId,
+                        query
+                )
+        ));
+    }
+
+    @Operation(
+            summary = "공용 DB 장소 상세 조회",
+            description = "공용 장소 정보와 현재 활성 커플 기준 저장 여부·저장 주체·지역 태그를 함께 조회합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "장소 상세 조회 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PlaceDetailResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "공용 장소를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/{placeId}")
+    public ResponseEntity<PlaceDetailResponse> getPlaceDetail(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "공용 장소 ID", required = true, example = "101")
+            @PathVariable @Schema(example = "101") Long placeId
+    ) {
+        return ResponseEntity.ok(PlaceDetailResponse.from(
+                placeDetailQueryService.get(memberId(jwt), placeId)
+        ));
     }
 
     @Operation(

@@ -16,4 +16,10 @@ public interface MemberPlaceRepository extends JpaRepository<MemberPlace, Long> 
 
     @EntityGraph(attributePaths = "place")
     List<MemberPlace> findAllByMemberIdInOrderBySavedAtDesc(List<Long> memberIds);
+
+    @EntityGraph(attributePaths = "place")
+    List<MemberPlace> findAllByMemberIdInAndPlaceIdIn(
+            List<Long> memberIds,
+            List<Long> placeIds
+    );
 }

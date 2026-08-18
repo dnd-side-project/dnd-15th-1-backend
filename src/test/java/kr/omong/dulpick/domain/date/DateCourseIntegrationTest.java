@@ -17,6 +17,8 @@ import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.RegionTagRepository;
+import kr.omong.dulpick.domain.place.application.RegionTagAssignmentService;
 import kr.omong.dulpick.global.time.ServiceTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +74,12 @@ class DateCourseIntegrationTest {
     @Autowired
     private MemberPlaceRepository memberPlaceRepository;
 
+    @Autowired
+    private RegionTagRepository regionTagRepository;
+
+    @Autowired
+    private RegionTagAssignmentService regionTagAssignmentService;
+
     @Test
     void createsAndConfirmsDateCourseAndExposesHomeSummary() throws Exception {
         CoupleFixture fixture = createConnectedCouple();
@@ -83,6 +91,19 @@ class DateCourseIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.places.length()").value(2))
                 .andExpect(jsonPath("$.availableCategories.length()").isNotEmpty());
+        Long seongsuTagId = regionTagRepository
+                .findAllByActiveTrueOrderByDisplayOrderAscIdAsc()
+                .stream()
+                .filter(tag -> tag.getName().equals("성수"))
+                .findFirst()
+                .orElseThrow()
+                .getId();
+        mockMvc.perform(get("/api/v1/date-courses/places")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("region", "성동구")
+                        .param("regionTagId", seongsuTagId.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(2));
 
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(3);
         MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
@@ -304,6 +325,7 @@ class DateCourseIntegrationTest {
 
     private Place savePlaceForMember(Long memberId, String suffix, Instant now) {
         Place place = placeRepository.save(place(suffix, now));
+        regionTagAssignmentService.assignMatchingTags(place, now);
         memberPlaceRepository.save(MemberPlace.save(memberId, place, null, null, now));
         return place;
     }

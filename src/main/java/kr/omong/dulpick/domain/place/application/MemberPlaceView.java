@@ -9,6 +9,7 @@ import java.util.List;
 public record MemberPlaceView(
         Long memberId,
         Long placeId,
+        String kakaoPlaceId,
         String name,
         String address,
         String roadAddress,
@@ -35,6 +36,7 @@ public record MemberPlaceView(
     public MemberPlaceView(
             Long memberId,
             Long placeId,
+            String kakaoPlaceId,
             String name,
             String address,
             String roadAddress,
@@ -49,6 +51,7 @@ public record MemberPlaceView(
         this(
                 memberId,
                 placeId,
+                kakaoPlaceId,
                 name,
                 address,
                 roadAddress,

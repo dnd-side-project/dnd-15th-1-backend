@@ -5,12 +5,14 @@ import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,9 +25,11 @@ class PlaceQueryServiceTest {
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final ActiveCoupleMemberRepository coupleMemberRepository =
             mock(ActiveCoupleMemberRepository.class);
+    private final RegionTagQueryService regionTagQueryService = mock(RegionTagQueryService.class);
     private final PlaceQueryService service = new PlaceQueryService(
             memberPlaceRepository,
-            coupleMemberRepository
+            coupleMemberRepository,
+            regionTagQueryService
     );
 
     @Test
@@ -53,7 +57,7 @@ class PlaceQueryServiceTest {
     }
 
     @Test
-    void marksPartnerOnlyPlaceAsPartner() {
+    void marksPartnerOnlyPlaceAsTogetherWhenCoupleIsActive() {
         Place place = place(20L);
         MemberPlace partner = memberPlace(
                 2L,
@@ -66,7 +70,7 @@ class PlaceQueryServiceTest {
                 .thenReturn(List.of(partner));
 
         assertThat(service.getVisiblePlaces(1L)).singleElement().satisfies(saved ->
-                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.PARTNER)
+                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER)
         );
     }
 
@@ -82,6 +86,36 @@ class PlaceQueryServiceTest {
                 assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.MINE)
         );
         verify(memberPlaceRepository).findAllByMemberIdInOrderBySavedAtDesc(List.of(1L));
+    }
+
+    @Test
+    void filtersVisiblePlacesByCategoryOwnershipAndRegionTag() {
+        Place place = place(40L);
+        when(place.getCategoryName()).thenReturn("카페");
+        MemberPlace mine = memberPlace(
+                1L,
+                place,
+                null,
+                Instant.parse("2026-08-10T00:00:00Z")
+        );
+        RegionTagSummaryView seongsu = new RegionTagSummaryView(1L, "성수", 1);
+        when(coupleMemberRepository.findByMemberId(1L)).thenReturn(Optional.empty());
+        when(memberPlaceRepository.findAllByMemberIdInOrderBySavedAtDesc(List.of(1L)))
+                .thenReturn(List.of(mine));
+        when(regionTagQueryService.getSummary(1L)).thenReturn(seongsu);
+        when(regionTagQueryService.getTagsByPlaceIds(List.of(40L)))
+                .thenReturn(Map.of(40L, List.of(seongsu)));
+
+        List<MemberPlaceView> result = service.getVisiblePlaces(
+                1L,
+                DulpickPlaceCategory.CAFE,
+                PlaceOwnershipStatus.MINE,
+                1L
+        );
+
+        assertThat(result).singleElement().satisfies(saved ->
+                assertThat(saved.placeId()).isEqualTo(40L)
+        );
     }
 
     private void connectCouple(Long memberId, Long partnerId) {
