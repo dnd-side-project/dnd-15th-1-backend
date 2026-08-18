@@ -46,7 +46,7 @@ class RecentSearchIntegrationTest {
     private RecentSearchQueryService queryService;
 
     @Test
-    void upsertsSameKeywordAndKeepsSearchTypesSeparateWithoutRetentionLimit() {
+    void upsertsSameKeywordAndKeepsSearchTypesSeparate() {
         Member member = memberRepository.save(Member.create(Instant.now()));
 
         commandService.record(member.getId(), RecentSearchType.PLACE, "Seoul");
@@ -72,6 +72,27 @@ class RecentSearchIntegrationTest {
         assertThat(contentHistory.getContent()).singleElement().satisfies(history ->
                 assertThat(history.keyword()).isEqualTo("Seoul")
         );
+    }
+
+    @Test
+    void keepsOnlyTheNewestSearchesPerMemberAndType() {
+        Member member = memberRepository.save(Member.create(Instant.now()));
+
+        for (int index = 0; index < 51; index++) {
+            commandService.record(member.getId(), RecentSearchType.PLACE, "장소" + index);
+        }
+
+        var placeHistory = queryService.getRecentSearches(
+                member.getId(),
+                RecentSearchType.PLACE,
+                PageRequest.of(0, 60)
+        );
+
+        assertThat(placeHistory.getTotalElements()).isEqualTo(50);
+        assertThat(placeHistory.getContent())
+                .extracting(history -> history.keyword())
+                .contains("장소50")
+                .doesNotContain("장소0");
     }
 
     @Test

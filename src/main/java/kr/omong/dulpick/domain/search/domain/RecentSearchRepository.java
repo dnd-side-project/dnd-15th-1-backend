@@ -30,6 +30,28 @@ public interface RecentSearchRepository extends JpaRepository<RecentSearch, Long
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = """
+            DELETE FROM recent_searches
+            WHERE member_id = :memberId
+              AND search_type = :searchType
+              AND id IN (
+                  SELECT id FROM (
+                      SELECT id
+                      FROM recent_searches
+                      WHERE member_id = :memberId
+                        AND search_type = :searchType
+                      ORDER BY searched_at DESC, id DESC
+                      LIMIT 18446744073709551615 OFFSET :keepCount
+                  ) overflow
+              )
+            """, nativeQuery = true)
+    int deleteOverflow(
+            @Param("memberId") Long memberId,
+            @Param("searchType") String searchType,
+            @Param("keepCount") int keepCount
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = """
             INSERT INTO recent_searches
                 (member_id, search_type, keyword, normalized_query, searched_at)
             VALUES

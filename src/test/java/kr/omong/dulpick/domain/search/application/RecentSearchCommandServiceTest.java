@@ -20,10 +20,12 @@ import static org.mockito.Mockito.when;
 class RecentSearchCommandServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-08-18T00:00:00Z");
+    private static final RecentSearchProperties PROPERTIES = new RecentSearchProperties(50);
 
     private final RecentSearchRepository repository = mock(RecentSearchRepository.class);
     private final RecentSearchCommandService service = new RecentSearchCommandService(
             repository,
+            PROPERTIES,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
 
@@ -57,6 +59,7 @@ class RecentSearchCommandServiceTest {
                 "성수동 카페",
                 NOW
         );
+        verify(repository).deleteOverflow(1L, "PLACE", 50);
     }
 
     @Test
@@ -77,6 +80,7 @@ class RecentSearchCommandServiceTest {
         service.record(1L, RecentSearchType.CONTENT, "Seoul");
 
         verify(repository).upsert(1L, "CONTENT", "Seoul", "seoul", NOW);
+        verify(repository).deleteOverflow(1L, "CONTENT", 50);
     }
 
     @Test

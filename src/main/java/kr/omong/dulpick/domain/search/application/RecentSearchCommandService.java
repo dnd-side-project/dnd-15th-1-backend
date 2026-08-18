@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.search.application.exception.RecentSearchNotFound
 import kr.omong.dulpick.domain.search.domain.RecentSearch;
 import kr.omong.dulpick.domain.search.domain.RecentSearchRepository;
 import kr.omong.dulpick.domain.search.domain.RecentSearchType;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -11,16 +12,20 @@ import java.time.Clock;
 import java.util.Locale;
 
 @Service
+@EnableConfigurationProperties(RecentSearchProperties.class)
 public class RecentSearchCommandService {
 
     private final RecentSearchRepository recentSearchRepository;
+    private final RecentSearchProperties properties;
     private final Clock clock;
 
     public RecentSearchCommandService(
             RecentSearchRepository recentSearchRepository,
+            RecentSearchProperties properties,
             Clock clock
     ) {
         this.recentSearchRepository = recentSearchRepository;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -39,6 +44,7 @@ public class RecentSearchCommandService {
                 normalizedQuery,
                 clock.instant()
         );
+        recentSearchRepository.deleteOverflow(memberId, type.name(), properties.maxPerType());
         RecentSearch recentSearch = recentSearchRepository
                 .findByMemberIdAndSearchTypeAndNormalizedQuery(memberId, type, normalizedQuery)
                 .orElseThrow(IllegalStateException::new);

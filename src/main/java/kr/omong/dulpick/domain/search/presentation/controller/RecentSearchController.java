@@ -53,7 +53,8 @@ public class RecentSearchController {
 
     @Operation(
             summary = "최근 검색어 저장",
-            description = "게시글과 장소 검색어를 타입별로 저장합니다. 같은 타입에서 동일 검색어를 다시 저장하면 최신 시각으로 이동합니다."
+            description = "게시글과 장소 검색어를 타입별로 저장합니다. 같은 타입에서 동일 검색어를 다시 저장하면 최신 시각으로 이동합니다. "
+                    + "회원·검색 타입별로 최대 50개만 유지하고, 초과분은 가장 오래된 검색어부터 삭제합니다."
     )
     @ApiResponses({
             @ApiResponse(
