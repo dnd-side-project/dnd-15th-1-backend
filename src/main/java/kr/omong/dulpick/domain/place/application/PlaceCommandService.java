@@ -44,6 +44,7 @@ public class PlaceCommandService {
     private final MemberRepository memberRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
+    private final RegionTagAssignmentService regionTagAssignmentService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
@@ -54,6 +55,7 @@ public class PlaceCommandService {
             MemberRepository memberRepository,
             MemberPlaceRepository memberPlaceRepository,
             ActiveCoupleMemberRepository activeCoupleMemberRepository,
+            RegionTagAssignmentService regionTagAssignmentService,
             ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
@@ -63,6 +65,7 @@ public class PlaceCommandService {
         this.memberRepository = memberRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
+        this.regionTagAssignmentService = regionTagAssignmentService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
@@ -78,6 +81,7 @@ public class PlaceCommandService {
         if (!member.isActive()) {
             throw new MemberNotActiveException();
         }
+        Instant now = clock.instant();
         placeRepository.insertIfAbsent(
                 searchResult.kakaoPlaceId(),
                 searchResult.name(),
@@ -87,16 +91,18 @@ public class PlaceCommandService {
                 searchResult.longitude(),
                 searchResult.category(),
                 searchResult.categoryGroupCode(),
+                searchResult.phone(),
+                searchResult.kakaoPlaceUrl(),
                 searchResult.thumbnailUrl(),
-                clock.instant()
+                now
         );
         Place place = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
                 .orElseThrow(PlaceNotFoundException::new);
+        regionTagAssignmentService.assignMatchingTags(place, now);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
-        Instant now = clock.instant();
         MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, place.getId())
                 .orElseGet(() -> {
                     MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
@@ -261,6 +267,7 @@ public class PlaceCommandService {
         return new MemberPlaceView(
                 saved.getMemberId(),
                 place.getId(),
+                place.getKakaoPlaceId(),
                 place.getName(),
                 place.getAddress(),
                 place.getRoadAddress(),
@@ -316,9 +323,10 @@ public class PlaceCommandService {
         if (partnerId == null) {
             return PlaceOwnershipStatus.MINE;
         }
-        return memberPlaceRepository.findByMemberIdAndPlaceId(partnerId, placeId).isPresent()
-                ? PlaceOwnershipStatus.TOGETHER
-                : PlaceOwnershipStatus.MINE;
+        boolean savedByPartner = memberPlaceRepository
+                .findByMemberIdAndPlaceId(partnerId, placeId)
+                .isPresent();
+        return PlaceOwnershipStatus.resolve(true, true, savedByPartner);
     }
 
     public record PlaceSelection(
