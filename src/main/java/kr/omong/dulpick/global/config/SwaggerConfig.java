@@ -103,8 +103,18 @@ public class SwaggerConfig {
                             ? java.util.stream.Stream.empty()
                             : operation.getParameters().stream())
                     .forEach(parameter -> {
-                        if (isMissingExample(parameter.getExample()) && parameter.getSchema() != null) {
-                            parameter.setExample(exampleFor(parameter.getName(), parameter.getSchema()));
+                        if (parameter.getSchema() == null) {
+                            return;
+                        }
+                        Object example = exampleFor(parameter.getName(), parameter.getSchema());
+                        if (example == null) {
+                            return;
+                        }
+                        if (isMissingExample(parameter.getSchema().getExample())) {
+                            parameter.getSchema().setExample(example);
+                        }
+                        if (isMissingExample(parameter.getExample())) {
+                            parameter.setExample(example);
                         }
                     });
         };
@@ -114,7 +124,7 @@ public class SwaggerConfig {
         if (schema == null) {
             return;
         }
-        if (isMissingExample(schema.getExample()) && propertyName != null) {
+        if (isMissingExample(schema.getExample())) {
             Object example = exampleFor(propertyName, schema);
             if (example != null) {
                 schema.setExample(example);
@@ -136,6 +146,9 @@ public class SwaggerConfig {
     private Object exampleFor(String propertyName, Schema<?> schema) {
         if (schema.getEnum() != null && !schema.getEnum().isEmpty()) {
             return schema.getEnum().getFirst();
+        }
+        if (propertyName == null) {
+            return null;
         }
 
         String normalizedName = propertyName.toLowerCase(Locale.ROOT);

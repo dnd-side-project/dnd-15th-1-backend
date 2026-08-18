@@ -59,7 +59,7 @@ public record PlaceClassificationAdminResponse(
     }
 
     public record AxisResponse<T>(
-            @Schema(description = "축 값. 미분류면 null", nullable = true)
+            @Schema(description = "축 값. 미분류면 null", example = "INDOOR", nullable = true)
             T value,
             @Schema(
                     description = "값 출처. 미분류면 null",

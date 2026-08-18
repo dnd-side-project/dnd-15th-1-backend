@@ -15,6 +15,8 @@ import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SwaggerConfigTest {
@@ -78,6 +80,20 @@ class SwaggerConfigTest {
                 .isEqualTo("둘픽이");
         assertThat(operation.getParameters().getFirst().getExample())
                 .isEqualTo(101);
+        assertThat(operation.getParameters().getFirst().getSchema().getExample())
+                .isEqualTo(101);
+    }
+
+    @Test
+    void fillsMissingEnumSchemaExamples() {
+        Schema<?> enumSchema = new StringSchema()
+                ._enum(List.of("UNCLASSIFIED", "CLASSIFIED"));
+        OpenAPI openApi = new OpenAPI()
+                .components(new Components().addSchemas("PlaceClassificationStatus", enumSchema));
+
+        swaggerConfig.schemaExampleCustomizer().customise(openApi);
+
+        assertThat(enumSchema.getExample()).isEqualTo("UNCLASSIFIED");
     }
 
     @Test

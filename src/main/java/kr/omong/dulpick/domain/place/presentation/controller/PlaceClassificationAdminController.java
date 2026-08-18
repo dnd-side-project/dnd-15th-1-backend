@@ -61,9 +61,9 @@ public class PlaceClassificationAdminController {
     @GetMapping
     public ResponseEntity<PlaceClassificationAdminPageResponse> list(
             @Parameter(description = "분류 상태 필터. 생략하면 전체", example = "UNCLASSIFIED")
-            @RequestParam(required = false) PlaceClassificationStatus status,
+            @RequestParam(required = false) @Schema(example = "UNCLASSIFIED") PlaceClassificationStatus status,
             @Parameter(description = "장소명·주소 검색어", example = "성수")
-            @RequestParam(required = false) String query,
+            @RequestParam(required = false) @Schema(example = "성수") String query,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return ResponseEntity.ok(PlaceClassificationAdminPageResponse.from(
