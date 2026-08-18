@@ -68,6 +68,13 @@ class UniversalLinkIntegrationTest {
     }
 
     @Test
+    void servesOperatorClassificationPage() throws Exception {
+        mockMvc.perform(get("/ops/places").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("콘텐츠 장소 분류")));
+    }
+
+    @Test
     void keepsApplicationApiProtected() throws Exception {
         mockMvc.perform(get("/api/v1/members/me"))
                 .andExpect(status().isUnauthorized());

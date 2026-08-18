@@ -35,6 +35,10 @@ public class SwaggerConfig {
                         new Tag().name(SwaggerTagNames.COUPLE_CONNECTION),
                         new Tag().name(SwaggerTagNames.FEEDBACK),
                         new Tag().name(SwaggerTagNames.NOTIFICATION),
+                        new Tag().name(SwaggerTagNames.SEARCH),
+                        new Tag().name(SwaggerTagNames.PLACE),
+                        new Tag().name(SwaggerTagNames.OPS),
+                        new Tag().name(SwaggerTagNames.DATE),
                         new Tag().name(SwaggerTagNames.SERVER)
                 ));
     }

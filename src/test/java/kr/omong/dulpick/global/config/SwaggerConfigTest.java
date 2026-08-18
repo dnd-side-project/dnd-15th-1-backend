@@ -48,6 +48,10 @@ class SwaggerConfigTest {
                         SwaggerTagNames.COUPLE_CONNECTION,
                         SwaggerTagNames.FEEDBACK,
                         SwaggerTagNames.NOTIFICATION,
+                        SwaggerTagNames.SEARCH,
+                        SwaggerTagNames.PLACE,
+                        SwaggerTagNames.OPS,
+                        SwaggerTagNames.DATE,
                         SwaggerTagNames.SERVER
                 );
     }
