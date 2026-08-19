@@ -94,6 +94,22 @@ class AuthTokenCommandIntegrationTest {
     }
 
     @Test
+    void revokesReplacementChainWhenLogoutUsesRotatedToken() {
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
+        IssuedTokens initialTokens = tokenService.issue(member);
+        IssuedTokens rotatedTokens = authCommandService.reissue(initialTokens.refreshToken());
+        IssuedTokens latestTokens = authCommandService.reissue(rotatedTokens.refreshToken());
+        IssuedTokens otherSessionTokens = tokenService.issue(member);
+
+        authCommandService.logout(initialTokens.refreshToken(), member.getId());
+
+        assertThatThrownBy(() -> authCommandService.reissue(latestTokens.refreshToken()))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThat(authCommandService.reissue(otherSessionTokens.refreshToken()))
+                .isNotNull();
+    }
+
+    @Test
     void distinguishesExpiredRefreshToken() {
         Member member = memberRepository.save(Member.create(Instant.EPOCH));
         String rawRefreshToken = "expired-refresh-token";

@@ -77,6 +77,10 @@ public class RefreshToken {
         return replacedByTokenHash != null;
     }
 
+    public String getReplacedByTokenHash() {
+        return replacedByTokenHash;
+    }
+
     public boolean isWithinReplayGrace(Instant now, Duration replayGrace) {
         return revokedAt != null && revokedAt.plus(replayGrace).isAfter(now);
     }
