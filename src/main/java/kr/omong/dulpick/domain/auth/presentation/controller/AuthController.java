@@ -100,7 +100,7 @@ public class AuthController {
             summary = "인증 토큰 재발급",
             description = """
                     Refresh Token으로 새 Access Token과 Refresh Token을 발급합니다.
-                    요청에 사용한 Refresh Token은 다시 사용할 수 없습니다.
+                    정상적인 중복 요청은 짧은 유예 시간 동안 같은 토큰 교체 결과를 반환합니다.
                     """
     )
     @ApiResponses({

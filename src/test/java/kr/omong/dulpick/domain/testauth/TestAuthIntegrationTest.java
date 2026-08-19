@@ -194,8 +194,8 @@ class TestAuthIntegrationTest {
                 .andReturn();
         AuthTokens rotatedTokens = tokenResponse(reissueResult);
 
-        assertThatThrownBy(() -> authCommandService.reissue(tokens.refreshToken()))
-                .isInstanceOf(InvalidRefreshTokenException.class);
+        IssuedTokens replayedTokens = authCommandService.reissue(tokens.refreshToken());
+        assertThat(replayedTokens.refreshToken()).isEqualTo(rotatedTokens.refreshToken());
 
         mockMvc.perform(post("/api/v1/test-auth/logout")
                         .header(TestAuthAccessKeyFilter.HEADER_NAME, ACCESS_KEY)

@@ -15,10 +15,14 @@ import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Base64;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -57,13 +61,33 @@ public class TokenService {
         return createIssuedTokens(member, refreshToken);
     }
 
-    public IssuedTokens issueRotated(RefreshToken currentToken) {
+    public IssuedTokens issueRotated(RefreshToken currentToken, String rawRefreshToken) {
         Instant issuedAt = clock.instant();
-        String newRefreshToken = generateRefreshToken();
+        String newRefreshToken = generateReplacementRefreshToken(rawRefreshToken);
         String newTokenHash = Sha256.hex(newRefreshToken);
         currentToken.rotate(newTokenHash, issuedAt);
         saveRefreshToken(currentToken.getMember(), newRefreshToken, issuedAt);
         return createIssuedTokens(currentToken.getMember(), newRefreshToken);
+    }
+
+    public Optional<IssuedTokens> issueWithinReplayGrace(
+            RefreshToken currentToken,
+            String rawRefreshToken
+    ) {
+        Instant now = clock.instant();
+        if (!currentToken.isWithinReplayGrace(now, properties.refreshTokenReplayGrace())) {
+            return Optional.empty();
+        }
+        String replacementToken = generateReplacementRefreshToken(rawRefreshToken);
+        String replacementHash = Sha256.hex(replacementToken);
+        if (!currentToken.matchesReplacementHash(replacementHash)) {
+            return Optional.empty();
+        }
+        return refreshTokenRepository.findByTokenHash(replacementHash)
+                .filter(token -> !token.isRevoked())
+                .filter(token -> !token.isExpired(now))
+                .filter(token -> token.getMember().getId().equals(currentToken.getMember().getId()))
+                .map(token -> createIssuedTokens(currentToken.getMember(), replacementToken));
     }
 
     private IssuedTokens createIssuedTokens(Member member, String refreshToken) {
@@ -108,6 +132,18 @@ public class TokenService {
         byte[] bytes = new byte[REFRESH_TOKEN_BYTES];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String generateReplacementRefreshToken(String rawRefreshToken) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(properties.secretKey());
+            mac.update("dulpick-refresh-rotation-v1:".getBytes(StandardCharsets.UTF_8));
+            byte[] token = mac.doFinal(rawRefreshToken.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(token);
+        } catch (GeneralSecurityException exception) {
+            throw new IllegalStateException("Refresh token generation failed", exception);
+        }
     }
 
 }
