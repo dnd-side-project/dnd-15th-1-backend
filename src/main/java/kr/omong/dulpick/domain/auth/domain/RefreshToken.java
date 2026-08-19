@@ -11,6 +11,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import kr.omong.dulpick.domain.member.domain.Member;
 
+import java.time.Duration;
 import java.time.Instant;
 
 @Entity
@@ -74,6 +75,14 @@ public class RefreshToken {
 
     public boolean wasRotated() {
         return replacedByTokenHash != null;
+    }
+
+    public boolean isWithinReplayGrace(Instant now, Duration replayGrace) {
+        return revokedAt != null && revokedAt.plus(replayGrace).isAfter(now);
+    }
+
+    public boolean matchesReplacementHash(String candidateHash) {
+        return replacedByTokenHash != null && replacedByTokenHash.equals(candidateHash);
     }
 
     public boolean isExpired(Instant now) {

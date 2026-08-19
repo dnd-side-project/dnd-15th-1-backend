@@ -35,9 +35,11 @@ public class ReissueTokenHandler {
         RefreshToken currentToken = refreshTokenRepository
                 .findForUpdateByTokenHash(Sha256.hex(rawRefreshToken))
                 .orElseThrow(InvalidRefreshTokenException::new);
-        rejectRotatedTokenReplay(currentToken);
+        if (currentToken.wasRotated()) {
+            return replayOrReject(currentToken, rawRefreshToken);
+        }
         validateRefreshToken(currentToken);
-        return tokenService.issueRotated(currentToken);
+        return tokenService.issueRotated(currentToken, rawRefreshToken);
     }
 
     private void validateRefreshToken(RefreshToken refreshToken) {
@@ -52,14 +54,16 @@ public class ReissueTokenHandler {
         }
     }
 
-    private void rejectRotatedTokenReplay(RefreshToken refreshToken) {
-        if (!refreshToken.wasRotated()) {
-            return;
-        }
+    private IssuedTokens replayOrReject(RefreshToken refreshToken, String rawRefreshToken) {
+        return tokenService.issueWithinReplayGrace(refreshToken, rawRefreshToken)
+                .orElseThrow(() -> rejectRotatedTokenReplay(refreshToken));
+    }
+
+    private InvalidRefreshTokenException rejectRotatedTokenReplay(RefreshToken refreshToken) {
         refreshTokenRepository.revokeAllByMemberId(
                 refreshToken.getMember().getId(),
                 clock.instant()
         );
-        throw new InvalidRefreshTokenException();
+        return new InvalidRefreshTokenException();
     }
 }
