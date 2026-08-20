@@ -18,6 +18,7 @@ import kr.omong.dulpick.domain.place.application.PlaceCommandService;
 import kr.omong.dulpick.domain.place.application.PlaceDetailQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
+import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceSaveRequest;
@@ -25,6 +26,7 @@ import kr.omong.dulpick.domain.place.presentation.dto.response.MemberPlaceRespon
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceDetailResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchPageResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchResponse;
+import kr.omong.dulpick.domain.place.presentation.dto.response.WalkingRouteResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -54,17 +56,20 @@ public class PlaceController {
     private final PlaceSearchService placeSearchService;
     private final PlaceDetailQueryService placeDetailQueryService;
     private final PlaceCommandService placeCommandService;
+    private final PlaceWalkingRouteService placeWalkingRouteService;
 
     public PlaceController(
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService,
             PlaceDetailQueryService placeDetailQueryService,
-            PlaceCommandService placeCommandService
+            PlaceCommandService placeCommandService,
+            PlaceWalkingRouteService placeWalkingRouteService
     ) {
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
         this.placeDetailQueryService = placeDetailQueryService;
         this.placeCommandService = placeCommandService;
+        this.placeWalkingRouteService = placeWalkingRouteService;
     }
 
     @Operation(
@@ -154,6 +159,52 @@ public class PlaceController {
                 query,
                 page
         )));
+    }
+
+    @Operation(
+            summary = "두 장소 사이 도보 이동거리·시간 조회",
+            description = "공용 DB 장소 두 곳의 좌표로 Kakao 도보 경로를 조회합니다. "
+                    + "같은 장소 쌍은 캐시된 결과를 재사용합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "도보 경로 조회 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = WalkingRouteResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "출발 또는 도착 장소를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "503",
+                    description = "도보 경로를 일시적으로 조회할 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/walking-route")
+    public ResponseEntity<WalkingRouteResponse> getWalkingRoute(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "출발 공용 장소 ID", required = true, example = "101")
+            @RequestParam @Schema(example = "101") Long fromPlaceId,
+            @Parameter(description = "도착 공용 장소 ID", required = true, example = "102")
+            @RequestParam @Schema(example = "102") Long toPlaceId
+    ) {
+        memberId(jwt);
+        return ResponseEntity.ok(WalkingRouteResponse.from(
+                fromPlaceId,
+                toPlaceId,
+                placeWalkingRouteService.walkBetween(fromPlaceId, toPlaceId)
+        ));
     }
 
     @Operation(
