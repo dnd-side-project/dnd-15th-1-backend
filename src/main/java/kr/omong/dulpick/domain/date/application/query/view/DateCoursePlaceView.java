@@ -1,5 +1,7 @@
 package kr.omong.dulpick.domain.date.application.query.view;
 
+import kr.omong.dulpick.domain.place.application.WalkingRoute;
+
 import java.math.BigDecimal;
 import java.util.List;
 
@@ -14,7 +16,8 @@ public record DateCoursePlaceView(
         String category,
         String categoryName,
         String thumbnailUrl,
-        List<String> imageUrls
+        List<String> imageUrls,
+        WalkingRoute walkToNext
 ) {
 
     public DateCoursePlaceView {

@@ -23,7 +23,10 @@ import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.place.application.MemberPlaceView;
 import kr.omong.dulpick.domain.place.application.PlaceQueryService;
+import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
+import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
+import kr.omong.dulpick.domain.place.domain.Place;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +36,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 @Service
 public class DateCourseQueryService {
@@ -44,6 +48,7 @@ public class DateCourseQueryService {
     private final DateCourseRepository dateCourseRepository;
     private final DateCoursePlaceRepository dateCoursePlaceRepository;
     private final PlaceQueryService placeQueryService;
+    private final PlaceWalkingRouteService placeWalkingRouteService;
     private final PlaceRegionExtractor placeRegionExtractor;
     private final Clock clock;
 
@@ -53,6 +58,7 @@ public class DateCourseQueryService {
             DateCourseRepository dateCourseRepository,
             DateCoursePlaceRepository dateCoursePlaceRepository,
             PlaceQueryService placeQueryService,
+            PlaceWalkingRouteService placeWalkingRouteService,
             PlaceRegionExtractor placeRegionExtractor,
             Clock clock
     ) {
@@ -61,6 +67,7 @@ public class DateCourseQueryService {
         this.dateCourseRepository = dateCourseRepository;
         this.dateCoursePlaceRepository = dateCoursePlaceRepository;
         this.placeQueryService = placeQueryService;
+        this.placeWalkingRouteService = placeWalkingRouteService;
         this.placeRegionExtractor = placeRegionExtractor;
         this.clock = clock;
     }
@@ -100,7 +107,7 @@ public class DateCourseQueryService {
         return new DateCoursePlacePoolView(filtered, availableRegions, availableCategories);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public DateCourseView getDateCourse(Long memberId, Long dateCourseId) {
         CoupleContext context = requireCoupleContext(memberId);
         DateCourse dateCourse = dateCourseRepository.findByIdAndCoupleId(dateCourseId, context.coupleId())
@@ -170,9 +177,14 @@ public class DateCourseQueryService {
     }
 
     private DateCourseView toView(DateCourse dateCourse, List<DateCoursePlace> places) {
-        List<DateCoursePlaceView> placeViews = places.stream()
+        List<DateCoursePlace> orderedPlaces = places.stream()
                 .sorted(Comparator.comparing(DateCoursePlace::getSequenceOrder))
-                .map(this::toPlaceView)
+                .toList();
+        List<WalkingRoute> walks = placeWalkingRouteService.consecutiveWalks(
+                orderedPlaces.stream().map(DateCoursePlace::getPlace).toList()
+        );
+        List<DateCoursePlaceView> placeViews = IntStream.range(0, orderedPlaces.size())
+                .mapToObj(index -> toPlaceView(orderedPlaces.get(index), walks.get(index)))
                 .toList();
         return new DateCourseView(
                 dateCourse.getId(),
@@ -185,19 +197,21 @@ public class DateCourseQueryService {
         );
     }
 
-    private DateCoursePlaceView toPlaceView(DateCoursePlace place) {
+    private DateCoursePlaceView toPlaceView(DateCoursePlace place, WalkingRoute walkToNext) {
+        Place selected = place.getPlace();
         return new DateCoursePlaceView(
                 place.getSequenceOrder(),
-                place.getPlace().getId(),
-                place.getPlace().getName(),
-                place.getPlace().getAddress(),
-                place.getPlace().getRoadAddress(),
-                place.getPlace().getLatitude(),
-                place.getPlace().getLongitude(),
-                place.getPlace().getCategory(),
-                place.getPlace().getCategoryName(),
-                place.getPlace().getThumbnailUrl(),
-                place.getPlace().getImageUrls()
+                selected.getId(),
+                selected.getName(),
+                selected.getAddress(),
+                selected.getRoadAddress(),
+                selected.getLatitude(),
+                selected.getLongitude(),
+                selected.getCategory(),
+                selected.getCategoryName(),
+                selected.getThumbnailUrl(),
+                selected.getImageUrls(),
+                walkToNext
         );
     }
 

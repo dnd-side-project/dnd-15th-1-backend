@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlaceView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCourseView;
 import kr.omong.dulpick.domain.date.domain.DateCourseStatus;
+import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.global.time.ServiceTime;
 
 import java.math.BigDecimal;
@@ -69,7 +70,13 @@ public record DateCourseResponse(
             String thumbnailUrl,
             @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
             @Schema(example = "[]")
-            List<String> imageUrls
+            List<String> imageUrls,
+            @Schema(
+                    description = "다음 장소까지 도보 이동 정보. 마지막 장소이거나 경로를 조회하지 못하면 null입니다.",
+                    nullable = true,
+                    requiredMode = Schema.RequiredMode.NOT_REQUIRED
+            )
+            WalkToNextResponse walkToNext
     ) {
 
         private static DateCoursePlaceResponse from(DateCoursePlaceView view) {
@@ -84,8 +91,21 @@ public record DateCourseResponse(
                     view.category(),
                     view.categoryName(),
                     view.thumbnailUrl(),
-                    view.imageUrls()
+                    view.imageUrls(),
+                    WalkToNextResponse.from(view.walkToNext())
             );
+        }
+    }
+
+    public record WalkToNextResponse(
+            @Schema(description = "다음 장소까지 도보 이동거리(미터)", example = "4025", requiredMode = Schema.RequiredMode.REQUIRED)
+            int distanceMeters,
+            @Schema(description = "다음 장소까지 도보 이동시간(초)", example = "3914", requiredMode = Schema.RequiredMode.REQUIRED)
+            int durationSeconds
+    ) {
+
+        private static WalkToNextResponse from(WalkingRoute route) {
+            return route == null ? null : new WalkToNextResponse(route.distanceMeters(), route.durationSeconds());
         }
     }
 }
