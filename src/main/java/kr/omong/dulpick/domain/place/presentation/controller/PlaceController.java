@@ -9,9 +9,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.place.application.PlaceQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceCommandService;
@@ -22,12 +25,15 @@ import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceSaveRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAliasRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.response.MemberPlaceResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceDetailResponse;
+import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSaveDeleteResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchPageResponse;
-import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.WalkingRouteResponse;
 import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,6 +49,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Tag(name = SwaggerTagNames.PLACE, description = "공용 장소와 커플 저장 장소 조회 API")
@@ -208,6 +215,51 @@ public class PlaceController {
     }
 
     @Operation(
+            summary = "좌표로 공용 DB 장소 조회",
+            description = "위도와 경도가 일치하는 장소를 서비스 DB에서만 조회합니다. Kakao 지도 API는 호출하지 않으며, "
+                    + "일치하는 장소가 없으면 빈 배열을 반환합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "좌표에 해당하는 공용 DB 장소 조회 성공. 없으면 빈 배열입니다.",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            array = @ArraySchema(schema = @Schema(implementation = PlaceDetailResponse.class))
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "위도 또는 경도가 올바르지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/by-coordinate")
+    public ResponseEntity<List<PlaceDetailResponse>> getPlacesByCoordinate(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "WGS84 위도", required = true, example = "37.5446")
+            @RequestParam @NotNull @DecimalMin("-90") @DecimalMax("90")
+            @Schema(example = "37.5446") BigDecimal latitude,
+            @Parameter(description = "WGS84 경도", required = true, example = "127.0557")
+            @RequestParam @NotNull @DecimalMin("-180") @DecimalMax("180")
+            @Schema(example = "127.0557") BigDecimal longitude
+    ) {
+        return ResponseEntity.ok(placeDetailQueryService.findByCoordinates(
+                        memberId(jwt),
+                        latitude,
+                        longitude
+                )
+                .stream()
+                .map(PlaceDetailResponse::from)
+                .toList());
+    }
+
+    @Operation(
             summary = "Kakao 검색 장소 상세 조회",
             description = "검색어와 Kakao 장소 ID를 다시 검증해 미저장 장소 상세를 조회합니다. "
                     + "동일 Kakao 장소가 공용 DB에 있으면 DB 장소 ID와 현재 활성 커플의 저장 상태를 함께 반환합니다."
@@ -340,6 +392,86 @@ public class PlaceController {
                 searchResult,
                 request.alias()
         )));
+    }
+
+    @Operation(
+            summary = "저장한 장소 별칭 수정",
+            description = "현재 회원이 저장한 장소의 alias를 수정합니다. 공용 장소 정보는 변경하지 않습니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "별칭 수정 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = MemberPlaceResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "alias 길이가 허용 범위를 벗어났습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "공용 장소가 없거나 현재 회원이 저장하지 않은 장소입니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @PatchMapping("/{placeId}/alias")
+    public ResponseEntity<MemberPlaceResponse> updateAlias(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "공용 장소 ID", required = true, example = "101")
+            @PathVariable @Schema(example = "101") Long placeId,
+            @Valid @RequestBody UpdatePlaceAliasRequest request
+    ) {
+        return ResponseEntity.ok(MemberPlaceResponse.from(placeCommandService.updateAlias(
+                memberId(jwt),
+                placeId,
+                request.alias()
+        )));
+    }
+
+    @Operation(
+            summary = "저장한 장소 삭제",
+            description = "현재 회원과 공용 장소의 저장 관계만 삭제합니다. 공용 장소 데이터는 유지됩니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "저장 관계 삭제 성공",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = PlaceSaveDeleteResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "공용 장소가 없거나 현재 회원이 저장하지 않은 장소입니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @DeleteMapping("/{placeId}")
+    public ResponseEntity<PlaceSaveDeleteResponse> deleteSave(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "저장을 해제할 공용 장소 ID", required = true, example = "101")
+            @PathVariable @Schema(example = "101") Long placeId
+    ) {
+        PlaceCommandService.PlaceSaveDeleted deleted = placeCommandService.deleteSave(
+                memberId(jwt),
+                placeId
+        );
+        return ResponseEntity.ok(new PlaceSaveDeleteResponse(deleted.deleted(), deleted.placeId()));
     }
 
     private Long memberId(Jwt jwt) {

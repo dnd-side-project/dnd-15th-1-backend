@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeni
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceSaveNotFoundException;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -275,7 +276,8 @@ public class PlaceCommandService {
                 saved.getAlias(),
                 saved.getSavedAt(),
                 place.getThumbnailUrl(),
-                place.getImageUrls()
+                place.getImageUrls(),
+                0
         );
     }
 
@@ -325,9 +327,50 @@ public class PlaceCommandService {
         return PlaceOwnershipStatus.resolve(true, true, savedByPartner);
     }
 
+    @Transactional
+    public MemberPlaceView updateAlias(Long memberId, Long placeId, String alias) {
+        requireActiveMember(memberId);
+        Place place = findPlace(placeId);
+        MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, placeId)
+                .orElseThrow(PlaceSaveNotFoundException::new);
+        saved.updateAlias(alias);
+        ActiveCoupleMember membership = activeCoupleMemberRepository
+                .findByMemberId(memberId)
+                .orElse(null);
+        return toView(
+                saved,
+                place,
+                ownershipStatus(partnerId(membership, memberId), placeId)
+        );
+    }
+
+    @Transactional
+    public PlaceSaveDeleted deleteSave(Long memberId, Long placeId) {
+        requireActiveMember(memberId);
+        findPlace(placeId);
+        MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, placeId)
+                .orElseThrow(PlaceSaveNotFoundException::new);
+        memberPlaceRepository.delete(saved);
+        return new PlaceSaveDeleted(true, placeId);
+    }
+
+    private void requireActiveMember(Long memberId) {
+        Member member = memberRepository.findForUpdateById(memberId)
+                .orElseThrow(MemberNotFoundException::new);
+        if (!member.isActive()) {
+            throw new MemberNotActiveException();
+        }
+    }
+
     public record PlaceSelection(
             Long candidateId,
             String alias
+    ) {
+    }
+
+    public record PlaceSaveDeleted(
+            boolean deleted,
+            Long placeId
     ) {
     }
 }

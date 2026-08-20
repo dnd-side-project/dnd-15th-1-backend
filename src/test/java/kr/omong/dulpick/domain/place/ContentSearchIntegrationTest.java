@@ -61,7 +61,10 @@ class ContentSearchIntegrationTest {
                         .param("query", uniqueKeyword))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.contents.length()").value(1))
-                .andExpect(jsonPath("$.contents[0].title").value(title));
+                .andExpect(jsonPath("$.contents[0].title").value(title))
+                .andExpect(jsonPath("$.popularTags[0]").value("성수"))
+                .andExpect(jsonPath("$.popularTags[1]").value("강남"))
+                .andExpect(jsonPath("$.popularTags[2]").value("을지로"));
 
         mockMvc.perform(get("/api/v1/contents/search")
                         .header("Authorization", "Bearer " + tokens.accessToken())

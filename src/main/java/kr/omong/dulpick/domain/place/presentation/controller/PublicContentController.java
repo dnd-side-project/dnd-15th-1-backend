@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
+import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
@@ -42,7 +43,10 @@ public class PublicContentController {
 
     @Operation(
             summary = "공개 게시물 큐레이션 조회",
-            description = "모든 회원이 제출한 게시물 중 공개 상태인 원본 게시물과 연결 장소를 조회합니다."
+            description = "공개 게시물과 연결 장소를 조회합니다. "
+                    + "기본 정렬은 연결된 장소 저장 수 합계 내림차순(인기순)입니다. "
+                    + "sort=PREFERENCE이면 현재 회원의 데이트 성향 일치도가 높은 순으로 두고, "
+                    + "같은 성향이면 저장 수 내림차순입니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -59,10 +63,14 @@ public class PublicContentController {
     @GetMapping
     public ResponseEntity<PublicContentPageResponse> findPublicContents(
             @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "추천 정렬. POPULAR는 저장 많은 순, PREFERENCE는 성향 일치 후 저장 많은 순입니다.", example = "POPULAR")
+            @RequestParam(defaultValue = "POPULAR")
+            @Schema(allowableValues = {"POPULAR", "PREFERENCE"}, example = "POPULAR")
+            ContentRecommendationSort sort,
             @PageableDefault(size = 20) Pageable pageable
     ) {
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.findPublicContents(memberId(jwt), pageable)
+                queryService.findPublicContents(memberId(jwt), pageable, sort)
         ));
     }
 

@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @Service
@@ -42,6 +43,25 @@ public class PlaceDetailQueryService {
         PlaceSearchResult kakao = placeSearchService.resolve(query.strip(), kakaoPlaceId);
         Place place = placeRepository.findByKakaoPlaceId(kakaoPlaceId).orElse(null);
         return toView(memberId, place, kakao);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PlaceDetailView> findByCoordinates(
+            Long memberId,
+            BigDecimal latitude,
+            BigDecimal longitude
+    ) {
+        return placeRepository.findAllByLatitudeAndLongitude(
+                        scaleCoordinate(latitude),
+                        scaleCoordinate(longitude)
+                )
+                .stream()
+                .map(place -> toView(memberId, place, null))
+                .toList();
+    }
+
+    private BigDecimal scaleCoordinate(BigDecimal value) {
+        return value.setScale(7, java.math.RoundingMode.HALF_UP);
     }
 
     private PlaceDetailView toView(
@@ -82,7 +102,8 @@ public class PlaceDetailQueryService {
                         place == null ? null : place.getThumbnailUrl(),
                         kakao == null ? null : kakao.thumbnailUrl()
                 ),
-                place == null ? List.of() : place.getImageUrls()
+                place == null ? List.of() : place.getImageUrls(),
+                placeQueryService.savedMemberCount(placeId)
         );
     }
 

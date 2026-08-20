@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import kr.omong.dulpick.domain.place.application.PopularContentTags;
 import kr.omong.dulpick.domain.place.application.PublicContentView;
 import org.springframework.data.domain.Page;
 
@@ -18,7 +19,13 @@ public record PublicContentPageResponse(
         @Schema(description = "검색 조건에 맞는 전체 페이지 수", example = "1", requiredMode = Schema.RequiredMode.REQUIRED)
         int totalPages,
         @Schema(description = "다음 페이지가 있으면 true입니다.", example = "false", requiredMode = Schema.RequiredMode.REQUIRED)
-        boolean hasNext
+        boolean hasNext,
+        @Schema(
+                description = "인기 태그 목록입니다. 현재는 고정값이며 추후 이 목록만 변경합니다.",
+                example = "[\"성수\", \"강남\", \"을지로\"]",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        List<String> popularTags
 ) {
 
     public static PublicContentPageResponse from(Page<PublicContentView> page) {
@@ -28,7 +35,8 @@ public record PublicContentPageResponse(
                 page.getSize(),
                 page.getTotalElements(),
                 page.getTotalPages(),
-                page.hasNext()
+                page.hasNext(),
+                PopularContentTags.values()
         );
     }
 }

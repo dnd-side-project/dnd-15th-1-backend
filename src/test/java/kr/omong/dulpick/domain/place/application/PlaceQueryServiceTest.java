@@ -54,6 +54,23 @@ class PlaceQueryServiceTest {
     }
 
     @Test
+    void includesSavedMemberCount() {
+        Place place = place(10L);
+        MemberPlace mine = memberPlace(1L, place, "내 별칭", Instant.parse("2026-08-10T00:00:00Z"));
+        when(coupleMemberRepository.findByMemberId(1L)).thenReturn(Optional.empty());
+        when(memberPlaceRepository.findAllByMemberIdInOrderBySavedAtDesc(List.of(1L)))
+                .thenReturn(List.of(mine));
+        when(memberPlaceRepository.countSavesByPlaceIdIn(List.of(10L)))
+                .thenReturn(saveCounts(10L, 2L));
+
+        List<MemberPlaceView> result = service.getVisiblePlaces(1L);
+
+        assertThat(result).singleElement().satisfies(saved ->
+                assertThat(saved.savedMemberCount()).isEqualTo(2)
+        );
+    }
+
+    @Test
     void marksPartnerOnlyPlaceAsTogetherWhenCoupleIsActive() {
         Place place = place(20L);
         MemberPlace partner = memberPlace(
@@ -140,5 +157,11 @@ class PlaceQueryServiceTest {
         Place place = mock(Place.class);
         when(place.getId()).thenReturn(placeId);
         return place;
+    }
+
+    private List<Object[]> saveCounts(Long placeId, long count) {
+        java.util.ArrayList<Object[]> rows = new java.util.ArrayList<>();
+        rows.add(new Object[] {placeId, count});
+        return rows;
     }
 }

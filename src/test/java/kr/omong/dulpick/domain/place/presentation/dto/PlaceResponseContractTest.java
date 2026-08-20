@@ -45,10 +45,23 @@ class PlaceResponseContractTest {
                         "phone",
                         "kakaoPlaceUrl",
                         "savedByMe",
-                        "ownershipStatus"
+                        "ownershipStatus",
+                        "savedMemberCount"
                 );
+        assertThat(componentNames(MemberPlaceResponse.class))
+                .contains("savedMemberCount");
         assertThat(componentNames(PlaceSearchPageResponse.class))
                 .contains("places", "page", "size", "hasNext");
+        assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse.class))
+                .contains("contents", "hasNext", "popularTags");
+        assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse.PublicPlaceResponse.class))
+                .contains("dateTraits")
+                .doesNotContain("savedMembers");
+        assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse.class))
+                .contains("places")
+                .doesNotContain("savedMembers");
+        assertThat(kr.omong.dulpick.domain.place.application.PopularContentTags.values())
+                .containsExactly("성수", "강남", "을지로");
     }
 
     private String[] componentNames(Class<?> recordType) {

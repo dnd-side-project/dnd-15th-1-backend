@@ -33,8 +33,10 @@ public class PlaceQueryService {
 
     @Transactional(readOnly = true)
     public List<MemberPlaceView> getVisiblePlaces(Long memberId) {
-        return groupedVisiblePlaces(memberId).stream()
-                .map(places -> toView(memberId, places))
+        List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
+        Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
+        return groupedPlaces.stream()
+                .map(places -> toView(memberId, places, saveCounts))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
     }
@@ -47,12 +49,13 @@ public class PlaceQueryService {
     ) {
         boolean hasActiveCouple = hasActiveCouple(memberId);
         List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
+        Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
         return groupedPlaces.stream()
                 .filter(places -> category == null
                         || category.getDisplayName().equals(places.getFirst().getPlace().getCategoryName()))
                 .filter(places -> ownership(memberId, places, hasActiveCouple)
                         .matchesFilter(ownershipStatus))
-                .map(places -> toView(memberId, places))
+                .map(places -> toView(memberId, places, saveCounts))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
     }
@@ -118,16 +121,21 @@ public class PlaceQueryService {
         return visibleMemberIds(memberId).size() > 1;
     }
 
-    private MemberPlaceView toView(Long memberId, List<MemberPlace> places) {
+    private MemberPlaceView toView(
+            Long memberId,
+            List<MemberPlace> places,
+            Map<Long, Long> saveCounts
+    ) {
         MemberPlace mine = places.stream()
                 .filter(place -> place.getMemberId().equals(memberId))
                 .findFirst()
                 .orElse(null);
         MemberPlace selected = mine == null ? places.getFirst() : mine;
         PlaceOwnership ownership = ownership(memberId, places, hasActiveCouple(memberId));
+        Long placeId = selected.getPlace().getId();
         return new MemberPlaceView(
                 selected.getMemberId(),
-                selected.getPlace().getId(),
+                placeId,
                 selected.getPlace().getKakaoPlaceId(),
                 selected.getPlace().getName(),
                 selected.getPlace().getAddress(),
@@ -140,8 +148,35 @@ public class PlaceQueryService {
                 selected.getAlias(),
                 selected.getSavedAt(),
                 selected.getPlace().getThumbnailUrl(),
-                selected.getPlace().getImageUrls()
+                selected.getPlace().getImageUrls(),
+                saveCounts.getOrDefault(placeId, 0L).intValue()
         );
+    }
+
+    private Map<Long, Long> saveCountsFor(List<List<MemberPlace>> groupedPlaces) {
+        return savedMemberCounts(groupedPlaces.stream()
+                .map(places -> places.getFirst().getPlace().getId())
+                .toList());
+    }
+
+    @Transactional(readOnly = true)
+    public int savedMemberCount(Long placeId) {
+        if (placeId == null) {
+            return 0;
+        }
+        return savedMemberCounts(List.of(placeId)).getOrDefault(placeId, 0L).intValue();
+    }
+
+    private Map<Long, Long> savedMemberCounts(Collection<Long> placeIds) {
+        List<Long> distinctPlaceIds = placeIds.stream().distinct().toList();
+        if (distinctPlaceIds.isEmpty()) {
+            return Map.of();
+        }
+        return memberPlaceRepository.countSavesByPlaceIdIn(distinctPlaceIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Number) row[1]).longValue()
+                ));
     }
 
     private PlaceOwnership ownership(

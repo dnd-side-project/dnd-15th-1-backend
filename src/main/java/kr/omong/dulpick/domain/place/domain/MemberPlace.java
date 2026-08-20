@@ -81,6 +81,10 @@ public class MemberPlace {
         return place;
     }
 
+    public void updateAlias(String alias) {
+        this.alias = alias == null || alias.isBlank() ? null : alias.strip();
+    }
+
     public String getAlias() {
         return alias;
     }

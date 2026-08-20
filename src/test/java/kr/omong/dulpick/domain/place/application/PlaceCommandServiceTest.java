@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceSaveNotFoundException;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -200,6 +201,104 @@ class PlaceCommandServiceTest {
         )).isInstanceOf(PlaceAlreadySavedException.class);
 
         verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
+    }
+
+    @Test
+    void updatesAliasOfSavedPlace() {
+        Instant now = Instant.parse("2026-08-10T00:00:00Z");
+        MemberRepository memberRepository = mock(MemberRepository.class);
+        PlaceRepository placeRepository = mock(PlaceRepository.class);
+        MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
+        PlaceCommandService service = new PlaceCommandService(
+                mock(PlaceImportRepository.class),
+                mock(PlaceCandidateRepository.class),
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                mock(ActiveCoupleMemberRepository.class),
+                mock(ApplicationEventPublisher.class),
+                Clock.fixed(now, ZoneOffset.UTC)
+        );
+        Member member = mock(Member.class);
+        Place place = mock(Place.class);
+        MemberPlace saved = MemberPlace.save(1L, place, null, "이전 별칭", now);
+        when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+        when(member.isActive()).thenReturn(true);
+        when(placeRepository.findById(20L)).thenReturn(Optional.of(place));
+        when(place.getId()).thenReturn(20L);
+        when(place.getKakaoPlaceId()).thenReturn("kakao-20");
+        when(place.getName()).thenReturn("밀빛 망원점");
+        when(place.getAddress()).thenReturn("서울 마포구");
+        when(place.getRoadAddress()).thenReturn("서울 마포구 희우정로");
+        when(place.getCategoryName()).thenReturn("카페");
+        when(place.getImageUrls()).thenReturn(List.of());
+        when(memberPlaceRepository.findByMemberIdAndPlaceId(1L, 20L))
+                .thenReturn(Optional.of(saved));
+
+        MemberPlaceView result = service.updateAlias(1L, 20L, "새 별칭");
+
+        assertThat(result.alias()).isEqualTo("새 별칭");
+        assertThat(saved.getAlias()).isEqualTo("새 별칭");
+    }
+
+    @Test
+    void deletesMemberPlaceRelationship() {
+        Instant now = Instant.parse("2026-08-10T00:00:00Z");
+        MemberRepository memberRepository = mock(MemberRepository.class);
+        PlaceRepository placeRepository = mock(PlaceRepository.class);
+        MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
+        PlaceCommandService service = new PlaceCommandService(
+                mock(PlaceImportRepository.class),
+                mock(PlaceCandidateRepository.class),
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                mock(ActiveCoupleMemberRepository.class),
+                mock(ApplicationEventPublisher.class),
+                Clock.fixed(now, ZoneOffset.UTC)
+        );
+        Member member = mock(Member.class);
+        Place place = mock(Place.class);
+        MemberPlace saved = MemberPlace.save(1L, place, null, null, now);
+        when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+        when(member.isActive()).thenReturn(true);
+        when(placeRepository.findById(20L)).thenReturn(Optional.of(place));
+        when(memberPlaceRepository.findByMemberIdAndPlaceId(1L, 20L))
+                .thenReturn(Optional.of(saved));
+
+        PlaceCommandService.PlaceSaveDeleted result = service.deleteSave(1L, 20L);
+
+        assertThat(result.deleted()).isTrue();
+        assertThat(result.placeId()).isEqualTo(20L);
+        verify(memberPlaceRepository).delete(saved);
+    }
+
+    @Test
+    void rejectsAliasUpdateWhenMemberDidNotSavePlace() {
+        Instant now = Instant.parse("2026-08-10T00:00:00Z");
+        MemberRepository memberRepository = mock(MemberRepository.class);
+        PlaceRepository placeRepository = mock(PlaceRepository.class);
+        MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
+        PlaceCommandService service = new PlaceCommandService(
+                mock(PlaceImportRepository.class),
+                mock(PlaceCandidateRepository.class),
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                mock(ActiveCoupleMemberRepository.class),
+                mock(ApplicationEventPublisher.class),
+                Clock.fixed(now, ZoneOffset.UTC)
+        );
+        Member member = mock(Member.class);
+        Place place = mock(Place.class);
+        when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+        when(member.isActive()).thenReturn(true);
+        when(placeRepository.findById(20L)).thenReturn(Optional.of(place));
+        when(memberPlaceRepository.findByMemberIdAndPlaceId(1L, 20L))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.updateAlias(1L, 20L, "별칭"))
+                .isInstanceOf(PlaceSaveNotFoundException.class);
     }
 
     private static final class ConfirmFixture {

@@ -70,6 +70,7 @@ public enum ErrorCode {
     PLACE_ALREADY_SAVED(HttpStatus.CONFLICT, "이미 저장된 장소입니다"),
     PLACE_CANDIDATE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "저장할 장소 후보가 올바르지 않습니다"),
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
+    PLACE_SAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "저장한 장소를 찾을 수 없습니다"),
     WALKING_ROUTE_UNAVAILABLE(
             HttpStatus.SERVICE_UNAVAILABLE,
             "두 장소 사이 도보 경로를 조회할 수 없습니다"
