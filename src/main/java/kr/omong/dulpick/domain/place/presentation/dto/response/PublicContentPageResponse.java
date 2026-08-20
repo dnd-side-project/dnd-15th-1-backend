@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.presentation.dto.response;
 
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.place.application.PopularContentTags;
 import kr.omong.dulpick.domain.place.application.PublicContentView;
@@ -20,6 +21,7 @@ public record PublicContentPageResponse(
         int totalPages,
         @Schema(description = "다음 페이지가 있으면 true입니다.", example = "false", requiredMode = Schema.RequiredMode.REQUIRED)
         boolean hasNext,
+        @ArraySchema(schema = @Schema(example = "성수"))
         @Schema(
                 description = "인기 태그 목록입니다. 현재는 고정값이며 추후 이 목록만 변경합니다.",
                 example = "[\"성수\", \"강남\", \"을지로\"]",
