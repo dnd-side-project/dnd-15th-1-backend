@@ -61,7 +61,9 @@ public record PlaceDetailResponse(
         String thumbnailUrl,
         @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
         @Schema(description = "대표 이미지를 제외한 이미지 목록", example = "[]", requiredMode = Schema.RequiredMode.REQUIRED)
-        List<String> imageUrls
+        List<String> imageUrls,
+        @Schema(description = "이 장소를 저장한 회원 수입니다.", example = "12", requiredMode = Schema.RequiredMode.REQUIRED)
+        int savedMemberCount
 ) {
 
     public static PlaceDetailResponse from(PlaceDetailView view) {
@@ -81,7 +83,8 @@ public record PlaceDetailResponse(
                 view.savedByMe(),
                 view.ownershipStatus(),
                 view.thumbnailUrl(),
-                view.imageUrls()
+                view.imageUrls(),
+                view.savedMemberCount()
         );
     }
 }

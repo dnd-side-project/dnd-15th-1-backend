@@ -123,7 +123,16 @@ class DateCourseIntegrationTest {
                 .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.totalPlaceCount").value(2))
                 .andExpect(jsonPath("$.places[0].order").value(1))
-                .andExpect(jsonPath("$.places[1].order").value(2));
+                .andExpect(jsonPath("$.places[1].order").value(2))
+                .andExpect(jsonPath("$.places[0].walkToNext.distanceMeters").value(0))
+                .andExpect(jsonPath("$.places[0].walkToNext.durationSeconds").value(0))
+                .andExpect(jsonPath("$.places[1].walkToNext").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].walkToNext.distanceMeters").value(0))
+                .andExpect(jsonPath("$.places[1].walkToNext").doesNotExist());
 
         mockMvc.perform(get("/api/v1/date-courses/current")
                         .header("Authorization", bearer(fixture.first())))

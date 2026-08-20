@@ -21,7 +21,8 @@ public record PlaceDetailView(
         boolean savedByMe,
         PlaceOwnershipStatus ownershipStatus,
         String thumbnailUrl,
-        List<String> imageUrls
+        List<String> imageUrls,
+        int savedMemberCount
 ) {
 
     public PlaceDetailView {

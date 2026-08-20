@@ -8,6 +8,7 @@ import org.springframework.context.annotation.Configuration;
         PlaceAnalysisProperties.class,
         GeminiProperties.class,
         KakaoProperties.class,
+        KakaoRoutingProperties.class,
         KakaoMapPhotoProperties.class,
         InstagramProperties.class
 })

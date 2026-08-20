@@ -19,6 +19,8 @@ import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundExcept
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
+import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -50,6 +52,7 @@ public class DateCourseCommandService {
     private final DateCoursePlaceRepository dateCoursePlaceRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceRepository placeRepository;
+    private final PlaceWalkingRouteService placeWalkingRouteService;
     private final Clock clock;
 
     public DateCourseCommandService(
@@ -59,6 +62,7 @@ public class DateCourseCommandService {
             DateCoursePlaceRepository dateCoursePlaceRepository,
             MemberPlaceRepository memberPlaceRepository,
             PlaceRepository placeRepository,
+            PlaceWalkingRouteService placeWalkingRouteService,
             Clock clock
     ) {
         this.memberRepository = memberRepository;
@@ -67,6 +71,7 @@ public class DateCourseCommandService {
         this.dateCoursePlaceRepository = dateCoursePlaceRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.placeRepository = placeRepository;
+        this.placeWalkingRouteService = placeWalkingRouteService;
         this.clock = clock;
     }
 
@@ -232,9 +237,14 @@ public class DateCourseCommandService {
     }
 
     private DateCourseView toView(DateCourse dateCourse, List<DateCoursePlace> places) {
-        List<DateCoursePlaceView> placeViews = places.stream()
+        List<DateCoursePlace> orderedPlaces = places.stream()
                 .sorted(java.util.Comparator.comparing(DateCoursePlace::getSequenceOrder))
-                .map(this::toPlaceView)
+                .toList();
+        List<WalkingRoute> walks = placeWalkingRouteService.consecutiveWalks(
+                orderedPlaces.stream().map(DateCoursePlace::getPlace).toList()
+        );
+        List<DateCoursePlaceView> placeViews = IntStream.range(0, orderedPlaces.size())
+                .mapToObj(index -> toPlaceView(orderedPlaces.get(index), walks.get(index)))
                 .toList();
         return new DateCourseView(
                 dateCourse.getId(),
@@ -247,7 +257,7 @@ public class DateCourseCommandService {
         );
     }
 
-    private DateCoursePlaceView toPlaceView(DateCoursePlace place) {
+    private DateCoursePlaceView toPlaceView(DateCoursePlace place, WalkingRoute walkToNext) {
         Place selected = place.getPlace();
         return new DateCoursePlaceView(
                 place.getSequenceOrder(),
@@ -260,7 +270,8 @@ public class DateCourseCommandService {
                 selected.getCategory(),
                 selected.getCategoryName(),
                 selected.getThumbnailUrl(),
-                selected.getImageUrls()
+                selected.getImageUrls(),
+                walkToNext
         );
     }
 

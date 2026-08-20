@@ -1,28 +1,38 @@
 package kr.omong.dulpick.domain.place.application;
 
+import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
+import kr.omong.dulpick.domain.member.domain.DatePreferences;
+import kr.omong.dulpick.domain.member.domain.MemberProfile;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentNotFoundException;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
+import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceClassification;
 import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceClassificationStatus;
+import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,33 +45,33 @@ class PublicContentQueryServiceTest {
     private final PlaceClassificationRepository placeClassificationRepository =
             mock(PlaceClassificationRepository.class);
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
+    private final MemberProfileRepository memberProfileRepository = mock(MemberProfileRepository.class);
     private final PublicContentQueryService service = new PublicContentQueryService(
             contentRepository,
             contentPlaceRepository,
             placeRepository,
             placeClassificationRepository,
-            memberPlaceRepository
+            memberPlaceRepository,
+            memberProfileRepository
     );
 
     @Test
     void returnsPublicContentWithPublicPlaceShape() {
         Content content = content(10L);
-        ContentPlace relation = mock(ContentPlace.class);
+        ContentPlace relation = contentPlace(10L, 20L);
         Place place = place(20L);
         when(contentRepository.findByIdAndPublicationStatus(
                 10L,
                 ContentPublicationStatus.PUBLIC
         )).thenReturn(Optional.of(content));
-        when(contentPlaceRepository.findAllByContentIdIn(List.of(10L)))
-                .thenReturn(List.of(relation));
-        when(relation.getContentId()).thenReturn(10L);
-        when(relation.getPlaceId()).thenReturn(20L);
-        when(placeRepository.findAllById(List.of(20L))).thenReturn(List.of(place));
-        when(placeClassificationRepository.findAllById(List.of(20L))).thenReturn(List.of());
-        MemberPlace memberPlace = mock(MemberPlace.class);
-        when(memberPlace.getPlace()).thenReturn(place);
-        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(1L, List.of(20L)))
-                .thenReturn(List.of(memberPlace));
+        stubPlaces(List.of(relation), List.of(place));
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        MemberPlace mine = mock(MemberPlace.class);
+        when(mine.getPlace()).thenReturn(place);
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of(mine));
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 1L)));
 
         PublicContentView result = service.findPublicContent(1L, 10L);
 
@@ -77,27 +87,83 @@ class PublicContentQueryServiceTest {
     }
 
     @Test
-    void capsPageSizeAndUsesStableLatestFirstSort() {
-        Content content = content(10L);
-        PageRequest expectedPage = PageRequest.of(
-                0,
-                50,
-                Sort.by(Sort.Direction.DESC, "createdAt")
-                        .and(Sort.by(Sort.Direction.DESC, "id"))
+    void ranksContentsBySaveCountDescendingByDefault() {
+        Content popular = content(10L);
+        Content unpopular = content(11L);
+        Place popularPlace = place(20L);
+        Place unpopularPlace = place(21L);
+        ContentPlace popularRelation = contentPlace(10L, 20L);
+        ContentPlace unpopularRelation = contentPlace(11L, 21L);
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(unpopular, popular));
+        stubPlaces(
+                List.of(popularRelation, unpopularRelation),
+                List.of(popularPlace, unpopularPlace)
         );
-        when(contentRepository.findAllByPublicationStatus(
-                ContentPublicationStatus.PUBLIC,
-                expectedPage
-        )).thenReturn(new PageImpl<>(List.of(content), expectedPage, 1));
-        when(contentPlaceRepository.findAllByContentIdIn(List.of(10L))).thenReturn(List.of());
-        when(placeRepository.findAllById(List.of())).thenReturn(List.of());
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 5L), row(21L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
 
-        service.findPublicContents(1L, PageRequest.of(0, 500, Sort.by("title")));
-
-        verify(contentRepository).findAllByPublicationStatus(
-                ContentPublicationStatus.PUBLIC,
-                expectedPage
+        Page<PublicContentView> result = service.findPublicContents(
+                1L,
+                PageRequest.of(0, 20),
+                ContentRecommendationSort.POPULAR
         );
+
+        assertThat(result.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(10L, 11L);
+    }
+
+    @Test
+    void ranksPreferenceMatchesFirstThenSaveCountDescending() {
+        Content weakerMatch = content(10L);
+        Content strongerMatch = content(11L);
+        Place weakerPlace = place(20L);
+        Place strongerPlace = place(21L);
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(weakerMatch, strongerMatch));
+        stubPlaces(
+                List.of(contentPlace(10L, 20L), contentPlace(11L, 21L)),
+                List.of(weakerPlace, strongerPlace)
+        );
+        PlaceClassification weaker = mock(PlaceClassification.class);
+        PlaceClassification stronger = mock(PlaceClassification.class);
+        when(weaker.getPlaceId()).thenReturn(20L);
+        when(weaker.getStatus()).thenReturn(PlaceClassificationStatus.CLASSIFIED);
+        when(weaker.getEnvironment()).thenReturn(PlaceEnvironment.INDOOR);
+        when(stronger.getPlaceId()).thenReturn(21L);
+        when(stronger.getStatus()).thenReturn(PlaceClassificationStatus.CLASSIFIED);
+        when(stronger.getEnvironment()).thenReturn(PlaceEnvironment.INDOOR);
+        when(stronger.getActivity()).thenReturn(kr.omong.dulpick.domain.place.domain.PlaceActivity.ACTIVE);
+        when(placeClassificationRepository.findAllById(anyList()))
+                .thenReturn(List.of(weaker, stronger));
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 9L), row(21L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+        MemberProfile profile = mock(MemberProfile.class);
+        when(profile.getDatePreferences()).thenReturn(new DatePreferences(
+                DatePreferenceOption.INDOOR,
+                DatePreferenceOption.ACTIVE,
+                DatePreferenceOption.DAY,
+                DatePreferenceOption.FOOD
+        ));
+        when(memberProfileRepository.findById(1L)).thenReturn(Optional.of(profile));
+
+        Page<PublicContentView> result = service.findPublicContents(
+                1L,
+                PageRequest.of(0, 20),
+                ContentRecommendationSort.PREFERENCE
+        );
+
+        assertThat(result.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(11L, 10L);
+        assertThat(result.getContent().getFirst().places()).extracting(PublicPlaceView::placeId)
+                .containsExactly(21L);
     }
 
     @Test
@@ -115,7 +181,7 @@ class PublicContentQueryServiceTest {
         service.searchPublicContents(
                 1L,
                 "  서울 데이트  ",
-                PageRequest.of(0, 20, Sort.by("title"))
+                PageRequest.of(0, 20)
         );
 
         verify(contentRepository).searchByPublicationStatusAndKeyword(
@@ -134,6 +200,31 @@ class PublicContentQueryServiceTest {
 
         assertThatThrownBy(() -> service.findPublicContent(1L, 10L))
                 .isInstanceOf(PublicContentNotFoundException.class);
+    }
+
+    private void stubPlaces(List<ContentPlace> relations, List<Place> places) {
+        when(contentPlaceRepository.findAllByContentIdIn(anyList())).thenReturn(relations);
+        when(placeRepository.findAllById(anyList())).thenReturn(places);
+        ContentPlace first = relations.getFirst();
+        if (first.getContentId() == null) {
+            when(first.getContentId()).thenReturn(10L);
+            when(first.getPlaceId()).thenReturn(places.getFirst().getId());
+        }
+    }
+
+    private List<Object[]> saveCounts(Object[]... rows) {
+        return Arrays.asList(rows);
+    }
+
+    private Object[] row(Long placeId, long saveCount) {
+        return new Object[] {placeId, saveCount};
+    }
+
+    private ContentPlace contentPlace(Long contentId, Long placeId) {
+        ContentPlace relation = mock(ContentPlace.class);
+        when(relation.getContentId()).thenReturn(contentId);
+        when(relation.getPlaceId()).thenReturn(placeId);
+        return relation;
     }
 
     private Content content(Long id) {

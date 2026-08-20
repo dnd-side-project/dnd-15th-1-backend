@@ -201,6 +201,12 @@ public class SwaggerConfig {
         if (normalizedName.contains("longitude")) {
             return 127.0557;
         }
+        if (normalizedName.contains("distance")) {
+            return 4025;
+        }
+        if (normalizedName.contains("duration")) {
+            return 3914;
+        }
         if (normalizedName.contains("count") || normalizedName.contains("elements")) {
             return 10;
         }

@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.date.domain.DateCoursePlaceRepository;
 import kr.omong.dulpick.domain.date.domain.DateCourseRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.junit.jupiter.api.Test;
@@ -37,6 +38,7 @@ class DateCourseCommandServiceTest {
             mock(DateCoursePlaceRepository.class);
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
+    private final PlaceWalkingRouteService placeWalkingRouteService = mock(PlaceWalkingRouteService.class);
     private final DateCourseCommandService service = new DateCourseCommandService(
             memberRepository,
             activeCoupleMemberRepository,
@@ -44,6 +46,7 @@ class DateCourseCommandServiceTest {
             dateCoursePlaceRepository,
             memberPlaceRepository,
             placeRepository,
+            placeWalkingRouteService,
             Clock.fixed(Instant.parse("2026-08-16T00:00:00Z"), ZoneOffset.UTC)
     );
 

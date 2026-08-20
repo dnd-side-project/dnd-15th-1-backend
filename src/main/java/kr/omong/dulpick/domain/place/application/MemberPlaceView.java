@@ -21,7 +21,8 @@ public record MemberPlaceView(
         String alias,
         Instant savedAt,
         String thumbnailUrl,
-        List<String> imageUrls
+        List<String> imageUrls,
+        int savedMemberCount
 ) {
 
     public MemberPlaceView {
@@ -63,7 +64,8 @@ public record MemberPlaceView(
                 alias,
                 savedAt,
                 null,
-                List.of()
+                List.of(),
+                0
         );
     }
 }

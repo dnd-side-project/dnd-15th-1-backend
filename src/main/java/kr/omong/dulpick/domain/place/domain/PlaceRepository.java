@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
@@ -17,6 +18,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     Optional<Place> findByKakaoPlaceId(String kakaoPlaceId);
 
     List<Place> findAllByKakaoPlaceIdIn(Collection<String> kakaoPlaceIds);
+
+    List<Place> findAllByLatitudeAndLongitude(BigDecimal latitude, BigDecimal longitude);
 
     @Query(
             value = """

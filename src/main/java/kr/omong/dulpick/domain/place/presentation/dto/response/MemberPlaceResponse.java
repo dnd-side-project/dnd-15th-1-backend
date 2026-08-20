@@ -68,7 +68,9 @@ public record MemberPlaceResponse(
         String thumbnailUrl,
         @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
         @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 이미지가 없으면 빈 배열입니다.", example = "[\"https://example.com/place-detail.jpg\"]", requiredMode = Schema.RequiredMode.REQUIRED)
-        List<String> imageUrls
+        List<String> imageUrls,
+        @Schema(description = "이 장소를 저장한 회원 수입니다.", example = "12", requiredMode = Schema.RequiredMode.REQUIRED)
+        int savedMemberCount
 ) {
 
     public static MemberPlaceResponse from(MemberPlaceView view) {
@@ -87,7 +89,8 @@ public record MemberPlaceResponse(
                 view.alias(),
                 ServiceTime.toLocalDateTime(view.savedAt()),
                 view.thumbnailUrl(),
-                view.imageUrls()
+                view.imageUrls(),
+                view.savedMemberCount()
         );
     }
 }

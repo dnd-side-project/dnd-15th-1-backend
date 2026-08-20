@@ -31,6 +31,7 @@ class PlaceDetailQueryServiceTest {
         when(placeRepository.findById(10L)).thenReturn(Optional.of(place));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
                 .thenReturn(Map.of(10L, PlaceOwnership.of(true, false, true)));
+        when(placeQueryService.savedMemberCount(10L)).thenReturn(2);
 
         PlaceDetailView result = service.get(1L, 10L);
 
@@ -39,6 +40,7 @@ class PlaceDetailQueryServiceTest {
         assertThat(result.phone()).isEqualTo("02-1234-5678");
         assertThat(result.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER);
         assertThat(result.savedByMe()).isFalse();
+        assertThat(result.savedMemberCount()).isEqualTo(2);
     }
 
     @Test
@@ -68,6 +70,43 @@ class PlaceDetailQueryServiceTest {
         assertThat(result.placeId()).isNull();
         assertThat(result.savedByMe()).isFalse();
         assertThat(result.ownershipStatus()).isNull();
+    }
+
+    @Test
+    void returnsDatabasePlacesMatchingCoordinates() {
+        Place place = place();
+        when(placeRepository.findAllByLatitudeAndLongitude(
+                new BigDecimal("37.5446000"),
+                new BigDecimal("127.0557000")
+        )).thenReturn(List.of(place));
+        when(placeQueryService.getOwnerships(1L, List.of(10L)))
+                .thenReturn(Map.of(10L, PlaceOwnership.of(false, true, false)));
+        when(placeQueryService.savedMemberCount(10L)).thenReturn(0);
+
+        List<PlaceDetailView> result = service.findByCoordinates(
+                1L,
+                new BigDecimal("37.5446"),
+                new BigDecimal("127.0557")
+        );
+
+        assertThat(result).singleElement().satisfies(found -> {
+            assertThat(found.placeId()).isEqualTo(10L);
+            assertThat(found.savedByMe()).isTrue();
+        });
+    }
+
+    @Test
+    void returnsEmptyListWhenNoDatabasePlaceMatchesCoordinates() {
+        when(placeRepository.findAllByLatitudeAndLongitude(
+                new BigDecimal("37.0000000"),
+                new BigDecimal("127.0000000")
+        )).thenReturn(List.of());
+
+        assertThat(service.findByCoordinates(
+                1L,
+                new BigDecimal("37.0000"),
+                new BigDecimal("127.0000")
+        )).isEmpty();
     }
 
     private Place place() {

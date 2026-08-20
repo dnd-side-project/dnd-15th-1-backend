@@ -100,6 +100,7 @@ public class DateCourseController {
                     데이트명/날짜/시간/장소 순서를 한 번에 갱신합니다.
                     saveType은 TEMPORARY(임시 저장) 또는 CONFIRM(최종 저장)입니다.
                     낙관적 락을 위해 요청에 version을 포함해야 하며, 충돌 시 409를 반환합니다.
+                    인접한 장소 간 도보 거리/시간은 Kakao 도보 경로 API로 조회해 places[].walkToNext에 포함합니다.
                     """
     )
     @PutMapping("/{dateCourseId}")
@@ -116,7 +117,7 @@ public class DateCourseController {
 
     @Operation(
             summary = "데이트 코스 상세 조회",
-            description = "저장된 데이트 코스의 기본 정보와 장소 순서를 조회합니다."
+            description = "저장된 데이트 코스의 기본 정보, 장소 순서, 인접 장소 간 도보 이동거리/시간을 조회합니다."
     )
     @GetMapping("/{dateCourseId}")
     public ResponseEntity<DateCourseResponse> get(
