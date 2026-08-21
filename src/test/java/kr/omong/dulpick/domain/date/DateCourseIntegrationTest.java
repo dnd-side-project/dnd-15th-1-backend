@@ -115,8 +115,7 @@ class DateCourseIntegrationTest {
                                   "title":"성수동 데이트",
                                   "date":"%s",
                                   "time":"19:30:00",
-                                  "placeIds":[%d, %d],
-                                  "saveType":"CONFIRM"
+                                  "placeIds":[%d, %d]
                                 }
                                 """.formatted(futureDate, first.getId(), second.getId())))
                 .andExpect(status().isOk())
@@ -156,6 +155,61 @@ class DateCourseIntegrationTest {
     }
 
     @Test
+    void createsDateCourseWithoutTime() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(5);
+
+        mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title":"날짜만 데이트",
+                                  "date":"%s"
+                                }
+                                """.formatted(futureDate)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.date").value(futureDate.toString()))
+                .andExpect(jsonPath("$.time").doesNotExist());
+    }
+
+    @Test
+    void savesDateCourseWithoutTime() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Place first = savePlaceForMember(fixture.first().member().getId(), "first", Instant.now());
+        LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(6);
+        MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title":"날짜만 확정 데이트",
+                                  "date":"%s"
+                                }
+                                """.formatted(futureDate)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
+
+        mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "version":0,
+                                  "title":"날짜만 확정 데이트",
+                                  "date":"%s",
+                                  "placeIds":[%d]
+                                }
+                                """.formatted(futureDate, first.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.date").value(futureDate.toString()))
+                .andExpect(jsonPath("$.time").doesNotExist());
+    }
+
+    @Test
     void rejectsPlaceOutsideCoupleSavedPool() throws Exception {
         CoupleFixture fixture = createConnectedCouple();
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(2);
@@ -183,8 +237,7 @@ class DateCourseIntegrationTest {
                                   "title":"데이트",
                                   "date":"%s",
                                   "time":"18:00:00",
-                                  "placeIds":[%d],
-                                  "saveType":"CONFIRM"
+                                  "placeIds":[%d]
                                 }
                                 """.formatted(futureDate, outsider.getId())))
                 .andExpect(status().isUnprocessableEntity())
@@ -219,11 +272,11 @@ class DateCourseIntegrationTest {
                                   "title":"버전 테스트",
                                   "date":"%s",
                                   "time":"20:00:00",
-                                  "placeIds":[%d],
-                                  "saveType":"TEMPORARY"
+                                  "placeIds":[%d]
                                 }
                                 """.formatted(futureDate, first.getId())))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
                 .andExpect(jsonPath("$.version").value(1));
 
         mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
@@ -235,8 +288,7 @@ class DateCourseIntegrationTest {
                                   "title":"버전 테스트",
                                   "date":"%s",
                                   "time":"20:00:00",
-                                  "placeIds":[%d],
-                                  "saveType":"CONFIRM"
+                                  "placeIds":[%d]
                                 }
                                 """.formatted(futureDate, first.getId())))
                 .andExpect(status().isConflict())
@@ -271,8 +323,7 @@ class DateCourseIntegrationTest {
                                   "title":"지난 데이트",
                                   "date":"%s",
                                   "time":"10:00:00",
-                                  "placeIds":[%d],
-                                  "saveType":"CONFIRM"
+                                  "placeIds":[%d]
                                 }
                                 """.formatted(pastDate, first.getId())))
                 .andExpect(status().isOk())

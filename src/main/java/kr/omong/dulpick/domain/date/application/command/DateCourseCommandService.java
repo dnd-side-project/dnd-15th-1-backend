@@ -33,7 +33,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Map;
@@ -105,18 +104,14 @@ public class DateCourseCommandService {
         }
 
         List<Long> placeIds = validatedPlaceIds(command.placeIds());
-        if (command.saveType() == DateCourseSaveType.CONFIRM && placeIds.isEmpty()) {
+        if (placeIds.isEmpty()) {
             throw new DateCoursePlaceRequiredException();
         }
         validateCoupleSavedPlaces(context.memberIds(), placeIds);
         List<DateCoursePlace> newPlaces = placeIdsToCoursePlaces(dateCourseId, placeIds, clock.instant());
 
         Instant now = clock.instant();
-        if (command.saveType() == DateCourseSaveType.CONFIRM) {
-            dateCourse.confirm(command.title(), toInstant(command.date(), command.time()), now);
-        } else {
-            dateCourse.saveAsDraft(command.title(), toInstant(command.date(), command.time()), now);
-        }
+        dateCourse.confirm(command.title(), toInstant(command.date(), command.time()), now);
 
         dateCoursePlaceRepository.deleteAllByDateCourseId(dateCourseId);
         dateCoursePlaceRepository.flush();
@@ -164,14 +159,15 @@ public class DateCourseCommandService {
                     "데이트 날짜가 필요합니다"
             );
         }
-        if (time == null) {
+        Instant scheduledAt = ServiceTime.toScheduledInstant(date, time);
+        if (scheduledAt == null) {
             throw new InvalidDateCourseException(
-                    "time",
+                    "scheduledAt",
                     "REQUIRED",
-                    "데이트 시간이 필요합니다"
+                    "데이트 일정 시각이 필요합니다"
             );
         }
-        return LocalDateTime.of(date, time).atZone(ServiceTime.ZONE_ID).toInstant();
+        return scheduledAt;
     }
 
     private List<Long> validatedPlaceIds(List<Long> placeIds) {

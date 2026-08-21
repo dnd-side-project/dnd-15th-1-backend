@@ -9,8 +9,7 @@ public record SaveDateCourseCommand(
         String title,
         LocalDate date,
         LocalTime time,
-        List<Long> placeIds,
-        DateCourseSaveType saveType
+        List<Long> placeIds
 ) {
 
     public SaveDateCourseCommand {

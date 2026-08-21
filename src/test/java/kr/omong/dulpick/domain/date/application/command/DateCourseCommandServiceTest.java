@@ -51,13 +51,13 @@ class DateCourseCommandServiceTest {
     );
 
     @Test
-    void requiresAtLeastOnePlaceWhenConfirmingDateCourse() {
+    void requiresAtLeastOnePlaceWhenSavingDateCourse() {
         preparedCourse(0L);
 
         assertThatThrownBy(() -> service.save(
                 1L,
                 10L,
-                command(0L, List.of(), DateCourseSaveType.CONFIRM)
+                command(0L, List.of())
         )).isInstanceOf(DateCoursePlaceRequiredException.class);
     }
 
@@ -70,7 +70,7 @@ class DateCourseCommandServiceTest {
         assertThatThrownBy(() -> service.save(
                 1L,
                 10L,
-                command(0L, List.of(100L), DateCourseSaveType.TEMPORARY)
+                command(0L, List.of(100L))
         )).isInstanceOf(DateCoursePlaceNotSavedException.class);
     }
 
@@ -81,7 +81,7 @@ class DateCourseCommandServiceTest {
         assertThatThrownBy(() -> service.save(
                 1L,
                 10L,
-                command(1L, List.of(), DateCourseSaveType.TEMPORARY)
+                command(1L, List.of())
         )).isInstanceOf(DateCourseConflictException.class);
     }
 
@@ -107,16 +107,14 @@ class DateCourseCommandServiceTest {
 
     private SaveDateCourseCommand command(
             long version,
-            List<Long> placeIds,
-            DateCourseSaveType saveType
+            List<Long> placeIds
     ) {
         return new SaveDateCourseCommand(
                 version,
                 "데이트",
                 LocalDate.of(2026, 8, 20),
                 LocalTime.of(19, 30),
-                placeIds,
-                saveType
+                placeIds
         );
     }
 }
