@@ -33,9 +33,9 @@ class DateControllerStructureTest {
     }
 
     @Test
-    void saveOperationDocumentsOptimisticLockAndSaveTypes() {
+    void saveOperationDocumentsOptimisticLock() {
         String description = operationDescription(DateCourseController.class, "save");
-        assertThat(description).contains("TEMPORARY", "CONFIRM", "낙관적 락", "version");
+        assertThat(description).contains("낙관적 락", "version", "CONFIRMED");
     }
 
     private String operationDescription(Class<?> controllerClass, String methodName) {

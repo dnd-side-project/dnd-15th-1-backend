@@ -16,7 +16,12 @@ public record DateCourseSummaryResponse(
         String title,
         @Schema(description = "데이트 날짜(Asia/Seoul)", example = "2026-08-16")
         LocalDate date,
-        @Schema(description = "데이트 시간(Asia/Seoul)", example = "19:30:00")
+        @Schema(
+                description = "데이트 시간(Asia/Seoul). 날짜만 저장된 경우 null입니다.",
+                example = "19:30:00",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
         LocalTime time,
         @Schema(example = "CONFIRMED")
         DateCourseStatus status,
@@ -32,7 +37,7 @@ public record DateCourseSummaryResponse(
                 view.dateCourseId(),
                 view.title(),
                 scheduledAt == null ? null : scheduledAt.toLocalDate(),
-                scheduledAt == null ? null : scheduledAt.toLocalTime(),
+                ServiceTime.toResponseTime(scheduledAt),
                 view.status(),
                 view.version(),
                 view.totalPlaceCount()

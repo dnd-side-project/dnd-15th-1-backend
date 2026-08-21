@@ -82,7 +82,7 @@ public class DateCourseController {
 
     @Operation(
             summary = "데이트 코스 기본 정보 생성",
-            description = "데이트명, 날짜, 시간을 입력해 임시(DRAFT) 데이트 코스를 생성합니다."
+            description = "데이트명과 날짜를 입력해 임시(DRAFT) 데이트 코스를 생성합니다. 시간은 선택입니다."
     )
     @PostMapping
     public ResponseEntity<DateCourseResponse> create(
@@ -95,11 +95,11 @@ public class DateCourseController {
     }
 
     @Operation(
-            summary = "데이트 코스 임시 저장 또는 확정 저장",
+            summary = "데이트 코스 저장",
             description = """
-                    데이트명/날짜/시간/장소 순서를 한 번에 갱신합니다.
-                    saveType은 TEMPORARY(임시 저장) 또는 CONFIRM(최종 저장)입니다.
+                    데이트명/날짜/시간/장소 순서를 한 번에 갱신하고 확정(CONFIRMED) 상태로 저장합니다.
                     낙관적 락을 위해 요청에 version을 포함해야 하며, 충돌 시 409를 반환합니다.
+                    장소는 1개 이상 필요하며, 커플이 저장한 장소만 포함할 수 있습니다.
                     인접한 장소 간 도보 거리/시간은 Kakao 도보 경로 API로 조회해 places[].walkToNext에 포함합니다.
                     """
     )

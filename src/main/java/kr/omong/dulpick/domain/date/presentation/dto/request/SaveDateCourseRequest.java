@@ -6,7 +6,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import kr.omong.dulpick.domain.date.application.command.DateCourseSaveType;
 import kr.omong.dulpick.domain.date.application.command.SaveDateCourseCommand;
 
 import java.time.LocalDate;
@@ -31,13 +30,7 @@ public record SaveDateCourseRequest(
         @NotNull
         @Schema(description = "데이트 코스 장소 ID 목록. 순서대로 저장됩니다.")
         @ArraySchema(schema = @Schema(description = "공용 장소 ID", example = "101"))
-        List<Long> placeIds,
-        @NotNull
-        @Schema(
-                description = "저장 방식",
-                allowableValues = {"TEMPORARY", "CONFIRM"}
-        )
-        DateCourseSaveType saveType
+        List<Long> placeIds
 ) {
 
     public SaveDateCourseCommand toCommand() {
@@ -46,8 +39,7 @@ public record SaveDateCourseRequest(
                 title,
                 date,
                 time,
-                placeIds,
-                saveType
+                placeIds
         );
     }
 }

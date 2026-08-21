@@ -78,17 +78,6 @@ public class DateCourse {
         return new DateCourse(coupleId, createdByMemberId, title, scheduledAt, createdAt);
     }
 
-    public void saveAsDraft(
-            String title,
-            Instant scheduledAt,
-            Instant updatedAt
-    ) {
-        this.title = normalizeTitle(title);
-        this.scheduledAt = requireScheduledAt(scheduledAt);
-        this.status = DateCourseStatus.DRAFT;
-        this.updatedAt = requireUpdatedAt(updatedAt);
-    }
-
     public void confirm(
             String title,
             Instant scheduledAt,
