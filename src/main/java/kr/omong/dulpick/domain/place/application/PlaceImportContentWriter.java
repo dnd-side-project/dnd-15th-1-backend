@@ -14,7 +14,10 @@ import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.global.security.crypto.Sha256;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,8 @@ import java.util.Map;
 
 @Service
 public class PlaceImportContentWriter {
+
+    private static final Logger logger = LoggerFactory.getLogger(PlaceImportContentWriter.class);
 
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
@@ -152,6 +157,7 @@ public class PlaceImportContentWriter {
     private PlaceCandidate saveCandidate(Long importId, Long contentId, VerifiedCandidate candidate) {
         VerifiedPlace verified = candidate.verified();
         Instant now = clock.instant();
+        logFallbackCategory(verified);
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),
                 verified.categoryGroupCode(), verified.phone(), verified.kakaoPlaceUrl(),
@@ -161,6 +167,17 @@ public class PlaceImportContentWriter {
         return PlaceCandidate.matched(importId, place.getId(), candidate.extracted().name(),
                 candidate.extracted().addressHint(), candidate.extracted().evidence(),
                 candidate.extracted().mentionType(), candidate.verificationStatus(), now);
+    }
+
+    private void logFallbackCategory(VerifiedPlace verified) {
+        if (DulpickPlaceCategory.isFallback(verified.categoryGroupCode(), verified.category())) {
+            logger.warn(
+                    "place_category_fallback source=IMPORT kakaoPlaceId={} categoryGroupCode={} category={}",
+                    verified.kakaoPlaceId(),
+                    verified.categoryGroupCode(),
+                    verified.category()
+            );
+        }
     }
 
     private Content findOrCreateContent(ContentMetadata metadata) {

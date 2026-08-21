@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Configuration;
         KakaoProperties.class,
         KakaoRoutingProperties.class,
         KakaoMapPhotoProperties.class,
+        PlaceImageEnrichmentProperties.class,
         InstagramProperties.class
 })
 public class PlacePropertiesConfig {

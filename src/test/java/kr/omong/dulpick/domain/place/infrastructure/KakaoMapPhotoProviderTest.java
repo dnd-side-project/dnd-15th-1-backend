@@ -16,7 +16,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 class KakaoMapPhotoProviderTest {
 
     @Test
-    void returnsLimitedKakaoCdnPhotosAsHttps() {
+    void returnsLimitedTrustedPhotosAsHttps() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
@@ -30,16 +30,16 @@ class KakaoMapPhotoProviderTest {
                         {
                           "photos": [
                             {"url": "http://t1.kakaocdn.net/mystore/first"},
-                            {"url": "https://postfiles.pstatic.net/excluded"},
+                            {"url": "https://postfiles.pstatic.net/allowed"},
                             {"url": "//img1.daumcdn.net/second"},
-                            {"url": "https://t1.kakaocdn.net/third"}
+                            {"url": "https://images.example.com/excluded"}
                           ]
                         }
                         """, MediaType.APPLICATION_JSON));
 
         assertThat(provider.findImageUrls("610012827")).containsExactly(
                 "https://t1.kakaocdn.net/mystore/first",
-                "https://img1.daumcdn.net/second"
+                "https://postfiles.pstatic.net/allowed"
         );
         server.verify();
     }
@@ -56,6 +56,62 @@ class KakaoMapPhotoProviderTest {
                 .andRespond(withServerError());
 
         assertThat(provider.findImageUrls("610012827")).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void retriesPhotoRequestDuringInitialFetch() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
+                properties(true, 5, 3, 0),
+                builder
+        );
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withServerError());
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withSuccess("""
+                        {"photos": [{"url": "https://t1.kakaocdn.net/recovered"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findImageUrls("610012827"))
+                .containsExactly("https://t1.kakaocdn.net/recovered");
+        server.verify();
+    }
+
+    @Test
+    void acceptsDthumbPstaticPhotosFromKakao() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
+                properties(true, 5),
+                builder
+        );
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withSuccess("""
+                        {"photos": [{"url": "https://dthumb-phinf.pstatic.net/example"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findImageUrls("610012827"))
+                .containsExactly("https://dthumb-phinf.pstatic.net/example");
+        server.verify();
+    }
+
+    @Test
+    void acceptsKakaoRoadviewPhotos() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
+                properties(true, 5),
+                builder
+        );
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withSuccess("""
+                        {"photos": [{"url": "https://map.kakaocdn.net/map_roadview/2025/06/9148120/right_800.jpg"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findImageUrls("610012827"))
+                .containsExactly("https://map.kakaocdn.net/map_roadview/2025/06/9148120/right_800.jpg");
         server.verify();
     }
 
@@ -79,7 +135,26 @@ class KakaoMapPhotoProviderTest {
                 "https://place-api.map.kakao.com",
                 2,
                 maxImages,
-                "6.6.0"
+                "6.6.0",
+                1,
+                0
+        );
+    }
+
+    private KakaoMapPhotoProperties properties(
+            boolean enabled,
+            int maxImages,
+            int retryAttempts,
+            long retryDelayMillis
+    ) {
+        return new KakaoMapPhotoProperties(
+                enabled,
+                "https://place-api.map.kakao.com",
+                2,
+                maxImages,
+                "6.6.0",
+                retryAttempts,
+                retryDelayMillis
         );
     }
 }

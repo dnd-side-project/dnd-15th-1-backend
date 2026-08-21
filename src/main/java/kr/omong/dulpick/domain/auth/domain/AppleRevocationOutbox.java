@@ -2,6 +2,8 @@ package kr.omong.dulpick.domain.auth.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -30,6 +32,10 @@ public class AppleRevocationOutbox {
     @Column(name = "attempt_count", nullable = false)
     private int attemptCount;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AppleRevocationStatus status;
+
     @Column(name = "next_attempt_at", nullable = false)
     private Instant nextAttemptAt;
 
@@ -51,6 +57,7 @@ public class AppleRevocationOutbox {
         this.memberId = memberId;
         this.encryptedRefreshToken = encryptedRefreshToken;
         this.clientId = clientId;
+        this.status = AppleRevocationStatus.PENDING;
         this.nextAttemptAt = createdAt;
         this.createdAt = createdAt;
         this.updatedAt = createdAt;
@@ -90,6 +97,10 @@ public class AppleRevocationOutbox {
         return attemptCount;
     }
 
+    public AppleRevocationStatus getStatus() {
+        return status;
+    }
+
     public Instant getNextAttemptAt() {
         return nextAttemptAt;
     }
@@ -101,9 +112,15 @@ public class AppleRevocationOutbox {
     public void scheduleRetry(
             Instant failedAt,
             Duration initialDelay,
-            Duration maxDelay
+            Duration maxDelay,
+            int maxAttempts
     ) {
         attemptCount++;
+        if (attemptCount >= maxAttempts) {
+            status = AppleRevocationStatus.FAILED;
+            updatedAt = failedAt;
+            return;
+        }
         Duration retryDelay = calculateRetryDelay(initialDelay, maxDelay);
         nextAttemptAt = failedAt.plus(retryDelay);
         updatedAt = failedAt;

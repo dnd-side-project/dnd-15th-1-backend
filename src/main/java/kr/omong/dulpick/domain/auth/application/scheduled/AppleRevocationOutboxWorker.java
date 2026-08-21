@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.properties.AppleRevocationOutbox
 import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
 import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutbox;
 import kr.omong.dulpick.domain.auth.domain.AppleRevocationOutboxRepository;
+import kr.omong.dulpick.domain.auth.domain.AppleRevocationStatus;
 import kr.omong.dulpick.domain.auth.infrastructure.apple.AppleAuthorizationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -38,6 +39,10 @@ public class AppleRevocationOutboxWorker {
     }
 
     private void revoke(AppleRevocationOutbox outbox) {
+        if (outbox.getStatus() != AppleRevocationStatus.PENDING
+                || outbox.getAttemptCount() >= properties.maxAttempts()) {
+            return;
+        }
         try {
             appleAuthorizationService.revoke(
                     outbox.getEncryptedRefreshToken(),
@@ -48,13 +53,19 @@ public class AppleRevocationOutboxWorker {
             outbox.scheduleRetry(
                     clock.instant(),
                     properties.initialRetryDelay(),
-                    properties.maxRetryDelay()
+                    properties.maxRetryDelay(),
+                    properties.maxAttempts()
             );
-            log.warn(
-                    "Apple token revocation scheduled for retry: outboxId={}, attempt={}",
-                    outbox.getId(),
-                    outbox.getAttemptCount()
-            );
+            if (outbox.getStatus() == AppleRevocationStatus.FAILED) {
+                log.error(
+                        "Apple token revocation permanently failed: outboxId={}, attempts={}",
+                        outbox.getId(),
+                        outbox.getAttemptCount()
+                );
+                return;
+            }
+            log.warn("Apple token revocation scheduled for retry: outboxId={}, attempt={}",
+                    outbox.getId(), outbox.getAttemptCount());
         }
     }
 }

@@ -24,9 +24,15 @@ import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -39,6 +45,8 @@ import java.util.stream.Collectors;
 @Service
 public class PlaceCommandService {
 
+    private static final Logger logger = LoggerFactory.getLogger(PlaceCommandService.class);
+
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
@@ -47,6 +55,7 @@ public class PlaceCommandService {
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final PlaceImageEnrichmentService imageEnrichmentService;
 
     public PlaceCommandService(
             PlaceImportRepository importRepository,
@@ -58,6 +67,31 @@ public class PlaceCommandService {
             ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
+        this(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                activeCoupleMemberRepository,
+                eventPublisher,
+                clock,
+                null
+        );
+    }
+
+    @Autowired
+    public PlaceCommandService(
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            MemberRepository memberRepository,
+            MemberPlaceRepository memberPlaceRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock,
+            PlaceImageEnrichmentService imageEnrichmentService
+    ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
@@ -66,6 +100,7 @@ public class PlaceCommandService {
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
+        this.imageEnrichmentService = imageEnrichmentService;
     }
 
     @Transactional
@@ -80,6 +115,7 @@ public class PlaceCommandService {
             throw new MemberNotActiveException();
         }
         Instant now = clock.instant();
+        logFallbackCategory(searchResult.kakaoPlaceId(), searchResult.categoryGroupCode(), searchResult.category());
         placeRepository.insertIfAbsent(
                 searchResult.kakaoPlaceId(),
                 searchResult.name(),
@@ -100,23 +136,52 @@ public class PlaceCommandService {
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
+        Place placeForSave = place;
         MemberPlace saved = memberPlaceRepository.findByMemberIdAndPlaceId(memberId, place.getId())
                 .orElseGet(() -> {
                     MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
                             memberId,
-                            place,
+                            placeForSave,
                             null,
                             alias,
                             now
                     ));
-                    publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
+                    publishSavedEvent(membership, memberId, partnerId, placeForSave.getId(), now);
                     return created;
                 });
+        scheduleImageEnrichment(place.getId());
         return toView(
                 saved,
                 place,
                 ownershipStatus(partnerId, place.getId())
         );
+    }
+
+    private void scheduleImageEnrichment(Long placeId) {
+        if (imageEnrichmentService == null) {
+            return;
+        }
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            imageEnrichmentService.enrichPlace(placeId);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                imageEnrichmentService.enrichPlace(placeId);
+            }
+        });
+    }
+
+    private void logFallbackCategory(String kakaoPlaceId, String categoryGroupCode, String category) {
+        if (DulpickPlaceCategory.isFallback(categoryGroupCode, category)) {
+            logger.warn(
+                    "place_category_fallback source=MANUAL kakaoPlaceId={} categoryGroupCode={} category={}",
+                    kakaoPlaceId,
+                    categoryGroupCode,
+                    category
+            );
+        }
     }
 
     @Transactional

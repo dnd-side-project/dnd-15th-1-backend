@@ -134,4 +134,20 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
             @Param("contentId") Long contentId,
             @Param("claimToken") String claimToken
     );
+
+    @Modifying
+    @Query("""
+            UPDATE Content content
+               SET content.analysisContentHash = null,
+                   content.analyzerModel = null,
+                   content.promptVersion = null,
+                   content.analysisStatus = 'FAILED',
+                   content.analysisStartedAt = null,
+                   content.analysisClaimToken = null,
+                   content.analyzedAt = null,
+                   content.extractedCandidatesJson = null
+             WHERE content.id = :contentId
+               AND content.analysisStatus = 'READY'
+            """)
+    int invalidateCachedAnalysis(@Param("contentId") Long contentId);
 }

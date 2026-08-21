@@ -97,6 +97,9 @@ place-analysis:
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
   public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  image-enrichment:
+    retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
+    max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
 
 instagram:
   metadata:
@@ -131,6 +134,8 @@ kakao:
     timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
     max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
     app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
+    retry-attempts: ${KAKAO_MAP_PHOTO_RETRY_ATTEMPTS:3}
+    retry-delay-millis: ${KAKAO_MAP_PHOTO_RETRY_DELAY_MILLIS:100}
 
 auth:
   jwt:
@@ -186,3 +191,4 @@ auth:
       batch-size: 20
       initial-retry-delay: 1m
       max-retry-delay: 1h
+      max-attempts: ${APPLE_REVOCATION_MAX_ATTEMPTS:5}

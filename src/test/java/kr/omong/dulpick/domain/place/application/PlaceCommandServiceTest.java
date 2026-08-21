@@ -242,6 +242,65 @@ class PlaceCommandServiceTest {
     }
 
     @Test
+    void schedulesImageEnrichmentForExistingPlaceWithoutThumbnail() {
+        Instant now = Instant.parse("2026-08-10T00:00:00Z");
+        PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
+        PlaceCandidateRepository candidateRepository = mock(PlaceCandidateRepository.class);
+        PlaceRepository placeRepository = mock(PlaceRepository.class);
+        MemberRepository memberRepository = mock(MemberRepository.class);
+        MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
+        ActiveCoupleMemberRepository coupleRepository = mock(ActiveCoupleMemberRepository.class);
+        PlaceImageEnrichmentService imageService = mock(PlaceImageEnrichmentService.class);
+        PlaceCommandService service = new PlaceCommandService(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                coupleRepository,
+                mock(ApplicationEventPublisher.class),
+                Clock.fixed(now, ZoneOffset.UTC),
+                imageService
+        );
+        Member member = mock(Member.class);
+        Place place = mock(Place.class);
+        PlaceSearchResult searchResult = new PlaceSearchResult(
+                "kakao-20",
+                "저장 장소",
+                "서울 성동구 성수동",
+                "서울 성동구 성수길",
+                new java.math.BigDecimal("37.5446"),
+                new java.math.BigDecimal("127.0557"),
+                "CE7",
+                "음식점 > 카페",
+                "02-1234-5678",
+                "https://place.map.kakao.com/kakao-20",
+                null
+        );
+        when(memberRepository.findForUpdateById(1L)).thenReturn(Optional.of(member));
+        when(member.isActive()).thenReturn(true);
+        when(placeRepository.findByKakaoPlaceId("kakao-20"))
+                .thenReturn(Optional.of(place));
+        when(place.getId()).thenReturn(20L);
+        when(place.getKakaoPlaceId()).thenReturn("kakao-20");
+        when(place.getName()).thenReturn("저장 장소");
+        when(place.getAddress()).thenReturn("서울 성동구 성수동");
+        when(place.getRoadAddress()).thenReturn("서울 성동구 성수길");
+        when(place.getCategory()).thenReturn("음식점 > 카페");
+        when(place.getCategoryName()).thenReturn("카페");
+        when(place.getImageUrls()).thenReturn(List.of());
+        when(memberPlaceRepository.findByMemberIdAndPlaceId(1L, 20L))
+                .thenReturn(Optional.empty());
+        when(memberPlaceRepository.save(any(MemberPlace.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+        when(coupleRepository.findByMemberId(1L)).thenReturn(Optional.empty());
+
+        service.saveManual(1L, searchResult, "  성수 장소  ");
+
+        verify(imageService).enrichPlace(20L);
+    }
+
+    @Test
     void deletesMemberPlaceRelationship() {
         Instant now = Instant.parse("2026-08-10T00:00:00Z");
         MemberRepository memberRepository = mock(MemberRepository.class);
