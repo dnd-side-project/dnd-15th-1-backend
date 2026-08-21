@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundExceptio
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,15 +17,27 @@ public class PlaceDetailQueryService {
     private final PlaceRepository placeRepository;
     private final PlaceQueryService placeQueryService;
     private final PlaceSearchService placeSearchService;
+    private final PlaceCategoryWriteThroughService categoryWriteThroughService;
 
     public PlaceDetailQueryService(
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService
     ) {
+        this(placeRepository, placeQueryService, placeSearchService, null);
+    }
+
+    @Autowired
+    public PlaceDetailQueryService(
+            PlaceRepository placeRepository,
+            PlaceQueryService placeQueryService,
+            PlaceSearchService placeSearchService,
+            PlaceCategoryWriteThroughService categoryWriteThroughService
+    ) {
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
+        this.categoryWriteThroughService = categoryWriteThroughService;
     }
 
     @Transactional(readOnly = true)
@@ -70,14 +83,19 @@ public class PlaceDetailQueryService {
             PlaceSearchResult kakao
     ) {
         Long placeId = place == null ? null : place.getId();
+        fillMissingCategory(place, kakao);
         PlaceOwnership ownership = placeId == null
                 ? PlaceOwnership.none()
                 : placeQueryService.getOwnerships(memberId, List.of(placeId))
                 .getOrDefault(placeId, PlaceOwnership.none());
-        String categoryGroupCode = place == null
-                ? kakao.categoryGroupCode()
-                : place.getCategoryGroupCode();
-        String category = place == null ? kakao.category() : place.getCategory();
+        String categoryGroupCode = firstNonBlank(
+                place == null ? null : place.getCategoryGroupCode(),
+                kakao == null ? null : kakao.categoryGroupCode()
+        );
+        String category = firstNonBlank(
+                place == null ? null : place.getCategory(),
+                kakao == null ? null : kakao.category()
+        );
         return new PlaceDetailView(
                 placeId,
                 place == null ? kakao.kakaoPlaceId() : place.getKakaoPlaceId(),
@@ -112,5 +130,18 @@ public class PlaceDetailQueryService {
             return first;
         }
         return second == null || second.isBlank() ? null : second;
+    }
+
+    private void fillMissingCategory(Place place, PlaceSearchResult kakao) {
+        if (categoryWriteThroughService == null || place == null || kakao == null) {
+            return;
+        }
+        categoryWriteThroughService.fillIfMissing(
+                place.getId(),
+                place.getCategoryGroupCode(),
+                place.getCategory(),
+                kakao.categoryGroupCode(),
+                kakao.category()
+        );
     }
 }

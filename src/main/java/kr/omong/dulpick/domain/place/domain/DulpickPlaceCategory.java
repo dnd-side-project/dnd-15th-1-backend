@@ -25,6 +25,11 @@ public enum DulpickPlaceCategory {
         return groupCategory == null ? fromCategoryPath(kakaoCategory) : groupCategory;
     }
 
+    public static boolean isFallback(String categoryGroupCode, String kakaoCategory) {
+        return fromGroupCode(categoryGroupCode) == null
+                && fromCategoryPathOrNull(kakaoCategory) == null;
+    }
+
     public String getDisplayName() {
         return displayName;
     }
@@ -47,6 +52,11 @@ public enum DulpickPlaceCategory {
     }
 
     private static DulpickPlaceCategory fromCategoryPath(String kakaoCategory) {
+        DulpickPlaceCategory category = fromCategoryPathOrNull(kakaoCategory);
+        return category == null ? CONVENIENCE : category;
+    }
+
+    private static DulpickPlaceCategory fromCategoryPathOrNull(String kakaoCategory) {
         String category = normalize(kakaoCategory);
         if (containsAny(category, "카페", "커피", "디저트")) {
             return CAFE;
@@ -62,15 +72,19 @@ public enum DulpickPlaceCategory {
         }
         if (containsAny(
                 category,
+                "마트", "편의점", "쇼핑", "백화점", "아울렛", "시장", "화장품", "미용",
+                "도서", "서점", "문구", "완구"
+        )) {
+            return SHOPPING;
+        }
+        if (containsAny(
+                category,
                 "문화", "공연", "극장", "영화관", "미술관", "박물관", "전시", "놀이", "오락",
-                "방탈출", "볼링", "노래방", "스포츠", "레저"
+                "방탈출", "볼링", "노래방", "스포츠", "레저", "음악"
         )) {
             return ENTERTAINMENT;
         }
-        if (containsAny(category, "마트", "편의점", "쇼핑", "백화점", "아울렛", "시장")) {
-            return SHOPPING;
-        }
-        return CONVENIENCE;
+        return null;
     }
 
     private static String normalize(String category) {

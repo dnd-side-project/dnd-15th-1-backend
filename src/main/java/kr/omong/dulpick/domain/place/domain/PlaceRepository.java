@@ -160,16 +160,24 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
                  category, category_group_code, phone, kakao_place_url,
                  thumbnail_url, created_at, updated_at)
             VALUES
-                (:kakaoId, :name, :address, :roadAddress, :latitude, :longitude,
+                (:kakaoId, :name, :address, NULLIF(TRIM(:roadAddress), ''), :latitude, :longitude,
                  :category, :categoryGroupCode, :phone, :kakaoPlaceUrl,
                  :thumbnail, :now, :now)
             ON DUPLICATE KEY UPDATE
-                category_group_code = COALESCE(category_group_code, :categoryGroupCode),
+                road_address = COALESCE(
+                    NULLIF(TRIM(road_address), ''),
+                    NULLIF(TRIM(:roadAddress), '')
+                ),
+                category_group_code = COALESCE(
+                    NULLIF(TRIM(category_group_code), ''),
+                    NULLIF(TRIM(:categoryGroupCode), '')
+                ),
                 phone = COALESCE(NULLIF(:phone, ''), phone),
                 kakao_place_url = COALESCE(NULLIF(:kakaoPlaceUrl, ''), kakao_place_url),
                 thumbnail_url = COALESCE(:thumbnail, thumbnail_url),
                 updated_at = CASE
                     WHEN :thumbnail IS NULL
+                         AND NULLIF(TRIM(:categoryGroupCode), '') IS NULL
                          AND (:phone IS NULL OR :phone = '')
                          AND (:kakaoPlaceUrl IS NULL OR :kakaoPlaceUrl = '')
                     THEN updated_at
@@ -219,7 +227,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
         );
     }
 
-    @Modifying
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             UPDATE Place place
             SET place.thumbnailUrl = :thumbnailUrl,
@@ -229,6 +237,33 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     void updateThumbnail(
             @Param("placeId") Long placeId,
             @Param("thumbnailUrl") String thumbnailUrl,
+            @Param("updatedAt") Instant updatedAt
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Place place
+            SET place.categoryGroupCode = COALESCE(
+                        NULLIF(TRIM(place.categoryGroupCode), ''),
+                        NULLIF(TRIM(:categoryGroupCode), '')
+                    ),
+                place.category = COALESCE(
+                        NULLIF(TRIM(place.category), ''),
+                        NULLIF(TRIM(:category), '')
+                    ),
+                place.updatedAt = :updatedAt
+            WHERE place.id = :placeId
+              AND (
+                    place.categoryGroupCode IS NULL
+                    OR TRIM(place.categoryGroupCode) = ''
+                    OR place.category IS NULL
+                    OR TRIM(place.category) = ''
+                  )
+            """)
+    int updateCategoryIfMissing(
+            @Param("placeId") Long placeId,
+            @Param("categoryGroupCode") String categoryGroupCode,
+            @Param("category") String category,
             @Param("updatedAt") Instant updatedAt
     );
 }

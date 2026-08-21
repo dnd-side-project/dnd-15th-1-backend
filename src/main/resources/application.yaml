@@ -131,6 +131,8 @@ kakao:
     timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
     max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
     app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
+    retry-attempts: ${KAKAO_MAP_PHOTO_RETRY_ATTEMPTS:3}
+    retry-delay-millis: ${KAKAO_MAP_PHOTO_RETRY_DELAY_MILLIS:100}
 
 auth:
   jwt:

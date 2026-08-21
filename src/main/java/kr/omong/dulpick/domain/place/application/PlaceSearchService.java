@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.global.search.FullTextBooleanQuery;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,15 +24,27 @@ public class PlaceSearchService {
     private final PlaceSearcher placeSearcher;
     private final PlaceRepository placeRepository;
     private final PlaceQueryService placeQueryService;
+    private final PlaceCategoryWriteThroughService categoryWriteThroughService;
 
     public PlaceSearchService(
             PlaceSearcher placeSearcher,
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService
     ) {
+        this(placeSearcher, placeRepository, placeQueryService, null);
+    }
+
+    @Autowired
+    public PlaceSearchService(
+            PlaceSearcher placeSearcher,
+            PlaceRepository placeRepository,
+            PlaceQueryService placeQueryService,
+            PlaceCategoryWriteThroughService categoryWriteThroughService
+    ) {
         this.placeSearcher = placeSearcher;
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
+        this.categoryWriteThroughService = categoryWriteThroughService;
     }
 
     public List<PlaceSearchResult> search(String query) {
@@ -123,13 +136,18 @@ public class PlaceSearchService {
     ) {
         Place place = candidate.place();
         PlaceSearchResult kakao = candidate.kakao();
+        fillMissingCategory(place, kakao);
         PlaceOwnership ownership = place == null
                 ? PlaceOwnership.none()
                 : ownerships.getOrDefault(place.getId(), PlaceOwnership.none());
-        String categoryGroupCode = place == null
-                ? kakao.categoryGroupCode()
-                : place.getCategoryGroupCode();
-        String category = place == null ? kakao.category() : place.getCategory();
+        String categoryGroupCode = firstNonBlank(
+                place == null ? null : place.getCategoryGroupCode(),
+                kakao == null ? null : kakao.categoryGroupCode()
+        );
+        String category = firstNonBlank(
+                place == null ? null : place.getCategory(),
+                kakao == null ? null : kakao.category()
+        );
         PlaceSearchView view = new PlaceSearchView(
                 place == null ? null : place.getId(),
                 place == null ? kakao.kakaoPlaceId() : place.getKakaoPlaceId(),
@@ -157,6 +175,19 @@ public class PlaceSearchService {
                 place == null ? List.of() : place.getImageUrls()
         );
         return new PlaceSearchViewWithOwnership(view, ownership);
+    }
+
+    private void fillMissingCategory(Place place, PlaceSearchResult kakao) {
+        if (categoryWriteThroughService == null || place == null || kakao == null) {
+            return;
+        }
+        categoryWriteThroughService.fillIfMissing(
+                place.getId(),
+                place.getCategoryGroupCode(),
+                place.getCategory(),
+                kakao.categoryGroupCode(),
+                kakao.category()
+        );
     }
 
     private String firstNonBlank(String first, String second) {
