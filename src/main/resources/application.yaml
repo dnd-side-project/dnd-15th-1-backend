@@ -97,6 +97,9 @@ place-analysis:
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
   public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  image-enrichment:
+    retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
+    max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
 
 instagram:
   metadata:

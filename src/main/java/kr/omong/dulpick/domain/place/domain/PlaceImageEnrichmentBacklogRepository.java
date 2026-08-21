@@ -7,9 +7,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Optional;
 
 public interface PlaceImageEnrichmentBacklogRepository
         extends JpaRepository<PlaceImageEnrichmentBacklog, Long> {
+
+    Optional<PlaceImageEnrichmentBacklog> findByPlaceId(Long placeId);
 
     @Transactional
     @Modifying
@@ -34,4 +37,9 @@ public interface PlaceImageEnrichmentBacklogRepository
             @Param("reason") String reason,
             @Param("failedAt") Instant failedAt
     );
+
+    @Transactional
+    @Modifying
+    @Query("DELETE FROM PlaceImageEnrichmentBacklog backlog WHERE backlog.placeId = :placeId")
+    void deleteByPlaceId(@Param("placeId") Long placeId);
 }

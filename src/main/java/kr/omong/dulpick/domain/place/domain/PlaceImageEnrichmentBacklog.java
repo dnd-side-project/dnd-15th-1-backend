@@ -46,4 +46,16 @@ public class PlaceImageEnrichmentBacklog {
 
     protected PlaceImageEnrichmentBacklog() {
     }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public Instant getLastFailedAt() {
+        return lastFailedAt;
+    }
 }

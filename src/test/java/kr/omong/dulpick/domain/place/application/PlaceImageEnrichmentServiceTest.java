@@ -3,8 +3,10 @@ package kr.omong.dulpick.domain.place.application;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklog;
 import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklogRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.config.PlaceImageEnrichmentProperties;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -33,6 +35,10 @@ class PlaceImageEnrichmentServiceTest {
             imageProvider,
             imageWriter,
             backlogRepository,
+            new PlaceImageEnrichmentProperties(
+                    java.time.Duration.ofMinutes(10),
+                    3
+            ),
             Clock.fixed(Instant.parse("2026-08-10T00:00:00Z"), ZoneOffset.UTC)
     );
 
@@ -95,5 +101,40 @@ class PlaceImageEnrichmentServiceTest {
                 Instant.parse("2026-08-10T00:00:00Z")
         );
         verifyNoInteractions(imageWriter);
+    }
+
+    @Test
+    void skipsRetryDuringBacklogCooldown() {
+        Place place = mock(Place.class);
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        when(place.getId()).thenReturn(20L);
+        when(place.getThumbnailUrl()).thenReturn(null);
+        when(place.getKakaoPlaceId()).thenReturn("610012827");
+        when(backlog.getStatus()).thenReturn("PENDING");
+        when(backlog.getAttemptCount()).thenReturn(1);
+        when(backlog.getLastFailedAt()).thenReturn(Instant.parse("2026-08-09T23:55:00Z"));
+        when(placeRepository.findById(20L)).thenReturn(java.util.Optional.of(place));
+        when(backlogRepository.findByPlaceId(20L)).thenReturn(java.util.Optional.of(backlog));
+
+        service.enrichPlace(20L);
+
+        verifyNoInteractions(imageProvider, imageWriter);
+    }
+
+    @Test
+    void stopsRetryAfterBacklogAttemptLimit() {
+        Place place = mock(Place.class);
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        when(place.getId()).thenReturn(20L);
+        when(place.getThumbnailUrl()).thenReturn(null);
+        when(place.getKakaoPlaceId()).thenReturn("610012827");
+        when(backlog.getStatus()).thenReturn("PENDING");
+        when(backlog.getAttemptCount()).thenReturn(3);
+        when(backlogRepository.findByPlaceId(20L)).thenReturn(java.util.Optional.of(backlog));
+        when(placeRepository.findById(20L)).thenReturn(java.util.Optional.of(place));
+
+        service.enrichPlace(20L);
+
+        verifyNoInteractions(imageProvider, imageWriter);
     }
 }

@@ -36,7 +36,7 @@ public class PlaceImportResultWriter {
         this.contentWriter = contentWriter;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<List<ExtractedPlace>> loadCachedAnalysis(
             Long contentId,
             String contentHash,

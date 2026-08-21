@@ -50,11 +50,14 @@ place-analysis:
   stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
   retry-cooldown-seconds: ${PLACE_ANALYSIS_RETRY_COOLDOWN_SECONDS:300}
   max-retry-count: ${PLACE_ANALYSIS_MAX_RETRY_COUNT:3}
-  recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:true}
+  recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:false}
   recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
   public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  image-enrichment:
+    retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
+    max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
 
 gemini:
   enabled: ${GEMINI_ENABLED:false}

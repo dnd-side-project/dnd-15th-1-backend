@@ -22,7 +22,7 @@ public class PlaceImportAnalysisWriter {
         this.objectMapper = objectMapper;
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public Optional<List<ExtractedPlace>> loadCachedAnalysis(
             Long contentId, String contentHash, String analyzerModel, String promptVersion) {
         return contentRepository.findById(contentId)
@@ -65,6 +65,7 @@ public class PlaceImportAnalysisWriter {
                     content.getExtractedCandidatesJson(), ExtractedPlace[].class);
             return Optional.of(List.of(candidates));
         } catch (Exception exception) {
+            contentRepository.invalidateCachedAnalysis(content.getId());
             return Optional.empty();
         }
     }

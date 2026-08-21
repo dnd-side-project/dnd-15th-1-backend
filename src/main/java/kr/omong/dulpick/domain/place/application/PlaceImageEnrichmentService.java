@@ -2,9 +2,11 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklog;
 import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklogRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentFailureReason;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.config.PlaceImageEnrichmentProperties;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class PlaceImageEnrichmentService {
@@ -23,6 +26,7 @@ public class PlaceImageEnrichmentService {
     private final PlaceImageProvider imageProvider;
     private final PlaceImageWriter imageWriter;
     private final PlaceImageEnrichmentBacklogRepository backlogRepository;
+    private final PlaceImageEnrichmentProperties properties;
     private final Clock clock;
 
     public PlaceImageEnrichmentService(
@@ -31,6 +35,7 @@ public class PlaceImageEnrichmentService {
             PlaceImageProvider imageProvider,
             PlaceImageWriter imageWriter,
             PlaceImageEnrichmentBacklogRepository backlogRepository,
+            PlaceImageEnrichmentProperties properties,
             Clock clock
     ) {
         this.candidateRepository = candidateRepository;
@@ -38,6 +43,7 @@ public class PlaceImageEnrichmentService {
         this.imageProvider = imageProvider;
         this.imageWriter = imageWriter;
         this.backlogRepository = backlogRepository;
+        this.properties = properties;
         this.clock = clock;
     }
 
@@ -64,6 +70,11 @@ public class PlaceImageEnrichmentService {
     }
 
     private void enrich(Place place) {
+        if (!canAttempt(place.getId())) {
+            logger.info("place_image_enrichment_skipped placeId={} reason=RETRY_LIMIT_OR_COOLDOWN",
+                    place.getId());
+            return;
+        }
         String kakaoPlaceId = place.getKakaoPlaceId();
         if (!isValidPlaceId(kakaoPlaceId)) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.INVALID_PLACE_ID);
@@ -84,11 +95,27 @@ public class PlaceImageEnrichmentService {
         }
         try {
             imageWriter.replace(place.getId(), imageUrls);
+            backlogRepository.deleteByPlaceId(place.getId());
         } catch (RuntimeException exception) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.WRITER_ERROR);
             logger.warn("place_image_enrichment_failed placeId={} reason=WRITER_ERROR cause={}",
                     place.getId(), exception.getClass().getSimpleName());
         }
+    }
+
+    private boolean canAttempt(Long placeId) {
+        Optional<PlaceImageEnrichmentBacklog> backlog = backlogRepository.findByPlaceId(placeId);
+        if (backlog.isEmpty()) {
+            return true;
+        }
+        PlaceImageEnrichmentBacklog failed = backlog.get();
+        if (!"PENDING".equals(failed.getStatus())
+                || failed.getAttemptCount() >= properties.maxAttempts()) {
+            return false;
+        }
+        return !failed.getLastFailedAt()
+                .plus(properties.retryCooldown())
+                .isAfter(clock.instant());
     }
 
     private void recordFailure(Place place, PlaceImageEnrichmentFailureReason reason) {

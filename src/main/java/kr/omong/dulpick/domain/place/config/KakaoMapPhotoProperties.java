@@ -28,6 +28,8 @@ public record KakaoMapPhotoProperties(
         }
         if (retryAttempts <= 0) {
             retryAttempts = 1;
+        } else if (retryAttempts > 3) {
+            retryAttempts = 3;
         }
         if (retryDelayMillis < 0) {
             retryDelayMillis = 0;
