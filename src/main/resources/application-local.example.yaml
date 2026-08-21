@@ -136,3 +136,5 @@ auth:
       - ${APPLE_DEV_CLIENT_ID}
     private-key-path: ${APPLE_PRIVATE_KEY_PATH}
     token-encryption-key: ${PROVIDER_TOKEN_ENCRYPTION_KEY}
+    revocation:
+      max-attempts: ${APPLE_REVOCATION_MAX_ATTEMPTS:5}

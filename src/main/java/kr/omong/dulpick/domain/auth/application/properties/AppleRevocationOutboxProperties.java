@@ -9,7 +9,8 @@ public record AppleRevocationOutboxProperties(
         Duration processDelay,
         int batchSize,
         Duration initialRetryDelay,
-        Duration maxRetryDelay
+        Duration maxRetryDelay,
+        int maxAttempts
 ) {
 
     public AppleRevocationOutboxProperties {
@@ -17,6 +18,11 @@ public record AppleRevocationOutboxProperties(
         if (batchSize <= 0) {
             throw new IllegalArgumentException(
                     "auth.apple.revocation.batch-size must be positive"
+            );
+        }
+        if (maxAttempts <= 0 || maxAttempts > 10) {
+            throw new IllegalArgumentException(
+                    "auth.apple.revocation.max-attempts must be between 1 and 10"
             );
         }
         requirePositive(initialRetryDelay, "initial-retry-delay");

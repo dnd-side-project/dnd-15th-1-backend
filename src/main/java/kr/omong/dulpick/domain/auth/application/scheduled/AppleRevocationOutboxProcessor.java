@@ -37,6 +37,7 @@ public class AppleRevocationOutboxProcessor {
     public void process() {
         outboxRepository.findRetryableIds(
                 clock.instant(),
+                properties.maxAttempts(),
                 PageRequest.of(0, properties.batchSize())
         ).forEach(outboxWorker::process);
     }

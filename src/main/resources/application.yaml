@@ -188,3 +188,4 @@ auth:
       batch-size: 20
       initial-retry-delay: 1m
       max-retry-delay: 1h
+      max-attempts: ${APPLE_REVOCATION_MAX_ATTEMPTS:5}
