@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.date.presentation.dto.request.CreateDateCourseReq
 import kr.omong.dulpick.domain.date.presentation.dto.request.SaveDateCourseRequest;
 import kr.omong.dulpick.domain.date.presentation.dto.response.CurrentDateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePlacePoolResponse;
+import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePartnerNotifyResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.PastDateCoursesPageResponse;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
@@ -112,6 +113,25 @@ public class DateCourseController {
     ) {
         return ResponseEntity.ok(DateCourseResponse.from(
                 dateCourseCommandService.save(memberId(jwt), dateCourseId, request.toCommand())
+        ));
+    }
+
+    @Operation(
+            summary = "커플 상대방에게 데이트 코스 알림 보내기",
+            description = """
+                    연결된 상대방에게 FCM 푸시만 보냅니다. 알림함에는 저장하지 않습니다.
+                    제목은 요청 회원의 닉네임으로 "{닉네임}님이 데이트코스를 짰어요!" 형식입니다.
+                    상대방의 데이트 일정 알림 설정이 OFF이거나 등록된 기기가 없으면 푸시를 생략합니다.
+                    """
+    )
+    @PostMapping("/{dateCourseId}/notify-partner")
+    public ResponseEntity<DateCoursePartnerNotifyResponse> notifyPartner(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "알림을 보낼 데이트 코스 ID", required = true, example = "1001")
+            @PathVariable @Schema(example = "1001") Long dateCourseId
+    ) {
+        return ResponseEntity.ok(DateCoursePartnerNotifyResponse.from(
+                dateCourseCommandService.notifyPartner(memberId(jwt), dateCourseId)
         ));
     }
 
