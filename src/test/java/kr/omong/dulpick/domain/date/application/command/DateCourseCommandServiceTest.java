@@ -10,11 +10,13 @@ import kr.omong.dulpick.domain.date.domain.DateCourse;
 import kr.omong.dulpick.domain.date.domain.DateCoursePlaceRepository;
 import kr.omong.dulpick.domain.date.domain.DateCourseRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.when;
 class DateCourseCommandServiceTest {
 
     private final MemberRepository memberRepository = mock(MemberRepository.class);
+    private final MemberProfileRepository memberProfileRepository = mock(MemberProfileRepository.class);
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository =
             mock(ActiveCoupleMemberRepository.class);
     private final DateCourseRepository dateCourseRepository = mock(DateCourseRepository.class);
@@ -39,14 +42,17 @@ class DateCourseCommandServiceTest {
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceWalkingRouteService placeWalkingRouteService = mock(PlaceWalkingRouteService.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
     private final DateCourseCommandService service = new DateCourseCommandService(
             memberRepository,
+            memberProfileRepository,
             activeCoupleMemberRepository,
             dateCourseRepository,
             dateCoursePlaceRepository,
             memberPlaceRepository,
             placeRepository,
             placeWalkingRouteService,
+            eventPublisher,
             Clock.fixed(Instant.parse("2026-08-16T00:00:00Z"), ZoneOffset.UTC)
     );
 

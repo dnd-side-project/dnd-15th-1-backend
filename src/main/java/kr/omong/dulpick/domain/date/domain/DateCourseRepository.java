@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.date.domain;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -34,9 +35,8 @@ public interface DateCourseRepository extends JpaRepository<DateCourse, Long> {
             WHERE dateCourse.coupleId = :coupleId
               AND dateCourse.status = :status
               AND dateCourse.scheduledAt < :scheduledBefore
-            ORDER BY dateCourse.scheduledAt DESC, dateCourse.id DESC
             """)
-    List<DateCourse> findPast(
+    Page<DateCourse> findPast(
             @Param("coupleId") Long coupleId,
             @Param("status") DateCourseStatus status,
             @Param("scheduledBefore") Instant scheduledBefore,

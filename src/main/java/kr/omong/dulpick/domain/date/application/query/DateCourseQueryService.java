@@ -27,7 +27,10 @@ import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,7 +44,10 @@ import java.util.stream.IntStream;
 @Service
 public class DateCourseQueryService {
 
-    private static final int DEFAULT_MAX_SIZE = 50;
+    private static final Sort PAST_DATE_COURSE_SORT = Sort.by(
+            Sort.Order.desc("scheduledAt"),
+            Sort.Order.desc("id")
+    );
 
     private final MemberRepository memberRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
@@ -124,6 +130,12 @@ public class DateCourseQueryService {
     }
 
     @Transactional(readOnly = true)
+    public Page<DateCourseSummaryView> getPastConfirmed(Long memberId, Pageable pageable) {
+        CoupleContext context = requireCoupleContext(memberId);
+        return findPastConfirmedByCoupleId(context.coupleId(), pageable);
+    }
+
+    @Transactional(readOnly = true)
     public List<DateCourseSummaryView> getPastConfirmed(Long memberId, int size) {
         CoupleContext context = requireCoupleContext(memberId);
         return findPastConfirmedByCoupleId(context.coupleId(), size);
@@ -144,17 +156,34 @@ public class DateCourseQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<DateCourseSummaryView> findPastConfirmedByCoupleId(Long coupleId, int size) {
-        int boundedSize = Math.max(1, Math.min(size, DEFAULT_MAX_SIZE));
+    public Page<DateCourseSummaryView> findPastConfirmedByCoupleId(Long coupleId, Pageable pageable) {
         return dateCourseRepository.findPast(
                         coupleId,
                         DateCourseStatus.CONFIRMED,
                         clock.instant(),
-                        PageRequest.of(0, boundedSize)
+                        withPastDateCourseSort(pageable)
                 )
-                .stream()
-                .map(this::toSummary)
-                .toList();
+                .map(this::toSummary);
+    }
+
+    @Transactional(readOnly = true)
+    public List<DateCourseSummaryView> findPastConfirmedByCoupleId(Long coupleId, int size) {
+        int boundedSize = Math.max(1, size);
+        return findPastConfirmedByCoupleId(
+                coupleId,
+                PageRequest.of(0, boundedSize, PAST_DATE_COURSE_SORT)
+        ).getContent();
+    }
+
+    private Pageable withPastDateCourseSort(Pageable pageable) {
+        if (pageable.getSort().isSorted()) {
+            return pageable;
+        }
+        return PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                PAST_DATE_COURSE_SORT
+        );
     }
 
     private DateCoursePlaceCandidateView toCandidateView(MemberPlaceView placeView) {

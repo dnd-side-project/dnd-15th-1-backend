@@ -16,9 +16,13 @@ import kr.omong.dulpick.domain.date.domain.DateCoursePlaceRepository;
 import kr.omong.dulpick.domain.date.domain.DateCourseRepository;
 import kr.omong.dulpick.domain.date.domain.exception.InvalidDateCourseException;
 import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundException;
+import kr.omong.dulpick.domain.member.application.exception.MemberProfileRequiredException;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberProfile;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.notification.application.event.DateCoursePlannedEvent;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
@@ -26,6 +30,7 @@ import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.global.time.ServiceTime;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -46,31 +51,37 @@ import java.util.stream.IntStream;
 public class DateCourseCommandService {
 
     private final MemberRepository memberRepository;
+    private final MemberProfileRepository memberProfileRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final DateCourseRepository dateCourseRepository;
     private final DateCoursePlaceRepository dateCoursePlaceRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceRepository placeRepository;
     private final PlaceWalkingRouteService placeWalkingRouteService;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public DateCourseCommandService(
             MemberRepository memberRepository,
+            MemberProfileRepository memberProfileRepository,
             ActiveCoupleMemberRepository activeCoupleMemberRepository,
             DateCourseRepository dateCourseRepository,
             DateCoursePlaceRepository dateCoursePlaceRepository,
             MemberPlaceRepository memberPlaceRepository,
             PlaceRepository placeRepository,
             PlaceWalkingRouteService placeWalkingRouteService,
+            ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
         this.memberRepository = memberRepository;
+        this.memberProfileRepository = memberProfileRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.dateCourseRepository = dateCourseRepository;
         this.dateCoursePlaceRepository = dateCoursePlaceRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.placeRepository = placeRepository;
         this.placeWalkingRouteService = placeWalkingRouteService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -125,6 +136,28 @@ public class DateCourseCommandService {
             throw new DateCourseConflictException();
         }
         return toView(dateCourse, newPlaces);
+    }
+
+    @Transactional
+    public DateCoursePartnerNotified notifyPartner(Long memberId, Long dateCourseId) {
+        CoupleContext context = requireCoupleContext(memberId);
+        DateCourse dateCourse = dateCourseRepository.findByIdAndCoupleId(dateCourseId, context.coupleId())
+                .orElseThrow(DateCourseNotFoundException::new);
+        Long partnerMemberId = context.partnerMemberId(memberId);
+        String nickname = memberProfileRepository.findById(memberId)
+                .map(MemberProfile::getNickname)
+                .orElseThrow(MemberProfileRequiredException::new);
+        Instant now = clock.instant();
+        eventPublisher.publishEvent(new DateCoursePlannedEvent(
+                dateCourse.getId(),
+                context.coupleId(),
+                memberId,
+                partnerMemberId,
+                nickname,
+                dateCourse.getTitle(),
+                now
+        ));
+        return new DateCoursePartnerNotified(true, partnerMemberId);
     }
 
     private CoupleContext requireCoupleContext(Long memberId) {
@@ -272,5 +305,12 @@ public class DateCourseCommandService {
     }
 
     private record CoupleContext(Long coupleId, List<Long> memberIds) {
+
+        private Long partnerMemberId(Long memberId) {
+            return memberIds.stream()
+                    .filter(id -> !Objects.equals(id, memberId))
+                    .findFirst()
+                    .orElseThrow(CoupleStateInvalidException::new);
+        }
     }
 }
