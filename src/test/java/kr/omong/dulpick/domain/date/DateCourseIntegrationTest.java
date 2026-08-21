@@ -175,6 +175,41 @@ class DateCourseIntegrationTest {
     }
 
     @Test
+    void savesDateCourseWithoutTime() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Place first = savePlaceForMember(fixture.first().member().getId(), "first", Instant.now());
+        LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(6);
+        MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title":"날짜만 확정 데이트",
+                                  "date":"%s"
+                                }
+                                """.formatted(futureDate)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
+
+        mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "version":0,
+                                  "title":"날짜만 확정 데이트",
+                                  "date":"%s",
+                                  "placeIds":[%d]
+                                }
+                                """.formatted(futureDate, first.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONFIRMED"))
+                .andExpect(jsonPath("$.date").value(futureDate.toString()))
+                .andExpect(jsonPath("$.time").doesNotExist());
+    }
+
+    @Test
     void rejectsPlaceOutsideCoupleSavedPool() throws Exception {
         CoupleFixture fixture = createConnectedCouple();
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(2);

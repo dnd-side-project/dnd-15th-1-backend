@@ -24,8 +24,12 @@ public record SaveDateCourseRequest(
         @NotNull
         @Schema(description = "데이트 날짜(Asia/Seoul)", example = "2026-08-30")
         LocalDate date,
-        @NotNull
-        @Schema(description = "데이트 시간(Asia/Seoul)", example = "19:30:00")
+        @Schema(
+                description = "데이트 시간(Asia/Seoul). 생략하면 날짜만 저장됩니다.",
+                example = "19:30:00",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
         LocalTime time,
         @NotNull
         @Schema(description = "데이트 코스 장소 ID 목록. 순서대로 저장됩니다.")
