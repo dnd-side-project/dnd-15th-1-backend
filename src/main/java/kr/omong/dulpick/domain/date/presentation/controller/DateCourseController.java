@@ -6,8 +6,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import kr.omong.dulpick.domain.date.application.command.DateCourseCommandService;
 import kr.omong.dulpick.domain.date.application.query.DateCourseQueryService;
 import kr.omong.dulpick.domain.date.presentation.dto.request.CreateDateCourseRequest;
@@ -15,9 +13,12 @@ import kr.omong.dulpick.domain.date.presentation.dto.request.SaveDateCourseReque
 import kr.omong.dulpick.domain.date.presentation.dto.response.CurrentDateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePlacePoolResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseResponse;
-import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseSummaryResponse;
+import kr.omong.dulpick.domain.date.presentation.dto.response.PastDateCoursesPageResponse;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,8 +31,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @Tag(name = SwaggerTagNames.DATE, description = "데이트 코스 생성·수정·조회 API")
 @SecurityRequirement(name = "bearerAuth")
@@ -146,18 +145,21 @@ public class DateCourseController {
 
     @Operation(
             summary = "지난 데이트 목록 조회",
-            description = "현재 시각 이전 확정(CONFIRMED) 데이트를 최신순으로 조회합니다."
+            description = """
+                    현재 시각 이전 확정(CONFIRMED) 데이트를 페이징 조회합니다.
+                    기본 정렬은 scheduledAt 내림차순(최신순)이며, sort 파라미터로 변경할 수 있습니다.
+                    totalCount에는 조건에 맞는 전체 지난 데이트 횟수가 포함됩니다.
+                    """
     )
     @GetMapping("/past")
-    public ResponseEntity<List<DateCourseSummaryResponse>> past(
+    public ResponseEntity<PastDateCoursesPageResponse> past(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "조회할 지난 데이트 수(기본값 20, 최소 1, 최대 50)", example = "20")
-            @RequestParam(defaultValue = "20") @Schema(example = "20") @Min(1) @Max(50) int size
+            @PageableDefault(size = 20, sort = "scheduledAt", direction = Sort.Direction.DESC)
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(dateCourseQueryService.getPastConfirmed(memberId(jwt), size)
-                .stream()
-                .map(DateCourseSummaryResponse::from)
-                .toList());
+        return ResponseEntity.ok(PastDateCoursesPageResponse.from(
+                dateCourseQueryService.getPastConfirmed(memberId(jwt), pageable)
+        ));
     }
 
     private Long memberId(Jwt jwt) {

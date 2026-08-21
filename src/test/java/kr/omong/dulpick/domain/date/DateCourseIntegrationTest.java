@@ -333,7 +333,8 @@ class DateCourseIntegrationTest {
                         .header("Authorization", bearer(fixture.first()))
                         .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].dateCourseId").value(dateCourseId));
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.dateCourses[0].dateCourseId").value(dateCourseId));
 
         mockMvc.perform(get("/api/v1/home/past-dates")
                         .header("Authorization", bearer(fixture.first()))
