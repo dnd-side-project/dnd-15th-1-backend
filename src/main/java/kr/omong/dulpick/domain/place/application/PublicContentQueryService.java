@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.place.application;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.MemberProfile;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
+import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentNotFoundException;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
@@ -72,6 +73,23 @@ public class PublicContentQueryService {
                 sort
         );
         return enrichPage(memberId, slice(ranked, pageable), sort);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PublicContentView> findPublicContentsByPlaceId(
+            Long memberId,
+            Long placeId,
+            Pageable pageable
+    ) {
+        if (!placeRepository.existsById(placeId)) {
+            throw new PlaceNotFoundException();
+        }
+        Page<Content> contents = contentRepository.findAllByPlaceIdAndPublicationStatus(
+                placeId,
+                ContentPublicationStatus.PUBLIC,
+                paged(pageable)
+        );
+        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
     }
 
     @Transactional(readOnly = true)
