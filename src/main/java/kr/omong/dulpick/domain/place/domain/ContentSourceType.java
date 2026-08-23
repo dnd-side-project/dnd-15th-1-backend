@@ -6,6 +6,7 @@ public enum ContentSourceType {
     NAVER_MAP,
     NAVER_BLOG,
     NAVER_SHORT_LINK,
+    KAKAO_MAP,
     TISTORY
 
     ;

@@ -39,6 +39,7 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
             ContentSourceType.NAVER_MAP,
             ContentSourceType.NAVER_BLOG,
             ContentSourceType.NAVER_SHORT_LINK,
+            ContentSourceType.KAKAO_MAP,
             ContentSourceType.TISTORY
     );
     private static final Pattern TITLE = Pattern.compile(
@@ -63,6 +64,18 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
     );
     private static final Pattern NAVER_PLACE_ID = Pattern.compile(
             "/entry/place/(\\d+)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern KAKAO_PLACE_PATH = Pattern.compile(
+            "^/(\\d+)/?$",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern KAKAO_LINK_PLACE_PATH = Pattern.compile(
+            "^/link/(?:map|to)/(\\d+)/?$",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern KAKAO_PLACE_QUERY = Pattern.compile(
+            "(?:^|&)id=(\\d+)(?:&|$)",
             Pattern.CASE_INSENSITIVE
     );
     private static final Pattern BLOG_FRAME = Pattern.compile(
@@ -120,6 +133,9 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         try {
             if (isNaverPlace(sourceType)) {
                 return fetchNaverPlaceMetadata(canonicalUrl, sourceType);
+            }
+            if (sourceType == ContentSourceType.KAKAO_MAP) {
+                return fetchKakaoPlaceMetadata(canonicalUrl, sourceType);
             }
             FetchedPage page = fetchFollowingRedirects(canonicalUrl);
             String html = page.body();
@@ -267,6 +283,41 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
         );
     }
 
+    private ContentMetadata fetchKakaoPlaceMetadata(
+            String canonicalUrl,
+            ContentSourceType sourceType
+    ) {
+        FetchedPage page = fetchFollowingRedirects(canonicalUrl);
+        String placeId = resolveKakaoPlaceId(page.url());
+        FetchedPage placePage = isKakaoPlacePage(page.url())
+                ? page
+                : fetchFollowingRedirects("https://place.map.kakao.com/" + placeId);
+        String title = firstNonBlank(extract(placePage.body(), TITLE), extract(placePage.body(), HTML_TITLE));
+        String description = firstNonBlank(
+                extract(placePage.body(), DESCRIPTION),
+                extract(placePage.body(), META_DESCRIPTION)
+        );
+        if (title.isBlank() || description.isBlank()) {
+            throw new MetadataUnavailableException();
+        }
+        String content = String.join("\n", title, description).strip();
+        return new ContentMetadata(
+                canonicalUrl,
+                sourceType,
+                cleanKakaoTitle(title),
+                description,
+                extract(placePage.body(), IMAGE),
+                Sha256.hex(content),
+                clock.instant(),
+                null,
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+    }
+
     private String resolveNaverPlaceId(String canonicalUrl) {
         String currentUrl = canonicalUrl;
         for (int redirect = 0; redirect < 4; redirect++) {
@@ -277,6 +328,43 @@ public class PublicWebMetadataProvider implements ContentMetadataProvider {
             currentUrl = followRedirect(currentUrl);
         }
         throw new MetadataUnavailableException();
+    }
+
+    private String resolveKakaoPlaceId(String url) {
+        try {
+            URI uri = new URI(url);
+            Matcher pathMatcher = KAKAO_PLACE_PATH.matcher(uri.getPath());
+            if (pathMatcher.matches()) {
+                return pathMatcher.group(1);
+            }
+            Matcher linkMatcher = KAKAO_LINK_PLACE_PATH.matcher(uri.getPath());
+            if (linkMatcher.matches()) {
+                return linkMatcher.group(1);
+            }
+            Matcher queryMatcher = uri.getQuery() == null
+                    ? null
+                    : KAKAO_PLACE_QUERY.matcher(uri.getQuery());
+            if (queryMatcher != null && queryMatcher.find()) {
+                return queryMatcher.group(1);
+            }
+            throw new MetadataUnavailableException();
+        } catch (URISyntaxException exception) {
+            throw new MetadataUnavailableException(exception);
+        }
+    }
+
+    private boolean isKakaoPlacePage(String url) {
+        try {
+            URI uri = new URI(url);
+            return "place.map.kakao.com".equalsIgnoreCase(uri.getHost())
+                    && KAKAO_PLACE_PATH.matcher(uri.getPath()).matches();
+        } catch (URISyntaxException exception) {
+            throw new MetadataUnavailableException(exception);
+        }
+    }
+
+    private String cleanKakaoTitle(String title) {
+        return title.replaceFirst("\\s*[|:]\\s*카카오맵.*$", "").strip();
     }
 
     private String followRedirect(String currentUrl) {

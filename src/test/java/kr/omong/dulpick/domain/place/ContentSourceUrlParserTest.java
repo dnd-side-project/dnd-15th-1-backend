@@ -66,4 +66,22 @@ class ContentSourceUrlParserTest {
         assertThat(parser.parse("https://jdblue2022.tistory.com/entry/example").sourceType())
                 .isEqualTo(ContentSourceType.TISTORY);
     }
+
+    @Test
+    void acceptsKakaoPlaceLinksAndNormalizesShortLinkScheme() {
+        assertThat(parser.parse("http://kko.to/hltcaU_mqV").sourceType())
+                .isEqualTo(ContentSourceType.KAKAO_MAP);
+        assertThat(parser.parse("http://kko.to/hltcaU_mqV").canonicalUrl())
+                .isEqualTo("https://kko.to/hltcaU_mqV");
+        assertThat(parser.parse("https://place.map.kakao.com/1928046415?fromAppLink=true").sourceType())
+                .isEqualTo(ContentSourceType.KAKAO_MAP);
+        assertThat(parser.parse("https://place.map.kakao.com/1928046415?fromAppLink=true").canonicalUrl())
+                .isEqualTo("https://place.map.kakao.com/1928046415");
+        assertThat(parser.parse("https://map.kakao.com/link/map/18577297").sourceType())
+                .isEqualTo(ContentSourceType.KAKAO_MAP);
+        assertThat(parser.parse("https://applink.map.kakao.com/place?id=1402324982&t_src=share").canonicalUrl())
+                .isEqualTo("https://place.map.kakao.com/1402324982");
+        assertThat(parser.parse("https://applink.map.kakao.com/place?id=1402324982&t_src=share").sourceType())
+                .isEqualTo(ContentSourceType.KAKAO_MAP);
+    }
 }

@@ -17,6 +17,12 @@ class PublicWebUrlValidatorTest {
 
         assertThatCode(() -> validator.validate("https://m.place.naver.com/place/1/home"))
                 .doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate("https://kko.to/example"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate("https://place.map.kakao.com/1"))
+                .doesNotThrowAnyException();
+        assertThatCode(() -> validator.validate("https://applink.map.kakao.com/place?id=1"))
+                .doesNotThrowAnyException();
     }
 
     @Test

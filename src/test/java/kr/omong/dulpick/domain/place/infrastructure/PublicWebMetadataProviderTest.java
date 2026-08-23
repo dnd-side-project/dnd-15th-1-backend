@@ -32,6 +32,10 @@ class PublicWebMetadataProviderTest {
     private static final String MAP_URL = "https://map.naver.com/p/entry/place/18699959";
     private static final String MOBILE_URL = "https://m.place.naver.com/place/18699959/home";
     private static final String DETAIL_URL = "https://m.place.naver.com/restaurant/18699959/home";
+    private static final String KAKAO_PLACE_URL = "https://place.map.kakao.com/1928046415";
+    private static final String KAKAO_SHORT_URL = "https://kko.to/hltcaU_mqV";
+    private static final String KAKAO_APP_LINK_URL = "https://applink.map.kakao.com/place?id=1402324982&t_src=share";
+    private static final String KAKAO_SHORT_PLACE_URL = "https://place.map.kakao.com/1402324982";
 
     @Test
     void resolvesNaverShortLinkAndExtractsPlaceFromMobileHtml() {
@@ -101,6 +105,45 @@ class PublicWebMetadataProviderTest {
     }
 
     @Test
+    void extractsKakaoPlaceMetadataFromDirectPlaceLink() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        server.expect(once(), requestTo(KAKAO_PLACE_URL))
+                .andRespond(withSuccess("""
+                        <meta property="og:title" content="카카오프렌즈 스타필드코엑스몰">
+                        <meta property="og:description" content="서울 강남구 삼성동 159-1 지하1층">
+                        """, MediaType.TEXT_HTML));
+
+        var metadata = provider.fetch(KAKAO_PLACE_URL, ContentSourceType.KAKAO_MAP);
+
+        assertThat(metadata.title()).isEqualTo("카카오프렌즈 스타필드코엑스몰");
+        assertThat(metadata.caption()).isEqualTo("서울 강남구 삼성동 159-1 지하1층");
+        server.verify();
+    }
+
+    @Test
+    void followsKakaoShortLinkToPlaceMetadata() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        expectRedirect(server, KAKAO_SHORT_URL, KAKAO_APP_LINK_URL);
+        server.expect(once(), requestTo(KAKAO_APP_LINK_URL))
+                .andRespond(withSuccess("<html><title>카카오맵</title></html>", MediaType.TEXT_HTML));
+        server.expect(once(), requestTo(KAKAO_SHORT_PLACE_URL))
+                .andRespond(withSuccess("""
+                        <meta property="og:title" content="스타벅스 산본사거리점 | 카카오맵">
+                        <meta property="og:description" content="경기 군포시 고산로 701">
+                        """, MediaType.TEXT_HTML));
+
+        var metadata = provider.fetch(KAKAO_SHORT_URL, ContentSourceType.KAKAO_MAP);
+
+        assertThat(metadata.title()).isEqualTo("스타벅스 산본사거리점");
+        assertThat(metadata.caption()).isEqualTo("경기 군포시 고산로 701");
+        server.verify();
+    }
+
+    @Test
     void rejectsRedirectToDisallowedHost() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
@@ -108,6 +151,19 @@ class PublicWebMetadataProviderTest {
         expectRedirect(server, SHORT_URL, "https://example.com/private");
 
         assertThatThrownBy(() -> provider.fetch(SHORT_URL, ContentSourceType.NAVER_SHORT_LINK))
+                .isInstanceOf(MetadataUnavailableException.class);
+
+        server.verify();
+    }
+
+    @Test
+    void rejectsKakaoShortLinkRedirectToDisallowedHost() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        PublicWebMetadataProvider provider = provider(builder);
+        expectRedirect(server, KAKAO_SHORT_URL, "https://example.com/place/1");
+
+        assertThatThrownBy(() -> provider.fetch(KAKAO_SHORT_URL, ContentSourceType.KAKAO_MAP))
                 .isInstanceOf(MetadataUnavailableException.class);
 
         server.verify();

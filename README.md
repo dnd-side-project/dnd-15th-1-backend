@@ -7,7 +7,7 @@
 
   ## 주요 기능
 
-  - Instagram 게시물·릴스, Naver, Tistory 링크 기반 장소 분석
+  - Instagram 게시물·릴스, Naver, Kakao, Tistory 링크 기반 장소 분석
   - Gemini를 활용한 장소 후보 추출과 Kakao 장소 정보 검증
   - 커플 연결 코드 발급·공유 및 커플 저장 장소 조회
   - 장소 검색, 상세 조회, 지도 필터, 데이트 유형별 추천

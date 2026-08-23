@@ -44,7 +44,9 @@ final class PublicWebUrlValidator {
 
     private boolean isAllowedHost(String host) {
         return "naver.me".equalsIgnoreCase(host)
+                || "kko.to".equalsIgnoreCase(host)
                 || isHostOrSubdomain(host, "naver.com")
+                || isHostOrSubdomain(host, "kakao.com")
                 || isHostOrSubdomain(host, "instagram.com")
                 || isHostOrSubdomain(host, "tistory.com");
     }
