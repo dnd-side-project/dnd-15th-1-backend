@@ -96,7 +96,7 @@ place-analysis:
   recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
-  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
   image-enrichment:
     retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
     max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
@@ -107,7 +107,7 @@ instagram:
     access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
     base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
     oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
-    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
     timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
 
 gemini:
