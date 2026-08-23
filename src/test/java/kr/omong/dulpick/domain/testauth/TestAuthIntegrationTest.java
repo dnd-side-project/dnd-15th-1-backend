@@ -295,6 +295,8 @@ class TestAuthIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/connection-codes/me'].get.responses['409'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/contents/{contentId}'].get.responses['404'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/places/{placeId}/contents'].get.responses['404'].content['application/json']")
                         .exists());
     }
 

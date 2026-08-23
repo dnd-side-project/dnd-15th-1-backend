@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
@@ -16,8 +18,7 @@ import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPage
 import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
 import kr.omong.dulpick.global.exception.ErrorResponse;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -67,10 +68,13 @@ public class PublicContentController {
             @RequestParam(defaultValue = "POPULAR")
             @Schema(allowableValues = {"POPULAR", "PREFERENCE"}, example = "POPULAR")
             ContentRecommendationSort sort,
-            @PageableDefault(size = 20) Pageable pageable
+            @Parameter(description = "0부터 시작하는 페이지 번호", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) @Schema(example = "0") int page,
+            @Parameter(description = "페이지당 게시물 수. 최대 50입니다.", example = "20")
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.findPublicContents(memberId(jwt), pageable, sort)
+                queryService.findPublicContents(memberId(jwt), PageRequest.of(page, size), sort)
         ));
     }
 
@@ -101,10 +105,13 @@ public class PublicContentController {
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "제목과 본문에서 찾을 검색어", required = true, example = "서울 데이트")
             @RequestParam @NotBlank @Size(max = 200) @Schema(example = "서울 데이트") String query,
-            @PageableDefault(size = 20) Pageable pageable
+            @Parameter(description = "0부터 시작하는 페이지 번호", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) @Schema(example = "0") int page,
+            @Parameter(description = "페이지당 게시물 수. 최대 50입니다.", example = "20")
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.searchPublicContents(memberId(jwt), query, pageable)
+                queryService.searchPublicContents(memberId(jwt), query, PageRequest.of(page, size))
         ));
     }
 
