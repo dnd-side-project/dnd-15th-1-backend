@@ -85,6 +85,10 @@ public class SocialAccount {
         return provider;
     }
 
+    public String getProviderSubject() {
+        return providerSubject;
+    }
+
     public String getEmail() {
         return email;
     }
@@ -126,6 +130,11 @@ public class SocialAccount {
     public void clearProviderAuthorization(Instant updatedAt) {
         this.providerRefreshToken = null;
         this.providerClientId = null;
+        this.updatedAt = updatedAt;
+    }
+
+    public void reassignMember(Member member, Instant updatedAt) {
+        this.member = member;
         this.updatedAt = updatedAt;
     }
 }

@@ -94,9 +94,4 @@ public class Member {
         updatedAt = withdrawnAt;
     }
 
-    public void rejoin(Instant rejoinedAt) {
-        status = MemberStatus.ACTIVE;
-        lastRejoinedAt = rejoinedAt;
-        updatedAt = rejoinedAt;
-    }
 }

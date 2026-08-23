@@ -91,10 +91,17 @@ public class TestAuthService {
                 .filter(saved -> passwordEncoder.matches(password, saved.getPasswordHash()))
                 .orElseThrow(TestAuthAuthenticationException::new);
         Member member = credential.getMember();
-        if (!member.isActive()) {
-            member.rejoin(clock.instant());
+        if (member.isActive()) {
+            return issue(member, false);
         }
-        return issue(member, false);
+        AuthenticatedMember replacement = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                providerSubject(normalizeEmail(email)),
+                normalizeEmail(email),
+                ProviderAuthorization.none()
+        );
+        credential.reassignMember(replacement.member());
+        return issue(replacement.member(), replacement.newMember());
     }
 
     @Transactional
