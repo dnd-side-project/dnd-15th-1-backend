@@ -123,9 +123,10 @@ public class PlaceImportProcessingService {
             ContentSourceType sourceType,
             String claimToken,
             Instant queuedAt
-    ) {
+        ) {
         int attempts = properties.maxRetries() + 1;
         ProcessingTiming timing = new ProcessingTiming();
+        long queueWaitMillis = queueWaitMillis(queuedAt);
         long totalStartedAt = System.nanoTime();
         try {
             for (int attempt = 0; attempt < attempts; attempt++) {
@@ -168,7 +169,7 @@ public class PlaceImportProcessingService {
                 }
             }
         } finally {
-            logTiming(placeImport, queuedAt, totalStartedAt, timing);
+            logTiming(placeImport, queueWaitMillis, totalStartedAt, timing);
         }
     }
 
@@ -471,11 +472,10 @@ public class PlaceImportProcessingService {
 
     private void logTiming(
             PlaceImport placeImport,
-            Instant queuedAt,
+            long queueWaitMillis,
             long totalStartedAt,
             ProcessingTiming timing
     ) {
-        long queueWaitMillis = Math.max(Duration.between(queuedAt, clock.instant()).toMillis(), 0L);
         logger.info(
                 "place_import_timing importId={} metadata_ms={} gemini_ms={} "
                         + "kakao_verification_ms={} db_write_ms={} queue_wait_ms={} total_ms={}",
@@ -485,8 +485,12 @@ public class PlaceImportProcessingService {
                 timing.kakaoVerificationMillis,
                 timing.dbWriteMillis,
                 queueWaitMillis,
-                elapsedMillis(totalStartedAt)
+                queueWaitMillis + elapsedMillis(totalStartedAt)
         );
+    }
+
+    private long queueWaitMillis(Instant queuedAt) {
+        return Math.max(Duration.between(queuedAt, clock.instant()).toMillis(), 0L);
     }
 
     private static final class ProcessingTiming {
