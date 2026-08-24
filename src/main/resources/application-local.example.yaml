@@ -103,6 +103,10 @@ content:
     timeout-seconds: ${CONTENT_THUMBNAIL_TIMEOUT_SECONDS:10}
     max-bytes: ${CONTENT_THUMBNAIL_MAX_BYTES:5000000}
     max-images: ${CONTENT_THUMBNAIL_MAX_IMAGES:10}
+  image-backfill:
+    enabled: ${CONTENT_IMAGE_BACKFILL_ENABLED:false}
+    max-contents: ${CONTENT_IMAGE_BACKFILL_MAX_CONTENTS:10000}
+    delay-millis: ${CONTENT_IMAGE_BACKFILL_DELAY_MILLIS:500}
 
 couple:
   public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}

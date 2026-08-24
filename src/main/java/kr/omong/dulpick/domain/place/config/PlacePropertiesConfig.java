@@ -12,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
         KakaoMapPhotoProperties.class,
         InstagramProperties.class,
         ContentThumbnailProperties.class,
+        ContentImageBackfillProperties.class,
         PlaceImageEnrichmentProperties.class
 })
 public class PlacePropertiesConfig {
