@@ -71,8 +71,10 @@ public class PublicContentQueryService {
             ContentRecommendationSort sort
     ) {
         List<Content> ranked = rankContents(
-                contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
-                        ContentPublicationStatus.PUBLIC
+                PublicContentDeduplicator.deduplicate(
+                        contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                                ContentPublicationStatus.PUBLIC
+                        )
                 ),
                 memberId,
                 sort
@@ -94,7 +96,11 @@ public class PublicContentQueryService {
                 ContentPublicationStatus.PUBLIC,
                 paged(pageable)
         );
-        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
+        return enrichPage(
+                memberId,
+                deduplicatedPage(contents),
+                ContentRecommendationSort.POPULAR
+        );
     }
 
     @Transactional(readOnly = true)
@@ -108,7 +114,11 @@ public class PublicContentQueryService {
                 FullTextBooleanQuery.from(query.strip()),
                 paged(pageable)
         );
-        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
+        return enrichPage(
+                memberId,
+                deduplicatedPage(contents),
+                ContentRecommendationSort.POPULAR
+        );
     }
 
     @Transactional(readOnly = true)
@@ -169,6 +179,16 @@ public class PublicContentQueryService {
                 sort,
                 preferences
         ));
+    }
+
+    private Page<Content> deduplicatedPage(Page<Content> contents) {
+        List<Content> uniqueContents = PublicContentDeduplicator.deduplicate(contents.getContent());
+        long duplicateCount = contents.getContent().size() - uniqueContents.size();
+        return new PageImpl<>(
+                uniqueContents,
+                contents.getPageable(),
+                Math.max(0, contents.getTotalElements() - duplicateCount)
+        );
     }
 
     private Pageable paged(Pageable pageable) {
