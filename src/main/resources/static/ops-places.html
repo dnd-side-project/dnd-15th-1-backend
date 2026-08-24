@@ -128,9 +128,12 @@
         <h1>콘텐츠 장소 분류</h1>
         <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
       </div>
-      <form method="post" action="/ops/logout">
-        <button class="logout" type="submit">로그아웃</button>
-      </form>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <a class="logout" href="/ops" style="text-decoration:none;">대시보드</a>
+        <form method="post" action="/ops/logout">
+          <button class="logout" type="submit">로그아웃</button>
+        </form>
+      </div>
     </div>
     <div class="toolbar">
       <button type="button" data-status="UNCLASSIFIED" class="active">미분류</button>

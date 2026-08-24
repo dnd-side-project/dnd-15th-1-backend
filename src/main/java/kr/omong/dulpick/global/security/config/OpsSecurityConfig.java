@@ -26,8 +26,7 @@ public class OpsSecurityConfig {
     static final String[] OPS_PATHS = {
             "/ops",
             "/ops/**",
-            "/api/v1/admin/place-classifications",
-            "/api/v1/admin/place-classifications/**"
+            "/api/v1/admin/**"
     };
 
     @Bean

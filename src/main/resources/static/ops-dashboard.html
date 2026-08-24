@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF5A6F">
+  <title>둘픽 운영 · 대시보드</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <style>
+    :root { --coral:#ff5a6f; --coral-dark:#e64960; --bg:#f7f3f4; --card:#fff; --line:#eadfe2; --text:#211c1e; --muted:#746a6e; --ok:#168454; --warn:#b76b00; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--text); background:var(--bg); font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif; }
+    header { position:sticky; top:0; z-index:3; padding:16px 24px; background:#fff; border-bottom:1px solid var(--line); }
+    .head { max-width:1320px; margin:auto; display:flex; justify-content:space-between; gap:16px; align-items:center; }
+    .brand { display:flex; align-items:center; gap:10px; }
+    .mark { width:34px; height:34px; border-radius:11px; background:url("/assets/logo_app.png") center/cover; }
+    h1 { margin:0; font-size:20px; letter-spacing:-.04em; }
+    .sub { margin:4px 0 0; color:var(--muted); font-size:12px; }
+    nav { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    nav a, .logout, button, select, input { font:inherit; }
+    nav a, .logout { border:1px solid var(--line); background:#fff; color:var(--text); border-radius:9px; padding:8px 12px; text-decoration:none; cursor:pointer; }
+    nav a.active { background:var(--coral); border-color:var(--coral); color:#fff; font-weight:700; }
+    .logout { color:var(--muted); }
+    main { max-width:1320px; margin:0 auto; padding:24px; }
+    .status { min-height:20px; margin:0 0 14px; color:var(--muted); font-size:13px; }
+    .status.error { color:#bc3e50; } .status.ok { color:var(--ok); }
+    .cards { display:grid; grid-template-columns:repeat(8,minmax(120px,1fr)); gap:10px; margin-bottom:20px; }
+    .card { min-height:88px; padding:15px; border:1px solid var(--line); border-radius:14px; background:var(--card); }
+    .card .label { color:var(--muted); font-size:12px; } .card .value { margin-top:8px; font-size:25px; font-weight:800; }
+    .card.alert .value { color:var(--coral-dark); } .card.warn .value { color:var(--warn); }
+    .grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; }
+    section { margin-bottom:18px; border:1px solid var(--line); border-radius:14px; background:#fff; overflow:hidden; }
+    section.full { grid-column:1/-1; }
+    .section-head { padding:15px 16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:12px; align-items:center; }
+    h2 { margin:0; font-size:16px; letter-spacing:-.03em; } .hint { color:var(--muted); font-size:12px; }
+    .toolbar { display:flex; flex-wrap:wrap; gap:8px; padding:12px 16px; border-bottom:1px solid var(--line); }
+    input, select { min-height:36px; padding:0 10px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); }
+    button { min-height:36px; padding:0 11px; border:1px solid var(--line); border-radius:8px; background:#fff; color:var(--text); cursor:pointer; }
+    button.primary { background:var(--coral); color:#fff; border-color:var(--coral); font-weight:700; }
+    button.danger { color:var(--coral-dark); } button:disabled { opacity:.5; cursor:not-allowed; }
+    .table-wrap { overflow:auto; } table { width:100%; border-collapse:collapse; min-width:760px; }
+    th,td { padding:11px 12px; border-bottom:1px solid #f0e9eb; text-align:left; vertical-align:top; font-size:13px; }
+    th { color:var(--muted); background:#fcfafb; font-size:11px; white-space:nowrap; } td.url { max-width:340px; word-break:break-all; color:var(--muted); }
+    .badge { display:inline-block; padding:4px 7px; border-radius:999px; background:#f2edef; font-size:11px; white-space:nowrap; }
+    .badge.ok { background:#e7f6ee; color:var(--ok); } .badge.failed { background:#fff0f2; color:var(--coral-dark); } .badge.pending { background:#fff5df; color:var(--warn); }
+    .empty { padding:32px; text-align:center; color:var(--muted); }
+    .pager { display:flex; justify-content:center; gap:8px; align-items:center; padding:12px; }
+    dialog { width:min(720px,calc(100% - 30px)); border:0; border-radius:16px; padding:0; box-shadow:0 20px 70px #211c1e44; }
+    dialog::backdrop { background:#211c1e66; } .dialog-head { padding:16px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; }
+    .dialog-body { padding:16px; max-height:65vh; overflow:auto; } .candidate { padding:10px 0; border-bottom:1px solid #f0e9eb; }
+    @media (max-width:1050px) { .cards { grid-template-columns:repeat(4,1fr); } .grid { grid-template-columns:1fr; } }
+    @media (max-width:600px) { header,main { padding-left:14px; padding-right:14px; } .cards { grid-template-columns:repeat(2,1fr); } .head { align-items:flex-start; flex-direction:column; } }
+  </style>
+</head>
+<body>
+  <header><div class="head"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 대시보드</h1><p class="sub">장소 추출·콘텐츠·이미지 상태를 확인하고 필요한 작업만 재처리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><form method="post" action="/ops/logout"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
+  <main>
+    <p id="status" class="status"></p>
+    <div id="cards" class="cards"></div>
+    <div class="grid">
+      <section class="full"><div class="section-head"><div><h2>장소 추출 작업</h2><div class="hint">실패 원인을 확인하고 실패·장기 처리 작업을 재시도할 수 있습니다.</div></div><button id="imports-refresh" class="primary">새로고침</button></div>
+        <div class="toolbar"><select id="import-status"><option value="">전체 상태</option><option>RECEIVED</option><option>PROCESSING</option><option>REVIEW_REQUIRED</option><option>COMPLETED</option><option>FAILED</option></select><input id="import-failure" placeholder="실패 코드"><input id="import-query" placeholder="URL 또는 제목"><button id="imports-search">검색</button></div>
+        <div class="table-wrap"><table><thead><tr><th>ID</th><th>상태</th><th>유형</th><th>URL</th><th>실패 코드</th><th>생성 시각</th><th></th></tr></thead><tbody id="imports"></tbody></table></div><div class="pager"><button id="imports-prev">이전</button><span id="imports-page">-</span><button id="imports-next">다음</button></div>
+      </section>
+      <section><div class="section-head"><div><h2>콘텐츠 공개 상태</h2><div class="hint">PENDING 장기 체류 콘텐츠를 검토하고 공개 여부를 변경합니다.</div></div><button id="contents-refresh">새로고침</button></div>
+        <div class="toolbar"><select id="content-status"><option value="">전체 상태</option><option>PENDING</option><option>PUBLIC</option><option>HIDDEN</option></select><input id="content-query" placeholder="URL 또는 제목"><button id="contents-search">검색</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>상태</th><th>제목</th><th>장소</th><th></th></tr></thead><tbody id="contents"></tbody></table></div><div class="pager"><button id="contents-prev">이전</button><span id="contents-page">-</span><button id="contents-next">다음</button></div>
+      </section>
+      <section><div class="section-head"><div><h2>이미지 재처리 백로그</h2><div class="hint">게시글·장소 이미지 저장 실패 건을 비동기로 재시도합니다.</div></div><button id="images-refresh">새로고침</button></div><div class="toolbar"><select id="image-kind"><option>ALL</option><option>CONTENT</option><option>PLACE</option></select></div><div class="table-wrap"><table><thead><tr><th>유형</th><th>대상 ID</th><th>실패 사유</th><th>시도</th><th>마지막 시각</th><th></th></tr></thead><tbody id="images"></tbody></table></div><div class="pager"><button id="images-prev">이전</button><span id="images-page">-</span><button id="images-next">다음</button></div>
+      </section>
+    </div>
+  </main>
+  <dialog id="detail"><div class="dialog-head"><strong>장소 추출 상세</strong><button id="detail-close">닫기</button></div><div id="detail-body" class="dialog-body"></div></dialog>
+  <script>
+    const state = { imports:{page:0,hasNext:false}, contents:{page:0,hasNext:false}, images:{page:0,hasNext:false} };
+    const $ = (id) => document.getElementById(id);
+    function setStatus(message, kind) { $("status").textContent = message || ""; $("status").className = "status" + (kind ? " " + kind : ""); }
+    async function api(path, options) {
+      const headers = Object.assign({Accept:"application/json"}, (options && options.headers) || {});
+      const response = await fetch(path, Object.assign({credentials:"same-origin"}, options || {}, {headers}));
+      const text = await response.text(); let body = null; if (text) { try { body = JSON.parse(text); } catch (e) { body = text; } }
+      if (!response.ok) throw new Error(body && body.message ? body.message : "요청에 실패했습니다."); return body;
+    }
+    function text(value) { return value == null || value === "" ? "-" : String(value); }
+    function badge(value) { const span = document.createElement("span"); span.className = "badge" + (value === "FAILED" ? " failed" : value === "PUBLIC" || value === "COMPLETED" ? " ok" : value === "PENDING" ? " pending" : ""); span.textContent = text(value); return span; }
+    function cell(value, className) { const td = document.createElement("td"); if (className) td.className = className; td.textContent = text(value); return td; }
+    function empty(tbody, colspan, message) { tbody.replaceChildren(); const tr=document.createElement("tr"); const td=document.createElement("td"); td.colSpan=colspan; td.className="empty"; td.textContent=message; tr.appendChild(td); tbody.appendChild(tr); }
+    function pageControls(kind, data) { state[kind].page=data.page; state[kind].hasNext=data.hasNext; $(kind+"-page").textContent=(data.page+1)+" / "+Math.max(data.totalPages,1)+" ("+data.totalElements+")"; $(kind+"-prev").disabled=data.page<=0; $(kind+"-next").disabled=!data.hasNext; }
+    function queryPage(kind, params) { params.set("page",String(state[kind].page)); params.set("size","15"); return params; }
+    function renderCards(data) { const values=[["최근 24시간 분석",data.importsLast24Hours,""],["완료",data.completedLast24Hours,""],["후보 확인",data.reviewRequiredLast24Hours,""],["실패",data.failedLast24Hours,"alert"],["멈춘 작업",data.staleProcessing,"warn"],["PENDING 콘텐츠",data.pendingContents,"warn"],["게시글 이미지 백로그",data.contentImageBacklogs,"warn"],["장소 이미지 백로그",data.placeImageBacklogs,"warn"]]; const root=$("cards"); root.replaceChildren(); values.forEach(([label,value,kind])=>{const card=document.createElement("div");card.className="card "+kind;const l=document.createElement("div");l.className="label";l.textContent=label;const v=document.createElement("div");v.className="value";v.textContent=text(value);card.append(l,v);root.appendChild(card);}); const timing=document.createElement("div");timing.className="hint";timing.textContent="완료 작업 처리시간 평균 "+data.averageDurationMs+"ms · 최대 "+data.maxDurationMs+"ms";$("status").appendChild(timing); }
+    async function loadOverview() { const data=await api("/api/v1/admin/overview"); renderCards(data); }
+    async function loadImports() { const p=queryPage("imports",new URLSearchParams()); const status=$("import-status").value, failure=$("import-failure").value.trim(), query=$("import-query").value.trim(); if(status)p.set("status",status); if(failure)p.set("failureCode",failure); if(query)p.set("query",query); const data=await api("/api/v1/admin/place-imports?"+p); const tbody=$("imports"); if(!data.imports.length)empty(tbody,7,"장소 추출 작업이 없습니다."); else {tbody.replaceChildren();data.imports.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.importId),(()=>{const td=document.createElement("td");td.appendChild(badge(item.status));return td;})(),cell(item.sourceType),cell(item.canonicalUrl,"url"),cell(item.failureCode),cell(item.createdAt));const action=document.createElement("td");const detail=document.createElement("button");detail.textContent="상세";detail.onclick=()=>showDetail(item.importId);action.appendChild(detail);if(item.status==="FAILED"||item.status==="PROCESSING"){const retry=document.createElement("button");retry.className="danger";retry.textContent="재시도";retry.onclick=()=>retryImport(item.importId);action.appendChild(retry);}tr.appendChild(action);tbody.appendChild(tr);});} pageControls("imports",data); }
+    async function showDetail(id) { try { const data=await api("/api/v1/admin/place-imports/"+id); const root=$("detail-body");root.replaceChildren();["importId","status","sourceType","canonicalUrl","failureCode","title","caption"].forEach(key=>{const p=document.createElement("p");p.textContent=key+": "+text(key==="importId"?data.summary.importId:key==="status"?data.summary.status:key==="sourceType"?data.summary.sourceType:key==="canonicalUrl"?data.summary.canonicalUrl:key==="failureCode"?data.summary.failureCode:data[key]);root.appendChild(p);});const h=document.createElement("h3");h.textContent="후보 "+data.candidates.length+"개";root.appendChild(h);data.candidates.forEach(candidate=>{const div=document.createElement("div");div.className="candidate";div.textContent=text(candidate.extractedName)+" · "+text(candidate.verificationStatus)+" · "+text(candidate.placeAddress);root.appendChild(div);});$("detail").showModal(); } catch(error){setStatus(error.message,"error");} }
+    async function retryImport(id) { if(!confirm("장소 추출 작업 "+id+"을 재처리할까요?"))return; try{await api("/api/v1/admin/place-imports/"+id+"/retry",{method:"POST"});setStatus("재처리를 요청했습니다.","ok");loadOverview();loadImports();}catch(error){setStatus(error.message,"error");} }
+    async function loadContents() { const p=queryPage("contents",new URLSearchParams()); const status=$("content-status").value,query=$("content-query").value.trim();if(status)p.set("status",status);if(query)p.set("query",query);const data=await api("/api/v1/admin/contents?"+p);const tbody=$("contents");if(!data.contents.length)empty(tbody,5,"콘텐츠가 없습니다.");else{tbody.replaceChildren();data.contents.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.contentId),(()=>{const td=document.createElement("td");td.appendChild(badge(item.publicationStatus));return td;})(),cell(item.title),cell(item.placeCount+"곳"),(()=>{const td=document.createElement("td");const select=document.createElement("select");["PENDING","PUBLIC","HIDDEN"].forEach(v=>{const option=document.createElement("option");option.value=v;option.textContent=v;option.selected=item.publicationStatus===v;select.appendChild(option);});const button=document.createElement("button");button.textContent="저장";button.onclick=()=>updateContent(item.contentId,select.value);td.append(select,button);return td;})());tbody.appendChild(tr);});}pageControls("contents",data); }
+    async function updateContent(id,status){if(!confirm("콘텐츠 "+id+"의 공개 상태를 "+status+"로 변경할까요?"))return;try{await api("/api/v1/admin/contents/"+id+"/publication-status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({publicationStatus:status})});setStatus("콘텐츠 상태를 변경했습니다.","ok");loadOverview();loadContents();}catch(error){setStatus(error.message,"error");}}
+    async function loadImages(){const p=queryPage("images",new URLSearchParams());p.set("kind",$("image-kind").value);const data=await api("/api/v1/admin/image-backlogs?"+p);const tbody=$("images");if(!data.backlogs.length)empty(tbody,6,"이미지 재처리 백로그가 없습니다.");else{tbody.replaceChildren();data.backlogs.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.kind),cell(item.kind+" #"+(item.contentId||item.placeId)),cell(item.reason),cell(item.attemptCount),cell(item.lastAttemptAt),(()=>{const td=document.createElement("td");const button=document.createElement("button");button.className="danger";button.textContent="재시도";button.onclick=()=>retryImage(item);td.appendChild(button);return td;})());tbody.appendChild(tr);});}pageControls("images",data);}
+    async function retryImage(item){const id=item.kind==="CONTENT"?item.contentId:item.placeId;if(!confirm(item.kind+" 이미지 "+id+"을 재처리할까요?"))return;try{const path=item.kind==="CONTENT"?"/api/v1/admin/content-images/":"/api/v1/admin/place-images/";await api(path+id+"/retry",{method:"POST"});setStatus("이미지 재처리를 요청했습니다.","ok");loadOverview();loadImages();}catch(error){setStatus(error.message,"error");}}
+    function wire(kind,load){$(kind+"-refresh").onclick=()=>load();$(kind+"-prev").onclick=()=>{if(state[kind].page>0){state[kind].page--;load();}};$(kind+"-next").onclick=()=>{if(state[kind].hasNext){state[kind].page++;load();}};}
+    wire("imports",loadImports);wire("contents",loadContents);wire("images",loadImages);$("imports-search").onclick=()=>{state.imports.page=0;loadImports();};$("contents-search").onclick=()=>{state.contents.page=0;loadContents();};$("image-kind").onchange=()=>{state.images.page=0;loadImages();};$("detail-close").onclick=()=>$("detail").close();
+    Promise.all([loadOverview(),loadImports(),loadContents(),loadImages()]).catch(error=>setStatus(error.message,"error"));
+  </script>
+</body>
+</html>

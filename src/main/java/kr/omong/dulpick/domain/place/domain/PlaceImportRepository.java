@@ -126,6 +126,24 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
     @Modifying
     @Query("""
             UPDATE PlaceImport placeImport
+               SET placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.RECEIVED,
+                   placeImport.processingClaimToken = null,
+                   placeImport.failureCode = null,
+                   placeImport.updatedAt = :now
+             WHERE placeImport.id = :importId
+               AND (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.FAILED
+                    OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
+                        AND placeImport.updatedAt < :staleBefore))
+            """)
+    int adminRequeue(
+            @Param("importId") Long importId,
+            @Param("now") Instant now,
+            @Param("staleBefore") Instant staleBefore
+    );
+
+    @Modifying
+    @Query("""
+            UPDATE PlaceImport placeImport
                SET placeImport.updatedAt = :now
              WHERE placeImport.id = :importId
                AND placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
