@@ -54,21 +54,20 @@ public class NotificationCreationService {
         if (!enabled) {
             return false;
         }
-        createNotification(request, true);
-        return true;
+        return createNotification(request, true);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
-    public void createNotification(NotificationRequest request, boolean pushEnabled) {
+    public boolean createNotification(NotificationRequest request, boolean pushEnabled) {
         Member receiver = memberRepository.findById(request.receiverMemberId()).orElse(null);
         if (receiver == null || !receiver.isActive()) {
-            return;
+            return false;
         }
         if (notificationRepository.existsByReceiverIdAndDeduplicationKey(
                 request.receiverMemberId(),
                 request.deduplicationKey()
         )) {
-            return;
+            return false;
         }
         Notification notification = notificationRepository.save(Notification.create(
                 receiver,
@@ -87,6 +86,7 @@ public class NotificationCreationService {
                     request.occurredAt()
             );
         }
+        return true;
     }
 
     private void createDeliveries(

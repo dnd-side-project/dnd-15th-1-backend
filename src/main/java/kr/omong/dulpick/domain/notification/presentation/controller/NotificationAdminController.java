@@ -14,6 +14,8 @@ import kr.omong.dulpick.domain.notification.presentation.dto.response.MarketingN
 import kr.omong.dulpick.global.config.SwaggerTagNames;
 import kr.omong.dulpick.global.exception.ErrorResponse;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -55,6 +57,24 @@ public class NotificationAdminController {
     ) {
         return ResponseEntity.accepted().body(MarketingNotificationResponse.from(
                 adminService.send(request.toCommand())
+        ));
+    }
+
+    @Operation(summary = "마케팅 알림 발송 상태 조회")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "발송 상태 조회 성공"),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "발송 작업을 찾을 수 없음",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/marketing/{campaignId}")
+    public ResponseEntity<MarketingNotificationResponse> getMarketingNotification(
+            @PathVariable @Schema(example = "8f4d1f6f-4d9b-4f5e-9c53-7d2c0e4b7a11") String campaignId
+    ) {
+        return ResponseEntity.ok(MarketingNotificationResponse.from(
+                adminService.get(campaignId)
         ));
     }
 }

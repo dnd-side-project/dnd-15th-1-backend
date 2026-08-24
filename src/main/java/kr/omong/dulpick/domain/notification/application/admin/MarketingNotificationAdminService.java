@@ -1,11 +1,11 @@
 package kr.omong.dulpick.domain.notification.application.admin;
 
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
-import kr.omong.dulpick.domain.notification.application.command.NotificationCreationService;
-import kr.omong.dulpick.domain.notification.application.command.NotificationRequest;
+import kr.omong.dulpick.domain.notification.domain.MarketingNotificationCampaign;
+import kr.omong.dulpick.domain.notification.domain.MarketingNotificationCampaignRepository;
 import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettingsRepository;
-import kr.omong.dulpick.domain.notification.domain.NotificationRoute;
-import kr.omong.dulpick.domain.notification.domain.NotificationType;
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,16 +17,16 @@ import java.util.UUID;
 public class MarketingNotificationAdminService {
 
     private final MemberNotificationSettingsRepository settingsRepository;
-    private final NotificationCreationService notificationCreationService;
+    private final MarketingNotificationCampaignRepository campaignRepository;
     private final Clock clock;
 
     public MarketingNotificationAdminService(
             MemberNotificationSettingsRepository settingsRepository,
-            NotificationCreationService notificationCreationService,
+            MarketingNotificationCampaignRepository campaignRepository,
             Clock clock
     ) {
         this.settingsRepository = settingsRepository;
-        this.notificationCreationService = notificationCreationService;
+        this.campaignRepository = campaignRepository;
         this.clock = clock;
     }
 
@@ -34,30 +34,24 @@ public class MarketingNotificationAdminService {
     public MarketingNotificationSendView send(MarketingNotificationCommand command) {
         Instant queuedAt = clock.instant();
         String campaignId = UUID.randomUUID().toString();
-        int targetCount = settingsRepository
-                .findMemberIdsWithMarketingEnabled(MemberStatus.ACTIVE)
-                .stream()
-                .map(memberId -> createNotification(memberId, command, campaignId, queuedAt))
-                .mapToInt(created -> created ? 1 : 0)
-                .sum();
-        return new MarketingNotificationSendView(campaignId, targetCount, queuedAt);
+        MarketingNotificationCampaign campaign = campaignRepository.save(
+                MarketingNotificationCampaign.create(
+                        campaignId,
+                        command.title(),
+                        command.body(),
+                        Math.toIntExact(settingsRepository.countMembersWithMarketingEnabled(
+                                MemberStatus.ACTIVE
+                        )),
+                        queuedAt
+                )
+        );
+        return MarketingNotificationSendView.from(campaign);
     }
 
-    private boolean createNotification(
-            Long memberId,
-            MarketingNotificationCommand command,
-            String campaignId,
-            Instant queuedAt
-    ) {
-        return notificationCreationService.createMarketingNotification(new NotificationRequest(
-                memberId,
-                NotificationType.MARKETING,
-                command.title(),
-                command.body(),
-                NotificationRoute.NOTICE,
-                campaignId,
-                "MARKETING:" + campaignId,
-                queuedAt
-        ));
+    @Transactional(readOnly = true)
+    public MarketingNotificationSendView get(String campaignId) {
+        return campaignRepository.findById(campaignId)
+                .map(MarketingNotificationSendView::from)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
     }
 }
