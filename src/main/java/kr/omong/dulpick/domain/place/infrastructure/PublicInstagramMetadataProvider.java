@@ -24,13 +24,14 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 @Component
 public class PublicInstagramMetadataProvider implements ContentMetadataProvider {
 
-    private static final int MAX_HTML_BYTES = 1_000_000;
+    private static final int MAX_HTML_BYTES = 2_000_000;
     private static final int MAX_REDIRECTS = 4;
     private static final Pattern TITLE = Pattern.compile(
             "<meta[^>]+property=[\\\"']og:title[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
@@ -42,6 +43,10 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
     );
     private static final Pattern IMAGE = Pattern.compile(
             "<meta[^>]+property=[\\\"']og:image[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
+            Pattern.CASE_INSENSITIVE
+    );
+    private static final Pattern CDN_IMAGE = Pattern.compile(
+            "https?://[^\\\"'\\\\\\s<>},]+(?:cdninstagram\\.com|fbcdn\\.net)[^\\\"'\\\\\\s<>},]*",
             Pattern.CASE_INSENSITIVE
     );
 
@@ -94,7 +99,10 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
             String html = fetchFollowingRedirects(canonicalUrl);
             String title = extract(html, TITLE);
             String description = extract(html, DESCRIPTION);
-            String thumbnailUrl = extract(html, IMAGE);
+            List<String> imageUrls = extractImageUrls(html).stream()
+                    .limit(properties.maxImages())
+                    .toList();
+            String thumbnailUrl = imageUrls.isEmpty() ? "" : imageUrls.getFirst();
             InstagramCaptionMetadataParser.Parsed parsed = InstagramCaptionMetadataParser.parse(
                     title,
                     description,
@@ -117,8 +125,19 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
                     parsed.publishedOn(),
                     parsed.likeCount(),
                     parsed.commentCount(),
-                    clock.instant()
+                    clock.instant(),
+                    imageUrls
             );
+        } catch (RestClientException exception) {
+            throw new MetadataUnavailableException(exception);
+        }
+    }
+
+    public List<String> fetchImageUrls(String canonicalUrl) {
+        try {
+            return extractImageUrls(fetchFollowingRedirects(canonicalUrl)).stream()
+                    .limit(properties.maxImages())
+                    .toList();
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);
         }
@@ -181,6 +200,49 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
         return matcher.find()
                 ? HtmlUtils.htmlUnescape(matcher.group(1).strip())
                 : "";
+    }
+
+    private List<String> extractAll(String html, Pattern pattern) {
+        Matcher matcher = pattern.matcher(html);
+        List<String> values = new java.util.ArrayList<>();
+        while (matcher.find()) {
+            String value = HtmlUtils.htmlUnescape(matcher.group(1).strip());
+            if (!value.isBlank() && !values.contains(value)) {
+                values.add(value);
+            }
+        }
+        return values;
+    }
+
+    private List<String> extractImageUrls(String html) {
+        String normalizedHtml = html
+                .replace("\\u002F", "/")
+                .replace("\\/", "/")
+                .replace("\\u0026", "&")
+                .replace("\\u003D", "=");
+        List<String> values = extractAll(normalizedHtml, IMAGE).stream()
+                .filter(this::isImageCandidate)
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
+        Matcher matcher = CDN_IMAGE.matcher(HtmlUtils.htmlUnescape(normalizedHtml));
+        while (matcher.find()) {
+            String value = matcher.group().strip();
+            if (isImageCandidate(value) && !values.contains(value)) {
+                values.add(value);
+            }
+        }
+        return values;
+    }
+
+    private boolean isImageCandidate(String imageUrl) {
+        try {
+            URI uri = URI.create(imageUrl);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            return !("static.cdninstagram.com".equalsIgnoreCase(host)
+                    || path != null && path.startsWith("/rsrc/"));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private record FetchedResponse(HttpStatusCode status, URI location, String body) {

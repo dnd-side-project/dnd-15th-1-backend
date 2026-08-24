@@ -101,6 +101,12 @@ place-analysis:
     retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
     max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
 
+place:
+  image-backfill:
+    enabled: ${PLACE_IMAGE_BACKFILL_ENABLED:false}
+    max-places: ${PLACE_IMAGE_BACKFILL_MAX_PLACES:10000}
+    delay-millis: ${PLACE_IMAGE_BACKFILL_DELAY_MILLIS:500}
+
 instagram:
   metadata:
     official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}
@@ -109,6 +115,19 @@ instagram:
     oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
     public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
     timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
+    max-images: ${INSTAGRAM_METADATA_MAX_IMAGES:10}
+
+content:
+  thumbnail:
+    base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+    storage-path: ${CONTENT_THUMBNAIL_STORAGE_PATH:./data/content-images}
+    timeout-seconds: ${CONTENT_THUMBNAIL_TIMEOUT_SECONDS:10}
+    max-bytes: ${CONTENT_THUMBNAIL_MAX_BYTES:5000000}
+    max-images: ${CONTENT_THUMBNAIL_MAX_IMAGES:10}
+  image-backfill:
+    enabled: ${CONTENT_IMAGE_BACKFILL_ENABLED:false}
+    max-contents: ${CONTENT_IMAGE_BACKFILL_MAX_CONTENTS:10000}
+    delay-millis: ${CONTENT_IMAGE_BACKFILL_DELAY_MILLIS:500}
 
 gemini:
   enabled: ${GEMINI_ENABLED:false}

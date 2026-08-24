@@ -109,6 +109,19 @@ jobs:
           strip_components: 1
           overwrite: true
 
+      - name: Sync content image backfill script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          source: deploy/backfill-content-images.sh
+          target: dulpick
+          strip_components: 1
+          overwrite: true
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         env:
@@ -137,6 +150,7 @@ jobs:
           PUBLIC_WEB_BASE_URL: ${{ secrets.PUBLIC_WEB_BASE_URL }}
           PLACE_ANALYSIS_ENABLED: "true"
           PLACE_PUBLIC_CRAWLER_ENABLED: "true"
+          CONTENT_THUMBNAIL_STORAGE_PATH: "/var/lib/dulpick/content-images"
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         with:
@@ -145,7 +159,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,GOOGLE_IOS_CLIENT_ID,GOOGLE_DEV_CLIENT_ID,KAKAO_NATIVE_APP_KEY,KAKAO_DEBUG_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL,PLACE_ANALYSIS_ENABLED,PLACE_PUBLIC_CRAWLER_ENABLED,GEMINI_API_KEY,KAKAO_REST_API_KEY
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,GOOGLE_IOS_CLIENT_ID,GOOGLE_DEV_CLIENT_ID,KAKAO_NATIVE_APP_KEY,KAKAO_DEBUG_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL,PLACE_ANALYSIS_ENABLED,PLACE_PUBLIC_CRAWLER_ENABLED,CONTENT_THUMBNAIL_STORAGE_PATH,GEMINI_API_KEY,KAKAO_REST_API_KEY
           script: |
             set -Eeuo pipefail
 
@@ -318,6 +332,9 @@ jobs:
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
             update_env "PUBLIC_WEB_BASE_URL" "${PUBLIC_WEB_BASE_URL}"
+            update_env \
+              "CONTENT_THUMBNAIL_STORAGE_PATH" \
+              "${CONTENT_THUMBNAIL_STORAGE_PATH}"
             update_env "PLACE_ANALYSIS_ENABLED" "${PLACE_ANALYSIS_ENABLED_VALUE}"
             update_env \
               "PLACE_PUBLIC_CRAWLER_ENABLED" \

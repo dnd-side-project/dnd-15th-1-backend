@@ -76,6 +76,10 @@ public enum ErrorCode {
             "두 장소 사이 도보 경로를 조회할 수 없습니다"
     ),
     PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
+    PUBLIC_CONTENT_IMAGE_UNAVAILABLE(
+            HttpStatus.BAD_GATEWAY,
+            "게시물 이미지를 불러올 수 없습니다"
+    ),
 
     // 검색
     RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),

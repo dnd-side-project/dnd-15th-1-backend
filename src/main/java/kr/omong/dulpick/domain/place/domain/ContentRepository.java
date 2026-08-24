@@ -21,6 +21,8 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
 
     List<Content> findAllByPublicationStatusOrderByCreatedAtDesc(ContentPublicationStatus status);
 
+    List<Content> findAllBySourceTypeInOrderByIdAsc(List<ContentSourceType> sourceTypes);
+
     @Query(
             value = """
                     SELECT content

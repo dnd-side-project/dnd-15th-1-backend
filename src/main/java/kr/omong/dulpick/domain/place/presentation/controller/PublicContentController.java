@@ -8,11 +8,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
+import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
 import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse;
@@ -37,9 +38,14 @@ import org.springframework.web.bind.annotation.RestController;
 public class PublicContentController {
 
     private final PublicContentQueryService queryService;
+    private final ContentThumbnailProperties thumbnailProperties;
 
-    public PublicContentController(PublicContentQueryService queryService) {
+    public PublicContentController(
+            PublicContentQueryService queryService,
+            ContentThumbnailProperties thumbnailProperties
+    ) {
         this.queryService = queryService;
+        this.thumbnailProperties = thumbnailProperties;
     }
 
     @Operation(
@@ -74,7 +80,8 @@ public class PublicContentController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.findPublicContents(memberId(jwt), PageRequest.of(page, size), sort)
+                queryService.findPublicContents(memberId(jwt), PageRequest.of(page, size), sort),
+                thumbnailProperties.baseUrl()
         ));
     }
 
@@ -111,7 +118,8 @@ public class PublicContentController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.searchPublicContents(memberId(jwt), query, PageRequest.of(page, size))
+                queryService.searchPublicContents(memberId(jwt), query, PageRequest.of(page, size)),
+                thumbnailProperties.baseUrl()
         ));
     }
 
@@ -143,7 +151,8 @@ public class PublicContentController {
             @PathVariable @Schema(example = "2001") Long contentId
     ) {
         return ResponseEntity.ok(PublicContentResponse.from(
-                queryService.findPublicContent(memberId(jwt), contentId)
+                queryService.findPublicContent(memberId(jwt), contentId),
+                thumbnailProperties.baseUrl()
         ));
     }
 

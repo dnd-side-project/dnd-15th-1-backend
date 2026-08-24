@@ -25,6 +25,7 @@ public class PlaceImageEnrichmentService {
     private final PlaceRepository placeRepository;
     private final PlaceImageProvider imageProvider;
     private final PlaceImageWriter imageWriter;
+    private final PlaceImageStorageService imageStorageService;
     private final PlaceImageEnrichmentBacklogRepository backlogRepository;
     private final PlaceImageEnrichmentProperties properties;
     private final Clock clock;
@@ -34,6 +35,7 @@ public class PlaceImageEnrichmentService {
             PlaceRepository placeRepository,
             PlaceImageProvider imageProvider,
             PlaceImageWriter imageWriter,
+            PlaceImageStorageService imageStorageService,
             PlaceImageEnrichmentBacklogRepository backlogRepository,
             PlaceImageEnrichmentProperties properties,
             Clock clock
@@ -42,6 +44,7 @@ public class PlaceImageEnrichmentService {
         this.placeRepository = placeRepository;
         this.imageProvider = imageProvider;
         this.imageWriter = imageWriter;
+        this.imageStorageService = imageStorageService;
         this.backlogRepository = backlogRepository;
         this.properties = properties;
         this.clock = clock;
@@ -59,26 +62,29 @@ public class PlaceImageEnrichmentService {
                 .forEach(this::enrich);
     }
 
-    public void enrichPlace(Long placeId) {
-        placeRepository.findById(placeId)
+    public boolean enrichPlace(Long placeId) {
+        return placeRepository.findById(placeId)
                 .filter(this::needsEnrichment)
-                .ifPresent(this::enrich);
+                .map(this::enrich)
+                .orElse(true);
     }
 
     private boolean needsEnrichment(Place place) {
-        return place.getThumbnailUrl() == null || place.getThumbnailUrl().isBlank();
+        return place.getThumbnailUrl() == null
+                || place.getThumbnailUrl().isBlank()
+                || !imageStorageService.isPublicUrl(place.getThumbnailUrl());
     }
 
-    private void enrich(Place place) {
+    private boolean enrich(Place place) {
         if (!canAttempt(place.getId())) {
             logger.info("place_image_enrichment_skipped placeId={} reason=RETRY_LIMIT_OR_COOLDOWN",
                     place.getId());
-            return;
+            return false;
         }
         String kakaoPlaceId = place.getKakaoPlaceId();
         if (!isValidPlaceId(kakaoPlaceId)) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.INVALID_PLACE_ID);
-            return;
+            return false;
         }
         List<String> imageUrls;
         try {
@@ -87,19 +93,24 @@ public class PlaceImageEnrichmentService {
             recordFailure(place, PlaceImageEnrichmentFailureReason.PROVIDER_ERROR);
             logger.warn("place_image_enrichment_failed placeId={} reason=PROVIDER_ERROR cause={}",
                     place.getId(), exception.getClass().getSimpleName());
-            return;
+            return false;
         }
         if (imageUrls == null || imageUrls.isEmpty()) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.PHOTO_UNAVAILABLE);
-            return;
+            return false;
         }
         try {
-            imageWriter.replace(place.getId(), imageUrls);
+            if (!imageWriter.replace(place.getId(), imageUrls)) {
+                recordFailure(place, PlaceImageEnrichmentFailureReason.WRITER_ERROR);
+                return false;
+            }
             backlogRepository.deleteByPlaceId(place.getId());
+            return true;
         } catch (RuntimeException exception) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.WRITER_ERROR);
             logger.warn("place_image_enrichment_failed placeId={} reason=WRITER_ERROR cause={}",
                     place.getId(), exception.getClass().getSimpleName());
+            return false;
         }
     }
 

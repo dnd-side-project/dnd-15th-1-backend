@@ -10,6 +10,7 @@ readonly FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 readonly APP_DIR="${APP_DIR:-/home/ubuntu/dulpick}"
 readonly ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
 readonly SECRETS_DIR="${APP_DIR}/secrets"
+readonly CONTENT_IMAGE_DIR="${APP_DIR}/content-images"
 readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
 readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-dulpick-backend}"
@@ -52,9 +53,17 @@ prepare_secret_permissions() {
         "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
     )
 
-    chmod 400 "${APPLE_PRIVATE_KEY_FILE}"
+    ensure_secret_permissions "${APPLE_PRIVATE_KEY_FILE}"
+    mkdir -p "${CONTENT_IMAGE_DIR}"
+    docker run --rm \
+        --user root \
+        --volume "${CONTENT_IMAGE_DIR}:/var/lib/dulpick/content-images" \
+        --entrypoint chown \
+        "${image}" \
+        spring:spring \
+        /var/lib/dulpick/content-images
     if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
-        chmod 400 "${FIREBASE_CREDENTIALS_FILE}"
+        ensure_secret_permissions "${FIREBASE_CREDENTIALS_FILE}"
         secret_paths+=("/run/secrets/firebase-service-account.json")
     fi
 
@@ -67,11 +76,23 @@ prepare_secret_permissions() {
         "${secret_paths[@]}"
 }
 
+ensure_secret_permissions() {
+    local secret_path="$1"
+    local mode
+
+    mode="$(stat -c '%a' "${secret_path}")"
+    if [[ "${mode}" != "400" ]]; then
+        chmod 400 "${secret_path}"
+    fi
+}
+
 run_container() {
     local image="$1"
     local -a secret_volumes=(
         --volume
         "${APPLE_PRIVATE_KEY_FILE}:/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8:ro"
+        --volume
+        "${CONTENT_IMAGE_DIR}:/var/lib/dulpick/content-images"
     )
 
     if [[ "${FCM_ENABLED:-false}" == "true" ]]; then

@@ -34,8 +34,14 @@ public record PublicContentResponse(
         String title,
         @Schema(description = "게시물 본문 또는 캡션. 원본에 없으면 null입니다.", example = "분위기 좋은 데이트 장소를 소개합니다.", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String caption,
-        @Schema(description = "게시물 대표 이미지 URL. 없으면 null입니다.", example = "https://example.com/thumbnail.jpg", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
+        @Schema(description = "서버에서 제공하는 게시물 대표 이미지 URL. 없으면 null입니다.", example = "https://dulpick.omong.kr/api/v1/content-images/550e8400-e29b-41d4-a716-446655440000", nullable = true, requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         String thumbnailUrl,
+        @ArraySchema(schema = @Schema(example = "550e8400-e29b-41d4-a716-446655440000"))
+        @Schema(description = "게시글 이미지 고유 키 목록입니다. 첫 번째 키가 대표 이미지이며, 각 키로 이미지를 조회합니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        List<String> imageKeys,
+        @ArraySchema(schema = @Schema(example = "https://dulpick.omong.kr/api/v1/content-images/550e8400-e29b-41d4-a716-446655440000"))
+        @Schema(description = "서버에 저장된 게시글 이미지 URL 목록입니다. 첫 번째 URL이 대표 이미지이며, 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        List<String> imageUrls,
         @Schema(description = "공개 게시물에 연결된 장소 수", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
         int placeCount,
         @Schema(description = "게시물에 연결된 장소 목록입니다. 장소가 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -43,6 +49,10 @@ public record PublicContentResponse(
 ) {
 
     public static PublicContentResponse from(PublicContentView view) {
+        return from(view, null);
+    }
+
+    public static PublicContentResponse from(PublicContentView view, String thumbnailBaseUrl) {
         return new PublicContentResponse(
                 view.contentId(),
                 view.canonicalUrl(),
@@ -52,10 +62,31 @@ public record PublicContentResponse(
                 EngagementResponse.from(view.engagement()),
                 view.title(),
                 view.caption(),
-                view.thumbnailUrl(),
+                thumbnailUrl(view, thumbnailBaseUrl),
+                view.imageKeys(),
+                imageUrls(view, thumbnailBaseUrl),
                 view.placeCount(),
                 view.places().stream().map(PublicPlaceResponse::from).toList()
         );
+    }
+
+    private static String thumbnailUrl(PublicContentView view, String thumbnailBaseUrl) {
+        if (thumbnailBaseUrl == null) {
+            return null;
+        }
+        if (!view.sourceType().storesPublicContent() || view.imageKeys().isEmpty()) {
+            return null;
+        }
+        return thumbnailBaseUrl + "/api/v1/content-images/" + view.imageKeys().getFirst();
+    }
+
+    private static List<String> imageUrls(PublicContentView view, String thumbnailBaseUrl) {
+        if (thumbnailBaseUrl == null || !view.sourceType().storesPublicContent()) {
+            return List.of();
+        }
+        return view.imageKeys().stream()
+                .map(imageKey -> thumbnailBaseUrl + "/api/v1/content-images/" + imageKey)
+                .toList();
     }
 
     public record AuthorResponse(

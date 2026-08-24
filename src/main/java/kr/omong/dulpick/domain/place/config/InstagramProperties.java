@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.config;
 
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("instagram.metadata")
@@ -9,9 +10,11 @@ public record InstagramProperties(
         String baseUrl,
         String oembedPath,
         boolean publicCrawlerEnabled,
-        int timeoutSeconds
+        int timeoutSeconds,
+        int maxImages
 ) {
 
+    @ConstructorBinding
     public InstagramProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = "https://graph.facebook.com";
@@ -22,5 +25,19 @@ public record InstagramProperties(
         if (timeoutSeconds <= 0) {
             timeoutSeconds = 5;
         }
+        if (maxImages <= 0) {
+            maxImages = 10;
+        }
+    }
+
+    public InstagramProperties(
+            boolean officialEnabled,
+            String accessToken,
+            String baseUrl,
+            String oembedPath,
+            boolean publicCrawlerEnabled,
+            int timeoutSeconds
+    ) {
+        this(officialEnabled, accessToken, baseUrl, oembedPath, publicCrawlerEnabled, timeoutSeconds, 10);
     }
 }

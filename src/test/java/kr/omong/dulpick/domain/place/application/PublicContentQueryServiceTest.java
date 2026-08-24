@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentNotFoundException;
 import kr.omong.dulpick.domain.place.domain.Content;
+import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
@@ -48,13 +49,15 @@ class PublicContentQueryServiceTest {
             mock(PlaceClassificationRepository.class);
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final MemberProfileRepository memberProfileRepository = mock(MemberProfileRepository.class);
+    private final ContentImageRepository contentImageRepository = mock(ContentImageRepository.class);
     private final PublicContentQueryService service = new PublicContentQueryService(
             contentRepository,
             contentPlaceRepository,
             placeRepository,
             placeClassificationRepository,
             memberPlaceRepository,
-            memberProfileRepository
+            memberProfileRepository,
+            contentImageRepository
     );
 
     @Test
