@@ -318,6 +318,14 @@
       addr.textContent = place.roadAddress || place.address || "";
       info.appendChild(name);
       info.appendChild(addr);
+      const requesters = document.createElement("div");
+      requesters.className = "addr";
+      requesters.textContent = "추출 요청자: " + ((place.requesterNicknames || []).join(", ") || "없음");
+      info.appendChild(requesters);
+      const savers = document.createElement("div");
+      savers.className = "addr";
+      savers.textContent = "저장 사용자: " + ((place.saverNicknames || []).join(", ") || "없음");
+      info.appendChild(savers);
       tr.appendChild(info);
       AXES.forEach((axis) => tr.appendChild(axisCell(place, axis)));
 

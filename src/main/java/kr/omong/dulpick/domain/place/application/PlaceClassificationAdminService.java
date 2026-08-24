@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -60,11 +61,19 @@ public class PlaceClassificationAdminService {
                 bounded
         );
         Map<Long, PlaceClassification> classifications = classificationsByPlaceId(places.getContent());
+        Map<Long, List<String>> requesters = nicknamesByPlaceId(
+                placeRepository.findImportRequesterNicknamesByPlaceIdIn(placeIds(places.getContent()))
+        );
+        Map<Long, List<String>> savers = nicknamesByPlaceId(
+                placeRepository.findSaverNicknamesByPlaceIdIn(placeIds(places.getContent()))
+        );
         return new PlaceClassificationAdminPage(
                 places.getContent().stream()
                         .map(place -> PlaceClassificationAdminView.from(
                                 place,
-                                classifications.get(place.getId())
+                                classifications.get(place.getId()),
+                                requesters.getOrDefault(place.getId(), List.of()),
+                                savers.getOrDefault(place.getId(), List.of())
                         ))
                         .toList(),
                 places.getNumber(),
@@ -86,7 +95,7 @@ public class PlaceClassificationAdminService {
         Place place = placeRepository.findById(placeId).orElseThrow(PlaceNotFoundException::new);
         PlaceClassification classification = placeClassificationRepository.findById(placeId)
                 .orElse(null);
-        return PlaceClassificationAdminView.from(place, classification);
+        return withNicknames(place, classification);
     }
 
     @Transactional
@@ -100,7 +109,7 @@ public class PlaceClassificationAdminService {
                 .orElseGet(() -> PlaceClassification.initialize(placeId, now));
         apply(classification, request, now);
         placeClassificationRepository.save(classification);
-        return PlaceClassificationAdminView.from(place, classification);
+        return withNicknames(place, classification);
     }
 
     private void apply(
@@ -153,6 +162,41 @@ public class PlaceClassificationAdminService {
         }
         return placeClassificationRepository.findAllById(placeIds).stream()
                 .collect(Collectors.toMap(PlaceClassification::getPlaceId, Function.identity()));
+    }
+
+    private PlaceClassificationAdminView withNicknames(
+            Place place,
+            PlaceClassification classification
+    ) {
+        List<Long> placeIds = List.of(place.getId());
+        Map<Long, List<String>> requesters = nicknamesByPlaceId(
+                placeRepository.findImportRequesterNicknamesByPlaceIdIn(placeIds)
+        );
+        Map<Long, List<String>> savers = nicknamesByPlaceId(
+                placeRepository.findSaverNicknamesByPlaceIdIn(placeIds)
+        );
+        return PlaceClassificationAdminView.from(
+                place,
+                classification,
+                requesters.getOrDefault(place.getId(), List.of()),
+                savers.getOrDefault(place.getId(), List.of())
+        );
+    }
+
+    private List<Long> placeIds(List<Place> places) {
+        return places.stream().map(Place::getId).toList();
+    }
+
+    private Map<Long, List<String>> nicknamesByPlaceId(List<Object[]> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return Map.of();
+        }
+        Map<Long, List<String>> nicknames = new LinkedHashMap<>();
+        rows.forEach(row -> nicknames.computeIfAbsent(
+                ((Number) row[0]).longValue(),
+                ignored -> new java.util.ArrayList<>()
+        ).add((String) row[1]));
+        return nicknames;
     }
 
     private long count(

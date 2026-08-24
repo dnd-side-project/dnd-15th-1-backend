@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.presentation.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import kr.omong.dulpick.domain.place.application.PlaceClassificationAdminView;
 import kr.omong.dulpick.domain.place.domain.ClassificationSource;
 import kr.omong.dulpick.domain.place.domain.PlaceActivity;
@@ -8,6 +9,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceClassificationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
 import kr.omong.dulpick.domain.place.domain.PlaceFocus;
 import kr.omong.dulpick.domain.place.domain.PlaceTime;
+
+import java.util.List;
 
 public record PlaceClassificationAdminResponse(
         @Schema(description = "공용 장소 ID", example = "101", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -24,6 +27,12 @@ public record PlaceClassificationAdminResponse(
         String categoryName,
         @Schema(description = "대표 이미지 URL", example = "https://example.com/place.jpg", nullable = true)
         String thumbnailUrl,
+        @ArraySchema(schema = @Schema(example = "둘픽이"))
+        @Schema(description = "장소 추출을 요청한 회원 닉네임 목록", example = "[\"둘픽이\"]")
+        List<String> requesterNicknames,
+        @ArraySchema(schema = @Schema(example = "둘픽이"))
+        @Schema(description = "장소를 저장한 회원 닉네임 목록", example = "[\"둘픽이\", \"오몽이\"]")
+        List<String> saverNicknames,
         @Schema(
                 description = "네 축 분류 상태",
                 allowableValues = {"UNCLASSIFIED", "PARTIALLY_CLASSIFIED", "CLASSIFIED"},
@@ -50,6 +59,8 @@ public record PlaceClassificationAdminResponse(
                 view.roadAddress(),
                 view.categoryName(),
                 view.thumbnailUrl(),
+                view.requesterNicknames(),
+                view.saverNicknames(),
                 view.status(),
                 AxisResponse.from(view.environment()),
                 AxisResponse.from(view.activity()),
