@@ -19,7 +19,7 @@ public interface ContentImageEnrichmentBacklogRepository
             INSERT INTO content_image_enrichment_backlogs
                 (content_id, source_urls, attempt_count, status,
                  next_attempt_at, created_at, updated_at)
-            VALUES (:contentId, :sourceUrls, 1, 'PENDING',
+            VALUES (:contentId, :sourceUrls, 0, 'PENDING',
                     :nextAttemptAt, :now, :now)
             ON DUPLICATE KEY UPDATE
                 source_urls = :sourceUrls,
@@ -68,8 +68,11 @@ public interface ContentImageEnrichmentBacklogRepository
     @Modifying
     @Query(value = """
             UPDATE content_image_enrichment_backlogs
-               SET attempt_count = attempt_count + 1,
-                   status = 'PENDING',
+               SET status = CASE
+                                WHEN attempt_count + 1 >= :maxAttempts THEN 'FAILED'
+                                ELSE 'PENDING'
+                            END,
+                   attempt_count = attempt_count + 1,
                    next_attempt_at = :nextAttemptAt,
                    updated_at = :now
              WHERE content_id = :contentId
@@ -78,7 +81,8 @@ public interface ContentImageEnrichmentBacklogRepository
     void scheduleRetry(
             @Param("contentId") Long contentId,
             @Param("nextAttemptAt") Instant nextAttemptAt,
-            @Param("now") Instant now
+            @Param("now") Instant now,
+            @Param("maxAttempts") int maxAttempts
     );
 
     @Transactional

@@ -26,6 +26,7 @@ public class ContentImageEnrichmentService {
     private static final Duration RETRY_DELAY = Duration.ofMinutes(1);
     private static final Duration STALE_TASK_TIMEOUT = Duration.ofMinutes(10);
     private static final int RECOVERY_BATCH_SIZE = 20;
+    private static final int MAX_RETRY_ATTEMPTS = 5;
 
     private final ContentImageStorageService storageService;
     private final ContentImageEnrichmentBacklogRepository backlogRepository;
@@ -96,12 +97,10 @@ public class ContentImageEnrichmentService {
             if (storageService.hasAllStoredImages(contentId)) {
                 backlogRepository.deleteByContentId(contentId);
             } else {
-                Instant now = clock.instant();
-                enqueue(contentId, sourceUrls, now.plus(RETRY_DELAY), now);
+                scheduleRetry(contentId, sourceUrls);
             }
         } catch (RuntimeException exception) {
-            Instant now = clock.instant();
-            enqueue(contentId, sourceUrls, now.plus(RETRY_DELAY), now);
+            scheduleRetry(contentId, sourceUrls);
             logger.warn(
                     "Content image enrichment failed: contentId={}, cause={}",
                     contentId,
@@ -158,10 +157,17 @@ public class ContentImageEnrichmentService {
     }
 
     private void scheduleRetry(Long contentId) {
+        scheduleRetry(contentId, List.of());
+    }
+
+    private void scheduleRetry(Long contentId, List<String> sourceUrls) {
         if (backlogRepository == null) {
             return;
         }
         Instant now = clock.instant();
-        backlogRepository.scheduleRetry(contentId, now.plus(RETRY_DELAY), now);
+        if (!sourceUrls.isEmpty()) {
+            enqueue(contentId, sourceUrls, now.plus(RETRY_DELAY), now);
+        }
+        backlogRepository.scheduleRetry(contentId, now.plus(RETRY_DELAY), now, MAX_RETRY_ATTEMPTS);
     }
 }

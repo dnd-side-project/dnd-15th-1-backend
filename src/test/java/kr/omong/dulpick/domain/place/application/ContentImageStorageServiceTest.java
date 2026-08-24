@@ -21,11 +21,15 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 class ContentImageStorageServiceTest {
@@ -256,6 +260,95 @@ class ContentImageStorageServiceTest {
                 .isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
     }
 
+    @Test
+    void persistsFailedImagesForLaterRetry() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(17L);
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(17L)).thenReturn(List.of());
+        when(downloader.download("https://scontent.cdninstagram.com/blocked.jpg"))
+                .thenThrow(new PublicContentImageUnavailableException());
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl())).thenReturn(List.of());
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.storeIfAvailable(content, List.of("https://scontent.cdninstagram.com/blocked.jpg"));
+
+        org.mockito.ArgumentCaptor<List> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(imageRepository).saveAll(captor.capture());
+        @SuppressWarnings("unchecked")
+        List<ContentImage> images = captor.getValue();
+        assertThat(images).hasSize(1);
+        assertThat(images.getFirst().getContentType()).isNull();
+    }
+
+    @Test
+    void removesDuplicateImagesWhenCdnUrlsPointToTheSameBytes() throws Exception {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(18L);
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(18L)).thenReturn(List.of());
+        when(downloader.download("https://scontent.cdninstagram.com/first.jpg"))
+                .thenReturn(downloaded("same"));
+        when(downloader.download("https://scontent.cdninstagram.com/second.jpg"))
+                .thenReturn(downloaded("same"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.storeIfAvailable(content, List.of(
+                "https://scontent.cdninstagram.com/first.jpg",
+                "https://scontent.cdninstagram.com/second.jpg"
+        ));
+
+        org.mockito.ArgumentCaptor<List> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(imageRepository).saveAll(captor.capture());
+        @SuppressWarnings("unchecked")
+        List<ContentImage> images = captor.getValue();
+        assertThat(images).hasSize(1);
+        assertThat(Files.list(temporaryDirectory).count()).isEqualTo(1);
+    }
+
+    @Test
+    void schedulesOriginalRefreshWithoutBlockingImageRequest() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(19L);
+        ContentImage image = ContentImage.create(
+                19L,
+                "https://scontent.cdninstagram.com/expired.jpg",
+                "expired-hash",
+                0,
+                NOW
+        );
+        AtomicReference<Runnable> task = new AtomicReference<>();
+        when(imageRepository.findById(image.getImageKey())).thenReturn(Optional.of(image));
+        when(contentRepository.findByIdAndPublicationStatus(19L, ContentPublicationStatus.PUBLIC))
+                .thenReturn(Optional.of(content));
+        when(downloader.download("https://scontent.cdninstagram.com/expired.jpg"))
+                .thenThrow(new PublicContentImageUnavailableException());
+        ContentImageStorageService service = service(
+                imageRepository,
+                contentRepository,
+                downloader,
+                metadataProvider,
+                task::set
+        );
+
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+
+        assertThat(task.get()).isNotNull();
+        verifyNoInteractions(metadataProvider);
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,
@@ -275,6 +368,30 @@ class ContentImageStorageServiceTest {
                         10
                 ),
                 Clock.fixed(NOW, ZoneOffset.UTC)
+        );
+    }
+
+    private ContentImageStorageService service(
+            ContentImageRepository imageRepository,
+            ContentRepository contentRepository,
+            ContentThumbnailDownloader downloader,
+            PublicInstagramMetadataProvider metadataProvider,
+            Executor refreshExecutor
+    ) {
+        return new ContentImageStorageService(
+                imageRepository,
+                contentRepository,
+                downloader,
+                metadataProvider,
+                new ContentThumbnailProperties(
+                        "http://localhost:8080",
+                        temporaryDirectory.toString(),
+                        5,
+                        5_000_000L,
+                        10
+                ),
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                refreshExecutor
         );
     }
 
