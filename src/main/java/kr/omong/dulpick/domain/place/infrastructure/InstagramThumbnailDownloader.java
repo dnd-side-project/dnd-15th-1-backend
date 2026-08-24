@@ -74,6 +74,9 @@ final class InstagramThumbnailDownloader implements ContentThumbnailDownloader {
                         headers.set(HttpHeaders.REFERER, INSTAGRAM_REFERER);
                         headers.set(HttpHeaders.ACCEPT_LANGUAGE, "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7");
                         headers.set(HttpHeaders.ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
+                        headers.set("Sec-Fetch-Dest", "image");
+                        headers.set("Sec-Fetch-Mode", "no-cors");
+                        headers.set("Sec-Fetch-Site", "cross-site");
                     })
                     .exchange((request, response) -> readResponse(
                             response.getStatusCode(),

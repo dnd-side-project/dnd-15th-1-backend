@@ -214,7 +214,7 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
         Matcher matcher = pattern.matcher(html);
         List<String> values = new java.util.ArrayList<>();
         while (matcher.find()) {
-            String value = HtmlUtils.htmlUnescape(matcher.group(1).strip());
+            String value = normalizeImageUrl(matcher.group(1));
             if (!value.isBlank() && !values.contains(value)) {
                 values.add(value);
             }
@@ -233,12 +233,24 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
                 .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         Matcher matcher = CDN_IMAGE.matcher(HtmlUtils.htmlUnescape(normalizedHtml));
         while (matcher.find()) {
-            String value = matcher.group().strip();
+            String value = normalizeImageUrl(matcher.group());
             if (isImageCandidate(value) && !values.contains(value)) {
                 values.add(value);
             }
         }
         return values;
+    }
+
+    private String normalizeImageUrl(String value) {
+        if (value == null) {
+            return "";
+        }
+        return HtmlUtils.htmlUnescape(value)
+                .replace("\\u002F", "/")
+                .replace("\\u0026", "&")
+                .replace("\\u003D", "=")
+                .replace("\\/", "/")
+                .strip();
     }
 
     private boolean isImageCandidate(String imageUrl) {
