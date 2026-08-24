@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -25,6 +26,7 @@ public class PlaceImportService {
     private final ContentSourceUrlParser urlParser;
     private final PlaceAnalysisProperties properties;
     private final Clock clock;
+    private final PlaceImportDispatcher dispatcher;
 
     public PlaceImportService(
             MemberRepository memberRepository,
@@ -35,6 +37,21 @@ public class PlaceImportService {
             PlaceAnalysisProperties properties,
             Clock clock
     ) {
+        this(memberRepository, importRepository, viewMapper, reservationService, urlParser,
+                properties, clock, null);
+    }
+
+    @Autowired
+    public PlaceImportService(
+            MemberRepository memberRepository,
+            PlaceImportRepository importRepository,
+            PlaceImportViewMapper viewMapper,
+            PlaceImportReservationService reservationService,
+            ContentSourceUrlParser urlParser,
+            PlaceAnalysisProperties properties,
+            Clock clock,
+            PlaceImportDispatcher dispatcher
+    ) {
         this.memberRepository = memberRepository;
         this.importRepository = importRepository;
         this.viewMapper = viewMapper;
@@ -42,6 +59,7 @@ public class PlaceImportService {
         this.urlParser = urlParser;
         this.properties = properties;
         this.clock = clock;
+        this.dispatcher = dispatcher;
     }
 
     public PlaceImportSubmissionView importLink(Long memberId, String rawUrl) {
@@ -63,7 +81,7 @@ public class PlaceImportService {
                     clock.instant().minusSeconds(properties.retryCooldownSeconds()))) {
                 existing = reload(existing);
             }
-            return new PlaceImportSubmissionView(viewMapper.toView(existing));
+            return viewAndDispatch(existing);
         }
         Instant now = clock.instant();
         PlaceImportReservationService.Reservation reservation = reservationService.reserve(
@@ -75,7 +93,15 @@ public class PlaceImportService {
         );
         PlaceImport placeImport = importRepository.findById(reservation.importId())
                 .orElseThrow(IllegalStateException::new);
-        return new PlaceImportSubmissionView(viewMapper.toView(placeImport));
+        return viewAndDispatch(placeImport);
+    }
+
+    private PlaceImportSubmissionView viewAndDispatch(PlaceImport placeImport) {
+        PlaceImportSubmissionView submission = new PlaceImportSubmissionView(viewMapper.toView(placeImport));
+        if (dispatcher != null && placeImport.getStatus() == PlaceImportStatus.RECEIVED) {
+            dispatcher.dispatch(placeImport.getId());
+        }
+        return submission;
     }
 
     private boolean canRetry(PlaceImport placeImport) {

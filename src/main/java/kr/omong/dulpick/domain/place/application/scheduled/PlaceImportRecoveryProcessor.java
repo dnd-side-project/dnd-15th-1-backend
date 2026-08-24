@@ -1,18 +1,16 @@
 package kr.omong.dulpick.domain.place.application.scheduled;
 
-import kr.omong.dulpick.domain.place.application.PlaceImportProcessingService;
+import kr.omong.dulpick.domain.place.application.PlaceImportDispatcher;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
-import java.util.concurrent.Executor;
 
 @Service
 @ConditionalOnProperty(
@@ -25,23 +23,20 @@ public class PlaceImportRecoveryProcessor {
     private static final Logger logger = LoggerFactory.getLogger(PlaceImportRecoveryProcessor.class);
 
     private final PlaceImportRepository importRepository;
-    private final PlaceImportProcessingService processingService;
+    private final PlaceImportDispatcher dispatcher;
     private final PlaceAnalysisProperties properties;
     private final Clock clock;
-    private final Executor executor;
 
     public PlaceImportRecoveryProcessor(
             PlaceImportRepository importRepository,
-            PlaceImportProcessingService processingService,
+            PlaceImportDispatcher dispatcher,
             PlaceAnalysisProperties properties,
-            Clock clock,
-            @Qualifier("placeImportExecutor") Executor executor
+            Clock clock
     ) {
         this.importRepository = importRepository;
-        this.processingService = processingService;
+        this.dispatcher = dispatcher;
         this.properties = properties;
         this.clock = clock;
-        this.executor = executor;
     }
 
     @Scheduled(
@@ -61,20 +56,9 @@ public class PlaceImportRecoveryProcessor {
 
     private void dispatchSafely(Long importId) {
         try {
-            String claimToken = processingService.claimPending(importId);
-            if (claimToken != null) {
-                executor.execute(() -> processSafely(importId, claimToken));
-            }
+            dispatcher.dispatch(importId);
         } catch (RuntimeException exception) {
             logger.error("Place import dispatch failed: importId={}", importId, exception);
-        }
-    }
-
-    private void processSafely(Long importId, String claimToken) {
-        try {
-            processingService.processClaimed(importId, claimToken);
-        } catch (RuntimeException exception) {
-            logger.error("Place import processing failed: importId={}", importId, exception);
         }
     }
 }

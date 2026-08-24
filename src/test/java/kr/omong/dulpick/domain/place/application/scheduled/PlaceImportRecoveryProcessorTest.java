@@ -1,6 +1,6 @@
 package kr.omong.dulpick.domain.place.application.scheduled;
 
-import kr.omong.dulpick.domain.place.application.PlaceImportProcessingService;
+import kr.omong.dulpick.domain.place.application.PlaceImportDispatcher;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import org.junit.jupiter.api.Test;
@@ -22,7 +22,7 @@ class PlaceImportRecoveryProcessorTest {
     void resumesReceivedImportsAfterRecoveryDelay() {
         Instant now = Instant.parse("2026-08-09T12:00:00Z");
         PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
-        PlaceImportProcessingService importService = mock(PlaceImportProcessingService.class);
+        PlaceImportDispatcher dispatcher = mock(PlaceImportDispatcher.class);
         PlaceAnalysisProperties properties = new PlaceAnalysisProperties(
                 true,
                 100,
@@ -39,22 +39,18 @@ class PlaceImportRecoveryProcessorTest {
         );
         PlaceImportRecoveryProcessor processor = new PlaceImportRecoveryProcessor(
                 importRepository,
-                importService,
+                dispatcher,
                 properties,
-                Clock.fixed(now, ZoneOffset.UTC),
-                Runnable::run
+                Clock.fixed(now, ZoneOffset.UTC)
         );
         when(importRepository.findRecoverableIds(
                 now.minusSeconds(5),
                 now.minusSeconds(600),
                 PageRequest.of(0, 20)
         )).thenReturn(List.of(1L, 2L));
-        when(importService.claimPending(1L)).thenReturn("claim-1");
-        when(importService.claimPending(2L)).thenReturn("claim-2");
-
         processor.process();
 
-        verify(importService).processClaimed(1L, "claim-1");
-        verify(importService).processClaimed(2L, "claim-2");
+        verify(dispatcher).dispatch(1L);
+        verify(dispatcher).dispatch(2L);
     }
 }
