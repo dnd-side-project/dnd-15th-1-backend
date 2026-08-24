@@ -17,7 +17,7 @@ public class ContentImageWorkerConfig {
         executor.setMaxPoolSize(properties.workerConcurrency());
         executor.setQueueCapacity(100);
         executor.setThreadNamePrefix("content-image-");
-        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(false);
         executor.setAwaitTerminationSeconds(1);
         executor.initialize();

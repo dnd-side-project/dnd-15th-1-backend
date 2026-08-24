@@ -8,16 +8,21 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ThreadPoolExecutor;
 
 @Configuration
-public class PlaceImportWorkerConfig {
+public class PlaceImageWorkerConfig {
 
-    @Bean(name = "placeImportExecutor")
-    public Executor placeImportExecutor(PlaceAnalysisProperties properties) {
+    private static final int WORKER_CONCURRENCY = 2;
+    private static final int QUEUE_CAPACITY = 100;
+
+    @Bean(name = "placeImageExecutor")
+    public Executor placeImageExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setCorePoolSize(properties.workerConcurrency());
-        executor.setMaxPoolSize(properties.workerConcurrency());
-        executor.setQueueCapacity(properties.recoveryBatchSize() * 2);
-        executor.setThreadNamePrefix("place-import-");
+        executor.setCorePoolSize(WORKER_CONCURRENCY);
+        executor.setMaxPoolSize(WORKER_CONCURRENCY);
+        executor.setQueueCapacity(QUEUE_CAPACITY);
+        executor.setThreadNamePrefix("place-image-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        executor.setAwaitTerminationSeconds(1);
         executor.initialize();
         return executor;
     }

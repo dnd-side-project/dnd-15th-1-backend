@@ -7,6 +7,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklogRepositor
 import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentFailureReason;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.config.PlaceImageEnrichmentProperties;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +69,32 @@ public class PlaceImageEnrichmentService {
                 .filter(this::needsEnrichment)
                 .map(this::enrich)
                 .orElse(true);
+    }
+
+    @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
+    public void recoverPending() {
+        backlogRepository.findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
+                        "PENDING",
+                        clock.instant().minus(properties.retryCooldown()),
+                        PageRequest.of(0, 20)
+                )
+                .forEach(backlog -> enrichPlace(backlog.getPlaceId()));
+    }
+
+    public void recordImportDispatchFailure(Long importId) {
+        List<Long> placeIds = candidateRepository.findAllByImportIdOrderByIdAsc(importId)
+                .stream()
+                .map(candidate -> candidate.getPlaceId())
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        placeRepository.findAllById(placeIds)
+                .forEach(place -> recordFailure(place, PlaceImageEnrichmentFailureReason.DISPATCH_REJECTED));
+    }
+
+    public void recordPlaceDispatchFailure(Long placeId) {
+        placeRepository.findById(placeId)
+                .ifPresent(place -> recordFailure(place, PlaceImageEnrichmentFailureReason.DISPATCH_REJECTED));
     }
 
     private boolean needsEnrichment(Place place) {

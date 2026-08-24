@@ -54,6 +54,7 @@ public class PlaceCommandService {
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
     private final PlaceImageEnrichmentService imageEnrichmentService;
+    private final PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher;
 
     public PlaceCommandService(
             PlaceImportRepository importRepository,
@@ -78,7 +79,6 @@ public class PlaceCommandService {
         );
     }
 
-    @Autowired
     public PlaceCommandService(
             PlaceImportRepository importRepository,
             PlaceCandidateRepository candidateRepository,
@@ -90,6 +90,33 @@ public class PlaceCommandService {
             Clock clock,
             PlaceImageEnrichmentService imageEnrichmentService
     ) {
+        this(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                activeCoupleMemberRepository,
+                eventPublisher,
+                clock,
+                imageEnrichmentService,
+                null
+        );
+    }
+
+    @Autowired
+    public PlaceCommandService(
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            MemberRepository memberRepository,
+            MemberPlaceRepository memberPlaceRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock,
+            PlaceImageEnrichmentService imageEnrichmentService,
+            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher
+    ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
@@ -99,6 +126,7 @@ public class PlaceCommandService {
         this.eventPublisher = eventPublisher;
         this.clock = clock;
         this.imageEnrichmentService = imageEnrichmentService;
+        this.imageEnrichmentDispatcher = imageEnrichmentDispatcher;
     }
 
     @Transactional
@@ -147,7 +175,9 @@ public class PlaceCommandService {
                     publishSavedEvent(membership, memberId, partnerId, placeForSave.getId(), now);
                     return created;
                 });
-        if (imageEnrichmentService != null) {
+        if (imageEnrichmentDispatcher != null) {
+            imageEnrichmentDispatcher.dispatchPlace(place.getId());
+        } else if (imageEnrichmentService != null) {
             imageEnrichmentService.enrichPlace(place.getId());
         }
         Place responsePlace = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())

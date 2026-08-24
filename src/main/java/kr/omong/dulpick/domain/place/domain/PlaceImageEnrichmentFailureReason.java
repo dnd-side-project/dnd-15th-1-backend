@@ -4,5 +4,6 @@ public enum PlaceImageEnrichmentFailureReason {
     INVALID_PLACE_ID,
     PHOTO_UNAVAILABLE,
     PROVIDER_ERROR,
-    WRITER_ERROR
+    WRITER_ERROR,
+    DISPATCH_REJECTED
 }
