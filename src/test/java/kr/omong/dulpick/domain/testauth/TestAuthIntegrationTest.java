@@ -353,6 +353,9 @@ class TestAuthIntegrationTest {
                 && type != null
                 && !"null".equals(type)
                 && !"object".equals(type)) {
+            if (!schema.containsKey("example")) {
+                System.err.println("Missing Swagger example: " + path + " schema=" + schema);
+            }
             assertThat(schema)
                     .as("Swagger primitive example: %s", path)
                     .containsKey("example");
