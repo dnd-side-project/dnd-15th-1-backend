@@ -319,7 +319,8 @@ public class PublicContentQueryService {
         if (contentIds.isEmpty()) {
             return Map.of();
         }
-        return contentImageRepository.findAllByContentIdInOrderByContentIdAscDisplayOrderAsc(contentIds)
+        return contentImageRepository
+                .findAllByContentIdInAndContentTypeIsNotNullOrderByContentIdAscDisplayOrderAsc(contentIds)
                 .stream()
                 .collect(Collectors.groupingBy(
                         ContentImage::getContentId,
