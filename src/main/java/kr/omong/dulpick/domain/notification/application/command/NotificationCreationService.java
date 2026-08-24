@@ -6,6 +6,8 @@ import kr.omong.dulpick.domain.notification.domain.Notification;
 import kr.omong.dulpick.domain.notification.domain.NotificationDelivery;
 import kr.omong.dulpick.domain.notification.domain.NotificationDeliveryRepository;
 import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
+import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettings;
+import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettingsRepository;
 import kr.omong.dulpick.domain.notification.domain.PushDevice;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceRepository;
 import kr.omong.dulpick.domain.notification.domain.PushDeviceStatus;
@@ -23,22 +25,37 @@ public class NotificationCreationService {
     private final NotificationRepository notificationRepository;
     private final NotificationDeliveryRepository deliveryRepository;
     private final PushDeviceRepository pushDeviceRepository;
+    private final MemberNotificationSettingsRepository settingsRepository;
 
     public NotificationCreationService(
             MemberRepository memberRepository,
             NotificationRepository notificationRepository,
             NotificationDeliveryRepository deliveryRepository,
-            PushDeviceRepository pushDeviceRepository
+            PushDeviceRepository pushDeviceRepository,
+            MemberNotificationSettingsRepository settingsRepository
     ) {
         this.memberRepository = memberRepository;
         this.notificationRepository = notificationRepository;
         this.deliveryRepository = deliveryRepository;
         this.pushDeviceRepository = pushDeviceRepository;
+        this.settingsRepository = settingsRepository;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
     public void createSystemNotification(NotificationRequest request) {
         createNotification(request, true);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public boolean createMarketingNotification(NotificationRequest request) {
+        boolean enabled = settingsRepository.findById(request.receiverMemberId())
+                .map(MemberNotificationSettings::isMarketingEnabled)
+                .orElse(false);
+        if (!enabled) {
+            return false;
+        }
+        createNotification(request, true);
+        return true;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
