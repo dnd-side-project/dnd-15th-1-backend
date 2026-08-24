@@ -195,6 +195,36 @@ class ContentImageStorageServiceTest {
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
 
+    @Test
+    void doesNotCreateDuplicateWhenFallbackUsesAnotherListedUrl() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(15L);
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(15L)).thenReturn(List.of());
+        when(downloader.download("https://scontent.cdninstagram.com/blocked.jpg"))
+                .thenThrow(new PublicContentImageUnavailableException());
+        when(downloader.download("https://scontent.cdninstagram.com/available.jpg"))
+                .thenReturn(downloaded("available"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.storeIfAvailable(content, List.of(
+                "https://scontent.cdninstagram.com/blocked.jpg",
+                "https://scontent.cdninstagram.com/available.jpg"
+        ));
+
+        org.mockito.ArgumentCaptor<List> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(imageRepository).saveAll(captor.capture());
+        @SuppressWarnings("unchecked")
+        List<ContentImage> images = captor.getValue();
+        assertThat(images).hasSize(1);
+        assertThat(images.getFirst().getSourceUrl())
+                .isEqualTo("https://scontent.cdninstagram.com/available.jpg");
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,

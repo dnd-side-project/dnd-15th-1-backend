@@ -94,7 +94,11 @@ public class ContentImageStorageService {
         Instant now = clock.instant();
         List<ContentImage> images = new ArrayList<>();
         for (int index = 0; index < imageUrls.size(); index++) {
-            images.add(saveImage(content.getId(), imageUrls, existingImages, index, now));
+            ContentImage image = saveImage(content.getId(), imageUrls, existingImages, index, now);
+            existingImages.put(image.getSourceUrlHash(), image);
+            if (!images.contains(image)) {
+                images.add(image);
+            }
         }
         imageRepository.saveAll(images);
     }
