@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#FF5A6F">
   <title>둘픽 운영 · 로그인</title>
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/logo_app.png" type="image/png">
   <style>
     :root {
       --coral: #ff5a6f;
@@ -48,13 +48,7 @@
       width: 40px;
       height: 40px;
       border-radius: 14px;
-      background: var(--coral);
-      color: #fff;
-      font-weight: 800;
-      font-size: 22px;
-      display: grid;
-      place-items: center;
-      letter-spacing: -0.06em;
+      background: url("/assets/logo_app.png") center / cover no-repeat;
     }
     .brand-name { font-size: 20px; font-weight: 800; letter-spacing: -0.04em; }
     h1 {
@@ -127,7 +121,7 @@
 <body>
   <main class="card">
     <div class="brand">
-      <div class="mark">둘</div>
+      <div class="mark" aria-hidden="true"></div>
       <div class="brand-name">둘픽 운영</div>
     </div>
     <h1>콘텐츠 장소 분류</h1>
