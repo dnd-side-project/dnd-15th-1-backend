@@ -242,7 +242,8 @@ class PublicWebMetadataProviderTest {
                 3,
                 Duration.ofSeconds(5),
                 20,
-                2
+                2,
+                3
         );
     }
 }

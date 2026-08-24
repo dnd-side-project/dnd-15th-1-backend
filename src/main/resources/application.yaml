@@ -96,6 +96,7 @@ place-analysis:
   recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
   worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
+  verification-concurrency: ${PLACE_ANALYSIS_VERIFICATION_CONCURRENCY:3}
   public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
   image-enrichment:
     retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}

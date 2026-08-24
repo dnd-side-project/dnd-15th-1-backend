@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -20,6 +21,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.Executor;
 
 @Service
 public class PlaceImportProcessingService {
@@ -38,6 +42,7 @@ public class PlaceImportProcessingService {
     private final PlaceVerifier placeVerifier;
     private final PlaceAnalysisProperties properties;
     private final Clock clock;
+    private final Executor verificationExecutor;
 
     public PlaceImportProcessingService(
             PlaceImportRepository importRepository,
@@ -51,7 +56,9 @@ public class PlaceImportProcessingService {
             PlaceAnalyzer placeAnalyzer,
             PlaceVerifier placeVerifier,
             PlaceAnalysisProperties properties,
-            Clock clock
+            Clock clock,
+            @Qualifier("placeVerificationExecutor")
+            Executor verificationExecutor
     ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
@@ -65,6 +72,7 @@ public class PlaceImportProcessingService {
         this.placeVerifier = placeVerifier;
         this.properties = properties;
         this.clock = clock;
+        this.verificationExecutor = verificationExecutor;
     }
 
     public String claimPending(Long importId) {
@@ -167,13 +175,7 @@ public class PlaceImportProcessingService {
         if (isDirectPlaceSource(sourceType)) {
             resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted);
         }
-        List<VerifiedCandidate> candidates = new ArrayList<>();
-        for (ExtractedPlace extractedPlace : extracted) {
-            PlaceVerificationResult verification = verifyCachedOrExternal(extractedPlace);
-            if (verification != null) {
-                candidates.add(new VerifiedCandidate(extractedPlace, verification.place(), verification.status()));
-            }
-        }
+        List<VerifiedCandidate> candidates = verifyCandidates(extracted);
         if (candidates.isEmpty()) {
             reservationService.failClaimed(placeImport.getId(), claimToken,
                     ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant());
@@ -182,6 +184,41 @@ public class PlaceImportProcessingService {
         resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, candidates);
         contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
         imageEnrichmentService.enrichImportPlaces(placeImport.getId());
+    }
+
+    private List<VerifiedCandidate> verifyCandidates(List<ExtractedPlace> extracted) {
+        List<CompletableFuture<PlaceVerificationResult>> futures = extracted.stream()
+                .map(place -> CompletableFuture.supplyAsync(
+                        () -> verifyCachedOrExternal(place), verificationExecutor
+                ))
+                .toList();
+        List<VerifiedCandidate> candidates = new ArrayList<>();
+        for (int index = 0; index < extracted.size(); index++) {
+            PlaceVerificationResult verification = awaitVerification(futures.get(index));
+            if (verification != null) {
+                ExtractedPlace extractedPlace = extracted.get(index);
+                candidates.add(new VerifiedCandidate(
+                        extractedPlace,
+                        verification.place(),
+                        verification.status()
+                ));
+            }
+        }
+        return candidates;
+    }
+
+    private PlaceVerificationResult awaitVerification(
+            CompletableFuture<PlaceVerificationResult> future
+    ) {
+        try {
+            return future.join();
+        } catch (CompletionException exception) {
+            Throwable cause = exception.getCause();
+            if (cause instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw exception;
+        }
     }
 
     private void dispatchContentImageEnrichment(Long importId, List<String> sourceUrls) {

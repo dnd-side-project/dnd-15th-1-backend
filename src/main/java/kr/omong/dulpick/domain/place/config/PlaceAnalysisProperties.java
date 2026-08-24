@@ -16,7 +16,8 @@ public record PlaceAnalysisProperties(
         int maxRetryCount,
         Duration recoveryDelay,
         int recoveryBatchSize,
-        int workerConcurrency
+        int workerConcurrency,
+        int verificationConcurrency
 ) {
 
     public PlaceAnalysisProperties {
@@ -54,6 +55,11 @@ public record PlaceAnalysisProperties(
             workerConcurrency = 2;
         } else if (workerConcurrency > 10) {
             workerConcurrency = 10;
+        }
+        if (verificationConcurrency <= 0) {
+            verificationConcurrency = 3;
+        } else if (verificationConcurrency > 5) {
+            verificationConcurrency = 5;
         }
     }
 }

@@ -25,6 +25,10 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -68,7 +72,8 @@ class PlaceImportServiceTest {
             3,
             Duration.ofSeconds(5),
             20,
-            2
+            2,
+            3
     );
     private final PlaceImportViewMapper viewMapper = new PlaceImportViewMapper(
             candidateRepository,
@@ -89,20 +94,7 @@ class PlaceImportServiceTest {
             properties,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
-    private final PlaceImportProcessingService processingService = new PlaceImportProcessingService(
-            importRepository,
-            candidateRepository,
-            placeRepository,
-            resultWriter,
-            imageEnrichmentService,
-            contentImageEnrichmentService,
-            reservationService,
-            metadataService,
-            placeAnalyzer,
-            placeVerifier,
-            properties,
-            Clock.fixed(NOW, ZoneOffset.UTC)
-    );
+    private final PlaceImportProcessingService processingService = createProcessingService(Runnable::run);
 
     @Test
     void queuesNewImportWithoutCallingExternalProviders() {
@@ -276,6 +268,57 @@ class PlaceImportServiceTest {
                         PlaceVerificationStatus.VERIFIED
                 ))
         );
+    }
+
+    @Test
+    void verifiesCandidatesConcurrentlyWithoutChangingCandidateOrder() throws Exception {
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            PlaceImportProcessingService parallelService = createProcessingService(executor);
+            PlaceImport placeImport = receivedImport();
+            when(placeImport.getStatus()).thenReturn(PlaceImportStatus.PROCESSING);
+            when(importRepository.findById(1L)).thenReturn(Optional.of(placeImport));
+            ContentMetadata metadata = metadata();
+            ExtractedPlace first = new ExtractedPlace("첫 번째 장소", "서울", "첫 번째", "EXPLICIT_VENUE");
+            ExtractedPlace second = new ExtractedPlace("두 번째 장소", "서울", "두 번째", "EXPLICIT_VENUE");
+            VerifiedPlace firstVerified = verifiedPlace("first-id", first.name());
+            VerifiedPlace secondVerified = verifiedPlace("second-id", second.name());
+            CountDownLatch started = new CountDownLatch(2);
+            when(metadataService.fetch(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_REEL))
+                    .thenReturn(metadata);
+            when(resultWriter.reuseUnchangedContent(1L, IMPORT_CLAIM_TOKEN, metadata)).thenReturn(false);
+            when(resultWriter.saveMetadata(1L, IMPORT_CLAIM_TOKEN, metadata)).thenReturn(10L);
+            when(placeAnalyzer.modelKey()).thenReturn("gemini-3.5-flash-lite");
+            when(placeAnalyzer.promptVersion()).thenReturn("place-extraction-v3");
+            when(resultWriter.loadCachedAnalysis(
+                    10L, metadata.contentHash(), "gemini-3.5-flash-lite", "place-extraction-v3"
+            )).thenReturn(Optional.of(List.of(first, second)));
+            when(placeRepository.findFirstByNameAndAddressHint(any(), eq("서울")))
+                    .thenReturn(Optional.empty());
+            when(placeVerifier.verify(any())).thenAnswer(invocation -> {
+                ExtractedPlace extracted = invocation.getArgument(0);
+                started.countDown();
+                if (!started.await(2, TimeUnit.SECONDS)) {
+                    throw new AssertionError("place verifications were not started concurrently");
+                }
+                VerifiedPlace verified = extracted.equals(first) ? firstVerified : secondVerified;
+                return new PlaceVerificationResult(verified, PlaceVerificationStatus.VERIFIED);
+            });
+
+            parallelService.processClaimed(1L, IMPORT_CLAIM_TOKEN);
+
+            verify(resultWriter).saveSuccess(
+                    1L,
+                    IMPORT_CLAIM_TOKEN,
+                    metadata,
+                    List.of(
+                            new VerifiedCandidate(first, firstVerified, PlaceVerificationStatus.VERIFIED),
+                            new VerifiedCandidate(second, secondVerified, PlaceVerificationStatus.VERIFIED)
+                    )
+            );
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -502,6 +545,38 @@ class PlaceImportServiceTest {
         when(placeImport.getContentId()).thenReturn(10L);
         when(placeImport.getProcessingClaimToken()).thenReturn(IMPORT_CLAIM_TOKEN);
         return placeImport;
+    }
+
+    private PlaceImportProcessingService createProcessingService(java.util.concurrent.Executor executor) {
+        return new PlaceImportProcessingService(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                resultWriter,
+                imageEnrichmentService,
+                contentImageEnrichmentService,
+                reservationService,
+                metadataService,
+                placeAnalyzer,
+                placeVerifier,
+                properties,
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                executor
+        );
+    }
+
+    private VerifiedPlace verifiedPlace(String kakaoPlaceId, String name) {
+        return new VerifiedPlace(
+                kakaoPlaceId,
+                name,
+                "서울 중구 주소",
+                "서울 중구 도로명",
+                new BigDecimal("37.5659000"),
+                new BigDecimal("127.0044624"),
+                "FD6",
+                "음식점 > 한식",
+                null
+        );
     }
 
     private ContentMetadata metadata() {
