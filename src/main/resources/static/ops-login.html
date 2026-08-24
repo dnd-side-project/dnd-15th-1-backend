@@ -146,8 +146,17 @@
       const value = document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || "";
       return decodeURIComponent(value);
     }
-    document.querySelector("form").addEventListener("submit", event => {
+    document.querySelector("form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
       document.getElementById("csrf-token").value = csrfToken();
+      const response = await fetch(form.action, {
+        method: form.method,
+        body: new URLSearchParams(new FormData(form)),
+        headers: { "X-XSRF-TOKEN": csrfToken() },
+        credentials: "same-origin"
+      });
+      window.location.assign(response.url);
     });
     if (new URLSearchParams(location.search).has("error")) {
       document.getElementById("error").classList.add("show");

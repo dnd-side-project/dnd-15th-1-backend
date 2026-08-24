@@ -1,5 +1,6 @@
 package kr.omong.dulpick.global.web;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
@@ -17,7 +18,9 @@ public class PublicPageController {
     private static final String AASA_RESOURCE = "universal-link/apple-app-site-association";
     private final CsrfTokenRepository csrfTokenRepository;
 
-    public PublicPageController(CsrfTokenRepository csrfTokenRepository) {
+    public PublicPageController(
+            @Qualifier("opsCsrfTokenRepository") CsrfTokenRepository csrfTokenRepository
+    ) {
         this.csrfTokenRepository = csrfTokenRepository;
     }
 
