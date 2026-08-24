@@ -148,6 +148,15 @@ public class PlaceSearchService {
                 place == null ? null : place.getCategory(),
                 kakao == null ? null : kakao.category()
         );
+        DulpickPlaceCategory dulpickCategory = place == null
+                ? DulpickPlaceCategory.fromKakao(categoryGroupCode, category)
+                : place.getDulpickCategory(
+                kakao == null ? null : kakao.categoryGroupCode(),
+                kakao == null ? null : kakao.category()
+        );
+        if (dulpickCategory == null) {
+            dulpickCategory = DulpickPlaceCategory.fromKakao(categoryGroupCode, category);
+        }
         PlaceSearchView view = new PlaceSearchView(
                 place == null ? null : place.getId(),
                 place == null ? kakao.kakaoPlaceId() : place.getKakaoPlaceId(),
@@ -157,9 +166,7 @@ public class PlaceSearchService {
                 place == null ? kakao.latitude() : place.getLatitude(),
                 place == null ? kakao.longitude() : place.getLongitude(),
                 category,
-                place == null
-                        ? DulpickPlaceCategory.fromKakao(categoryGroupCode, category)
-                        : place.getDulpickCategory(),
+                dulpickCategory,
                 firstNonBlank(
                         place == null ? null : place.getPhone(),
                         kakao == null ? null : kakao.phone()
