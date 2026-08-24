@@ -32,6 +32,10 @@ class PublicContentResponseTest {
         assertThat(response.thumbnailUrl())
                 .isEqualTo("https://dulpick.omong.kr/api/v1/content-images/image-key-1");
         assertThat(response.imageKeys()).containsExactly("image-key-1", "image-key-2");
+        assertThat(response.imageUrls()).containsExactly(
+                "https://dulpick.omong.kr/api/v1/content-images/image-key-1",
+                "https://dulpick.omong.kr/api/v1/content-images/image-key-2"
+        );
     }
 
     @Test

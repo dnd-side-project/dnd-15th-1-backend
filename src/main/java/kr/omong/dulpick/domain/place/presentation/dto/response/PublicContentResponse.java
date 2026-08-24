@@ -39,6 +39,9 @@ public record PublicContentResponse(
         @ArraySchema(schema = @Schema(example = "550e8400-e29b-41d4-a716-446655440000"))
         @Schema(description = "게시글 이미지 고유 키 목록입니다. 첫 번째 키가 대표 이미지이며, 각 키로 이미지를 조회합니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<String> imageKeys,
+        @ArraySchema(schema = @Schema(example = "https://dulpick.omong.kr/api/v1/content-images/550e8400-e29b-41d4-a716-446655440000"))
+        @Schema(description = "서버에 저장된 게시글 이미지 URL 목록입니다. 첫 번째 URL이 대표 이미지이며, 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        List<String> imageUrls,
         @Schema(description = "공개 게시물에 연결된 장소 수", example = "2", requiredMode = Schema.RequiredMode.REQUIRED)
         int placeCount,
         @Schema(description = "게시물에 연결된 장소 목록입니다. 장소가 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
@@ -61,6 +64,7 @@ public record PublicContentResponse(
                 view.caption(),
                 thumbnailUrl(view, thumbnailBaseUrl),
                 view.imageKeys(),
+                imageUrls(view, thumbnailBaseUrl),
                 view.placeCount(),
                 view.places().stream().map(PublicPlaceResponse::from).toList()
         );
@@ -68,12 +72,21 @@ public record PublicContentResponse(
 
     private static String thumbnailUrl(PublicContentView view, String thumbnailBaseUrl) {
         if (thumbnailBaseUrl == null) {
-            return view.thumbnailUrl();
+            return null;
         }
         if (!view.sourceType().storesPublicContent() || view.imageKeys().isEmpty()) {
             return null;
         }
         return thumbnailBaseUrl + "/api/v1/content-images/" + view.imageKeys().getFirst();
+    }
+
+    private static List<String> imageUrls(PublicContentView view, String thumbnailBaseUrl) {
+        if (thumbnailBaseUrl == null || !view.sourceType().storesPublicContent()) {
+            return List.of();
+        }
+        return view.imageKeys().stream()
+                .map(imageKey -> thumbnailBaseUrl + "/api/v1/content-images/" + imageKey)
+                .toList();
     }
 
     public record AuthorResponse(
