@@ -67,7 +67,10 @@ public final class KakaoMapImageDownloader implements ContentThumbnailDownloader
                     .uri(uri)
                     .headers(headers -> {
                         headers.set(HttpHeaders.USER_AGENT, "Mozilla/5.0 (compatible; DulPick/1.0)");
-                        headers.set(HttpHeaders.REFERER, KAKAO_REFERER);
+                        String referer = refererFor(uri);
+                        if (referer != null) {
+                            headers.set(HttpHeaders.REFERER, referer);
+                        }
                         headers.set(HttpHeaders.ACCEPT, "image/avif,image/webp,image/apng,image/*,*/*;q=0.8");
                     })
                     .exchange((request, response) -> readResponse(
@@ -76,6 +79,10 @@ public final class KakaoMapImageDownloader implements ContentThumbnailDownloader
         } catch (RestClientException exception) {
             throw new PublicContentImageUnavailableException(exception);
         }
+    }
+
+    private String refererFor(URI uri) {
+        return isNaverImageHost(uri.getHost()) ? null : KAKAO_REFERER;
     }
 
     private URI validate(String sourceUrl) {
@@ -110,6 +117,11 @@ public final class KakaoMapImageDownloader implements ContentThumbnailDownloader
                 || normalized.endsWith(".daumcdn.net")
                 || normalized.equals("postfiles.pstatic.net")
                 || normalized.equals("dthumb-phinf.pstatic.net");
+    }
+
+    private boolean isNaverImageHost(String host) {
+        return "postfiles.pstatic.net".equalsIgnoreCase(host)
+                || "dthumb-phinf.pstatic.net".equalsIgnoreCase(host);
     }
 
     private boolean isNonPublic(InetAddress address) {
