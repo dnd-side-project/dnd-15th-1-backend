@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +38,7 @@ public class PlaceImportViewMapper {
         this.properties = properties;
     }
 
+    @Transactional(readOnly = true)
     public PlaceImportView toView(PlaceImport placeImport) {
         var storedCandidates = candidateRepository
                 .findAllByImportIdOrderByIdAsc(placeImport.getId());
