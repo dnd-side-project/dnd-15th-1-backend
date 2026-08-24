@@ -157,8 +157,41 @@ class ContentImageStorageServiceTest {
 
         service.refreshExistingIfAvailable(content, List.of("https://scontent.cdninstagram.com/fresh.jpg"));
 
-        verify(imageRepository).saveAll(List.of(image));
+        verify(imageRepository).saveAllAndFlush(List.of(image));
         assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
+        assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
+    }
+
+    @Test
+    void refetchesInstagramPageWhenFreshCdnUrlIsRejected() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(14L);
+        ContentImage image = ContentImage.create(
+                14L,
+                "https://scontent.cdninstagram.com/expired.jpg",
+                "expired-hash",
+                0,
+                NOW
+        );
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(14L)).thenReturn(List.of(image));
+        when(downloader.download("https://scontent.cdninstagram.com/initial-fresh.jpg"))
+                .thenThrow(new PublicContentImageUnavailableException());
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl()))
+                .thenReturn(List.of("https://scontent.cdninstagram.com/second-fresh.jpg"));
+        when(downloader.download("https://scontent.cdninstagram.com/second-fresh.jpg"))
+                .thenReturn(downloaded("fresh"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.refreshExistingIfAvailable(content, List.of(
+                "https://scontent.cdninstagram.com/initial-fresh.jpg"
+        ));
+
+        assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/second-fresh.jpg");
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
 

@@ -33,6 +33,7 @@ import java.util.UUID;
 public class ContentImageStorageService {
 
     private static final Logger logger = LoggerFactory.getLogger(ContentImageStorageService.class);
+    private static final int MAX_IMAGE_URL_ATTEMPTS = 4;
 
     private final ContentImageRepository imageRepository;
     private final ContentRepository contentRepository;
@@ -93,7 +94,7 @@ public class ContentImageStorageService {
         Instant now = clock.instant();
         List<ContentImage> images = new ArrayList<>();
         for (int index = 0; index < imageUrls.size(); index++) {
-            images.add(saveImage(content.getId(), imageUrls.get(index), existingImages, index, now));
+            images.add(saveImage(content.getId(), imageUrls, existingImages, index, now));
         }
         imageRepository.saveAll(images);
     }
@@ -117,26 +118,23 @@ public class ContentImageStorageService {
             storeIfAvailable(content, imageUrls);
             return;
         }
+        List<ContentImage> failedImages = new ArrayList<>();
         for (ContentImage image : existingImages) {
             if (hasStoredFile(image)) {
                 continue;
             }
-            String freshUrl = selectFreshUrl(imageUrls, image.getDisplayOrder());
-            if (freshUrl == null) {
-                continue;
-            }
-            try {
-                downloadAndStore(image, freshUrl);
-            } catch (RuntimeException exception) {
+            if (!storeFromCandidates(image, imageUrls)) {
+                failedImages.add(image);
                 logger.warn(
                         "Content image refresh failed: contentId={}, imageKey={}, cause={}",
                         content.getId(),
                         image.getImageKey(),
-                        exception.getClass().getSimpleName()
+                        "ALL_CANDIDATES_REJECTED"
                 );
             }
         }
-        imageRepository.saveAll(existingImages);
+        retryFailedImages(content, failedImages);
+        imageRepository.saveAllAndFlush(existingImages);
     }
 
     @Transactional
@@ -157,6 +155,36 @@ public class ContentImageStorageService {
         }
     }
 
+    public boolean hasAllStoredImages(Long contentId) {
+        if (contentId == null) {
+            return false;
+        }
+        List<ContentImage> images = imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
+        return !images.isEmpty() && images.stream().allMatch(this::hasStoredFile);
+    }
+
+    private void retryFailedImages(Content content, List<ContentImage> failedImages) {
+        if (failedImages.isEmpty()) {
+            return;
+        }
+        List<String> retryUrls;
+        try {
+            retryUrls = metadataProvider.fetchImageUrls(content.getCanonicalUrl());
+        } catch (RuntimeException exception) {
+            return;
+        }
+        for (ContentImage image : failedImages) {
+            if (!storeFromCandidates(image, retryUrls)) {
+                logger.warn(
+                        "Content image retry failed: contentId={}, imageKey={}, cause={}",
+                        content.getId(),
+                        image.getImageKey(),
+                        "ALL_CANDIDATES_REJECTED"
+                );
+            }
+        }
+    }
+
     private StoredImage refreshFromOriginalContent(
             Content content,
             ContentImage image,
@@ -165,26 +193,66 @@ public class ContentImageStorageService {
         if (!isInstagramContent(content)) {
             throw new PublicContentImageUnavailableException(originalFailure);
         }
-        try {
-            List<String> freshUrls = metadataProvider.fetchImageUrls(content.getCanonicalUrl());
-            String freshUrl = selectFreshUrl(freshUrls, image.getDisplayOrder());
-            if (freshUrl == null) {
-                throw new PublicContentImageUnavailableException(originalFailure);
+        RuntimeException lastFailure = originalFailure instanceof RuntimeException runtimeException
+                ? runtimeException
+                : new PublicContentImageUnavailableException(originalFailure);
+        for (int attempt = 0; attempt < 2; attempt++) {
+            try {
+                List<String> freshUrls = metadataProvider.fetchImageUrls(content.getCanonicalUrl());
+                StoredImage refreshed = downloadFromCandidates(image, freshUrls);
+                if (refreshed != null) {
+                    return refreshed;
+                }
+            } catch (RuntimeException exception) {
+                lastFailure = exception;
             }
-            return downloadAndStore(image, freshUrl);
-        } catch (RuntimeException exception) {
-            throw new PublicContentImageUnavailableException(exception);
         }
+        throw new PublicContentImageUnavailableException(lastFailure);
     }
 
-    private String selectFreshUrl(List<String> freshUrls, int displayOrder) {
+    private boolean storeFromCandidates(ContentImage image, List<String> freshUrls) {
+        List<String> candidates = orderCandidates(freshUrls, image.getDisplayOrder());
+        for (int index = 0; index < Math.min(candidates.size(), MAX_IMAGE_URL_ATTEMPTS); index++) {
+            String freshUrl = candidates.get(index);
+            try {
+                downloadAndStore(image, freshUrl);
+                return true;
+            } catch (RuntimeException ignored) {
+                // Try another fresh image URL for the same stable image key.
+            }
+        }
+        return false;
+    }
+
+    private StoredImage downloadFromCandidates(ContentImage image, List<String> freshUrls) {
+        List<String> candidates = orderCandidates(freshUrls, image.getDisplayOrder());
+        for (int index = 0; index < Math.min(candidates.size(), MAX_IMAGE_URL_ATTEMPTS); index++) {
+            String freshUrl = candidates.get(index);
+            try {
+                return downloadAndStore(image, freshUrl);
+            } catch (RuntimeException ignored) {
+                // Try another fresh image URL for the same stable image key.
+            }
+        }
+        return null;
+    }
+
+    private List<String> orderCandidates(List<String> freshUrls, int displayOrder) {
         List<String> availableUrls = freshUrls == null
                 ? List.of()
-                : freshUrls.stream().filter(url -> url != null && !url.isBlank()).toList();
+                : freshUrls.stream().filter(url -> url != null && !url.isBlank()).distinct().toList();
         if (availableUrls.isEmpty()) {
-            return null;
+            return List.of();
         }
-        return availableUrls.get(Math.min(Math.max(displayOrder, 0), availableUrls.size() - 1));
+        int preferredIndex = Math.min(Math.max(displayOrder, 0), availableUrls.size() - 1);
+        List<String> orderedUrls = new ArrayList<>();
+        orderedUrls.add(availableUrls.get(preferredIndex));
+        for (int index = 0; index < availableUrls.size(); index++) {
+            if (index != preferredIndex) {
+                orderedUrls.add(availableUrls.get(index));
+            }
+        }
+        return orderedUrls;
     }
 
     private StoredImage downloadAndStore(ContentImage image, String sourceUrl) {
@@ -198,11 +266,12 @@ public class ContentImageStorageService {
 
     private ContentImage saveImage(
             Long contentId,
-            String sourceUrl,
+            List<String> sourceUrls,
             Map<String, ContentImage> existingImages,
             int displayOrder,
             Instant now
     ) {
+        String sourceUrl = sourceUrls.get(displayOrder);
         String sourceUrlHash = Sha256.hex(sourceUrl);
         ContentImage image = existingImages.get(sourceUrlHash);
         if (image == null) {
@@ -211,9 +280,9 @@ public class ContentImageStorageService {
             image.updateDisplayOrder(displayOrder, now);
         }
         try {
-            ContentThumbnailDownloader.DownloadedThumbnail downloaded = downloader.download(sourceUrl);
-            write(image.getStorageKey(), downloaded.bytes());
-            image.markStored(downloaded.contentType().toString(), now);
+            if (!storeFromCandidates(image, sourceUrls)) {
+                throw new PublicContentImageUnavailableException();
+            }
         } catch (RuntimeException exception) {
             logger.warn(
                     "Content image storage failed: contentId={}, imageKey={}, cause={}",
