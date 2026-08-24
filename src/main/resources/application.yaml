@@ -101,6 +101,12 @@ place-analysis:
     retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
     max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
 
+place:
+  image-backfill:
+    enabled: ${PLACE_IMAGE_BACKFILL_ENABLED:false}
+    max-places: ${PLACE_IMAGE_BACKFILL_MAX_PLACES:10000}
+    delay-millis: ${PLACE_IMAGE_BACKFILL_DELAY_MILLIS:500}
+
 instagram:
   metadata:
     official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}

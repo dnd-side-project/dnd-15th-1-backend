@@ -26,6 +26,12 @@ public class PlaceImage {
     @Column(name = "image_url_hash", nullable = false, length = 64)
     private String imageUrlHash;
 
+    @Column(name = "storage_key", length = 36, unique = true)
+    private String storageKey;
+
+    @Column(name = "content_type", length = 100)
+    private String contentType;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -71,7 +77,37 @@ public class PlaceImage {
         );
     }
 
+    public static PlaceImage createStored(
+            Long placeId,
+            String imageUrl,
+            String imageUrlHash,
+            String storageKey,
+            String contentType,
+            int displayOrder,
+            Instant createdAt
+    ) {
+        PlaceImage image = new PlaceImage(
+                placeId,
+                imageUrl,
+                imageUrlHash,
+                displayOrder,
+                "KAKAO_MAP_SCRAPE",
+                createdAt
+        );
+        image.storageKey = storageKey;
+        image.contentType = contentType;
+        return image;
+    }
+
     public String getImageUrl() {
         return imageUrl;
+    }
+
+    public String getStorageKey() {
+        return storageKey;
+    }
+
+    public String getContentType() {
+        return contentType;
     }
 }

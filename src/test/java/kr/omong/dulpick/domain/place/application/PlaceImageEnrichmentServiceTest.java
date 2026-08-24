@@ -27,6 +27,7 @@ class PlaceImageEnrichmentServiceTest {
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceImageProvider imageProvider = mock(PlaceImageProvider.class);
     private final PlaceImageWriter imageWriter = mock(PlaceImageWriter.class);
+    private final PlaceImageStorageService imageStorageService = mock(PlaceImageStorageService.class);
     private final PlaceImageEnrichmentBacklogRepository backlogRepository =
             mock(PlaceImageEnrichmentBacklogRepository.class);
     private final PlaceImageEnrichmentService service = new PlaceImageEnrichmentService(
@@ -34,6 +35,7 @@ class PlaceImageEnrichmentServiceTest {
             placeRepository,
             imageProvider,
             imageWriter,
+            imageStorageService,
             backlogRepository,
             new PlaceImageEnrichmentProperties(
                     java.time.Duration.ofMinutes(10),
@@ -71,7 +73,8 @@ class PlaceImageEnrichmentServiceTest {
         PlaceCandidate candidate = mock(PlaceCandidate.class);
         Place place = mock(Place.class);
         when(candidate.getPlaceId()).thenReturn(20L);
-        when(place.getThumbnailUrl()).thenReturn("https://t1.kakaocdn.net/existing");
+        when(place.getThumbnailUrl()).thenReturn("https://dulpick.omong.kr/api/v1/place-images/existing");
+        when(imageStorageService.isPublicUrl(place.getThumbnailUrl())).thenReturn(true);
         when(placeRepository.findAllById(List.of(20L))).thenReturn(List.of(place));
         when(candidateRepository.findAllByImportIdOrderByIdAsc(1L)).thenReturn(List.of(candidate));
 

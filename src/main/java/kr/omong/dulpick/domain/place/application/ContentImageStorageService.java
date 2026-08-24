@@ -9,6 +9,7 @@ import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.global.security.crypto.Sha256;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -42,7 +43,7 @@ public class ContentImageStorageService {
     public ContentImageStorageService(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,
-            ContentThumbnailDownloader downloader,
+            @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
             ContentThumbnailProperties properties,
             Clock clock
     ) {

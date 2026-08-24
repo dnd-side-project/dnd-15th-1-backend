@@ -13,6 +13,7 @@ import org.springframework.context.annotation.Configuration;
         InstagramProperties.class,
         ContentThumbnailProperties.class,
         ContentImageBackfillProperties.class,
+        PlaceImageBackfillProperties.class,
         PlaceImageEnrichmentProperties.class
 })
 public class PlacePropertiesConfig {

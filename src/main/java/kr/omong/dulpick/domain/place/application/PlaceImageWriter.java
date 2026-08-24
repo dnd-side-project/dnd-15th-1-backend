@@ -17,15 +17,18 @@ public class PlaceImageWriter {
 
     private final PlaceImageRepository placeImageRepository;
     private final PlaceRepository placeRepository;
+    private final PlaceImageStorageService storageService;
     private final Clock clock;
 
     public PlaceImageWriter(
             PlaceImageRepository placeImageRepository,
             PlaceRepository placeRepository,
+            PlaceImageStorageService storageService,
             Clock clock
     ) {
         this.placeImageRepository = placeImageRepository;
         this.placeRepository = placeRepository;
+        this.storageService = storageService;
         this.clock = clock;
     }
 
@@ -43,18 +46,40 @@ public class PlaceImageWriter {
             return;
         }
         Instant now = clock.instant();
-        String thumbnailUrl = limitedImageUrls.getFirst();
-        List<String> detailImageUrls = limitedImageUrls.subList(1, limitedImageUrls.size());
+        List<StoredPlaceImage> storedImages = limitedImageUrls.stream()
+                .map(this::store)
+                .flatMap(java.util.Optional::stream)
+                .toList();
+        if (storedImages.isEmpty()) {
+            return;
+        }
         placeImageRepository.deleteAllByPlaceId(placeId);
-        placeImageRepository.saveAll(IntStream.range(0, detailImageUrls.size())
-                .mapToObj(index -> PlaceImage.create(
-                        placeId,
-                        detailImageUrls.get(index),
-                        Sha256.hex(detailImageUrls.get(index)),
-                        index,
-                        now
-                ))
-                .toList());
-        placeRepository.updateThumbnail(placeId, thumbnailUrl, now);
+        List<PlaceImage> images = IntStream.range(0, storedImages.size())
+                .mapToObj(index -> {
+                    StoredPlaceImage stored = storedImages.get(index);
+                    return PlaceImage.createStored(
+                            placeId,
+                            storageService.publicUrl(stored.image().storageKey()),
+                            Sha256.hex(stored.sourceUrl()),
+                            stored.image().storageKey(),
+                            stored.image().contentType().toString(),
+                            index,
+                            now
+                    );
+                })
+                .toList();
+        placeImageRepository.saveAll(images);
+        placeRepository.updateThumbnail(placeId, images.getFirst().getImageUrl(), now);
+    }
+
+    private java.util.Optional<StoredPlaceImage> store(String sourceUrl) {
+        try {
+            return java.util.Optional.of(new StoredPlaceImage(sourceUrl, storageService.store(sourceUrl)));
+        } catch (RuntimeException exception) {
+            return java.util.Optional.empty();
+        }
+    }
+
+    private record StoredPlaceImage(String sourceUrl, PlaceImageStorageService.StoredImage image) {
     }
 }

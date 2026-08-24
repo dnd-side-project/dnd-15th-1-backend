@@ -25,6 +25,7 @@ public class PlaceImageEnrichmentService {
     private final PlaceRepository placeRepository;
     private final PlaceImageProvider imageProvider;
     private final PlaceImageWriter imageWriter;
+    private final PlaceImageStorageService imageStorageService;
     private final PlaceImageEnrichmentBacklogRepository backlogRepository;
     private final PlaceImageEnrichmentProperties properties;
     private final Clock clock;
@@ -34,6 +35,7 @@ public class PlaceImageEnrichmentService {
             PlaceRepository placeRepository,
             PlaceImageProvider imageProvider,
             PlaceImageWriter imageWriter,
+            PlaceImageStorageService imageStorageService,
             PlaceImageEnrichmentBacklogRepository backlogRepository,
             PlaceImageEnrichmentProperties properties,
             Clock clock
@@ -42,6 +44,7 @@ public class PlaceImageEnrichmentService {
         this.placeRepository = placeRepository;
         this.imageProvider = imageProvider;
         this.imageWriter = imageWriter;
+        this.imageStorageService = imageStorageService;
         this.backlogRepository = backlogRepository;
         this.properties = properties;
         this.clock = clock;
@@ -66,7 +69,9 @@ public class PlaceImageEnrichmentService {
     }
 
     private boolean needsEnrichment(Place place) {
-        return place.getThumbnailUrl() == null || place.getThumbnailUrl().isBlank();
+        return place.getThumbnailUrl() == null
+                || place.getThumbnailUrl().isBlank()
+                || !imageStorageService.isPublicUrl(place.getThumbnailUrl());
     }
 
     private void enrich(Place place) {

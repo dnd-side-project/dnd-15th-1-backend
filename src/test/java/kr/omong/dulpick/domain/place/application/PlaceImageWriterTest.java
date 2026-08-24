@@ -12,7 +12,9 @@ import java.time.ZoneOffset;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
 
 class PlaceImageWriterTest {
@@ -21,9 +23,11 @@ class PlaceImageWriterTest {
 
     private final PlaceImageRepository imageRepository = mock(PlaceImageRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
+    private final PlaceImageStorageService storageService = mock(PlaceImageStorageService.class);
     private final PlaceImageWriter writer = new PlaceImageWriter(
             imageRepository,
             placeRepository,
+            storageService,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
 
@@ -38,6 +42,14 @@ class PlaceImageWriterTest {
                 "https://t1.kakaocdn.net/image-4"
         );
         ArgumentCaptor<Iterable<PlaceImage>> imagesCaptor = ArgumentCaptor.forClass(Iterable.class);
+        when(storageService.store(anyString()))
+                .thenAnswer(invocation -> new PlaceImageStorageService.StoredImage(
+                        "storage-" + invocation.getArgument(0).hashCode(),
+                        org.springframework.http.MediaType.IMAGE_JPEG
+                ));
+        when(storageService.publicUrl(anyString()))
+                .thenAnswer(invocation -> "https://dulpick.omong.kr/api/v1/place-images/"
+                        + invocation.getArgument(0));
 
         writer.replace(20L, collectedUrls);
 
@@ -45,8 +57,12 @@ class PlaceImageWriterTest {
         verify(imageRepository).saveAll(imagesCaptor.capture());
         assertThat(imagesCaptor.getValue())
                 .extracting(PlaceImage::getImageUrl)
-                .containsExactlyElementsOf(collectedUrls.subList(1, 5))
-                .doesNotContain(collectedUrls.getFirst());
-        verify(placeRepository).updateThumbnail(20L, collectedUrls.getFirst(), NOW);
+                .hasSize(5)
+                .allMatch(url -> url.startsWith("https://dulpick.omong.kr/api/v1/place-images/"));
+        verify(placeRepository).updateThumbnail(
+                20L,
+                "https://dulpick.omong.kr/api/v1/place-images/storage-" + collectedUrls.getFirst().hashCode(),
+                NOW
+        );
     }
 }
