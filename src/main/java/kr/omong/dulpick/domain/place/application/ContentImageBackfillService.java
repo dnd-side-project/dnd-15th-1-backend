@@ -65,7 +65,6 @@ public class ContentImageBackfillService {
 
     private boolean backfill(Content content) {
         List<String> imageUrls = new ArrayList<>();
-        addIfPresent(imageUrls, content.getThumbnailUrl());
         try {
             metadataProvider.fetchImageUrls(content.getCanonicalUrl())
                     .forEach(url -> addIfPresent(imageUrls, url));
@@ -75,6 +74,9 @@ public class ContentImageBackfillService {
                     content.getId(),
                     exception.getClass().getSimpleName()
             );
+        }
+        if (imageUrls.isEmpty()) {
+            addIfPresent(imageUrls, content.getThumbnailUrl());
         }
         if (imageUrls.isEmpty()) {
             logger.warn("Instagram image backfill skipped: contentId={}, no image URL", content.getId());

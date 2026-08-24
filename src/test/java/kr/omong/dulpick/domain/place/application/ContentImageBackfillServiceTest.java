@@ -60,7 +60,6 @@ class ContentImageBackfillServiceTest {
 
         assertThat(result).isEqualTo(new ContentImageBackfillService.Result(1, 1, 0));
         verify(imageStorageService).storeIfAvailable(eq(content), eq(List.of(
-                "https://scontent.cdninstagram.com/old.jpg",
                 "https://scontent.cdninstagram.com/first.jpg",
                 "https://scontent.cdninstagram.com/second.jpg"
         )));

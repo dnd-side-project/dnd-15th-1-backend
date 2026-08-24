@@ -220,15 +220,29 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
                 .replace("\\/", "/")
                 .replace("\\u0026", "&")
                 .replace("\\u003D", "=");
-        List<String> values = new java.util.ArrayList<>(extractAll(normalizedHtml, IMAGE));
+        List<String> values = extractAll(normalizedHtml, IMAGE).stream()
+                .filter(this::isImageCandidate)
+                .collect(java.util.stream.Collectors.toCollection(java.util.ArrayList::new));
         Matcher matcher = CDN_IMAGE.matcher(HtmlUtils.htmlUnescape(normalizedHtml));
         while (matcher.find()) {
             String value = matcher.group().strip();
-            if (!values.contains(value)) {
+            if (isImageCandidate(value) && !values.contains(value)) {
                 values.add(value);
             }
         }
         return values;
+    }
+
+    private boolean isImageCandidate(String imageUrl) {
+        try {
+            URI uri = URI.create(imageUrl);
+            String host = uri.getHost();
+            String path = uri.getPath();
+            return !("static.cdninstagram.com".equalsIgnoreCase(host)
+                    || path != null && path.startsWith("/rsrc/"));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
     }
 
     private record FetchedResponse(HttpStatusCode status, URI location, String body) {
