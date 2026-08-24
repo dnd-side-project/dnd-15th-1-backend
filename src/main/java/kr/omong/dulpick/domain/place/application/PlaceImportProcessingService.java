@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
@@ -26,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
@@ -328,11 +330,17 @@ public class PlaceImportProcessingService {
     }
 
     private List<VerifiedCandidate> verifyCandidates(List<ExtractedPlace> extracted) {
-        List<CompletableFuture<PlaceVerificationResult>> futures = extracted.stream()
-                .map(place -> CompletableFuture.supplyAsync(
+        List<CompletableFuture<PlaceVerificationResult>> futures = new ArrayList<>();
+        try {
+            for (ExtractedPlace place : extracted) {
+                futures.add(CompletableFuture.supplyAsync(
                         () -> verifyCachedOrExternal(place), verificationExecutor
-                ))
-                .toList();
+                ));
+            }
+        } catch (RejectedExecutionException exception) {
+            waitForAllVerifications(futures);
+            throw new PlaceVerificationUnavailableException(exception);
+        }
         waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (int index = 0; index < extracted.size(); index++) {

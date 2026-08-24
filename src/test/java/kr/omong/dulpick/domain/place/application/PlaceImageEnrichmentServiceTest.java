@@ -13,8 +13,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -138,6 +140,34 @@ class PlaceImageEnrichmentServiceTest {
 
         service.enrichPlace(20L);
 
+        verifyNoInteractions(imageProvider, imageWriter);
+    }
+
+    @Test
+    void dispatchesRecoveryToImageExecutorWithoutBlockingScheduler() {
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        AtomicReference<Runnable> task = new AtomicReference<>();
+        when(backlog.getPlaceId()).thenReturn(20L);
+        when(backlogRepository.findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
+                org.mockito.ArgumentMatchers.eq("PENDING"),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any()
+        )).thenReturn(List.of(backlog));
+        PlaceImageEnrichmentService recoveryService = new PlaceImageEnrichmentService(
+                candidateRepository,
+                placeRepository,
+                imageProvider,
+                imageWriter,
+                imageStorageService,
+                backlogRepository,
+                new PlaceImageEnrichmentProperties(java.time.Duration.ofMinutes(10), 3),
+                Clock.fixed(Instant.parse("2026-08-10T00:00:00Z"), ZoneOffset.UTC),
+                task::set
+        );
+
+        recoveryService.recoverPending();
+
+        assertThat(task.get()).isNotNull();
         verifyNoInteractions(imageProvider, imageWriter);
     }
 }

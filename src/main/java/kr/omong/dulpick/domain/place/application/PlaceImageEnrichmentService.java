@@ -7,6 +7,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentBacklogRepositor
 import kr.omong.dulpick.domain.place.domain.PlaceImageEnrichmentFailureReason;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.config.PlaceImageEnrichmentProperties;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -17,6 +19,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 
 @Service
 public class PlaceImageEnrichmentService {
@@ -31,6 +37,8 @@ public class PlaceImageEnrichmentService {
     private final PlaceImageEnrichmentBacklogRepository backlogRepository;
     private final PlaceImageEnrichmentProperties properties;
     private final Clock clock;
+    private final Executor recoveryExecutor;
+    private final Set<Long> inFlightPlaces = ConcurrentHashMap.newKeySet();
 
     public PlaceImageEnrichmentService(
             PlaceCandidateRepository candidateRepository,
@@ -42,6 +50,31 @@ public class PlaceImageEnrichmentService {
             PlaceImageEnrichmentProperties properties,
             Clock clock
     ) {
+        this(
+                candidateRepository,
+                placeRepository,
+                imageProvider,
+                imageWriter,
+                imageStorageService,
+                backlogRepository,
+                properties,
+                clock,
+                Runnable::run
+        );
+    }
+
+    @Autowired
+    public PlaceImageEnrichmentService(
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            PlaceImageProvider imageProvider,
+            PlaceImageWriter imageWriter,
+            PlaceImageStorageService imageStorageService,
+            PlaceImageEnrichmentBacklogRepository backlogRepository,
+            PlaceImageEnrichmentProperties properties,
+            Clock clock,
+            @Qualifier("placeImageExecutor") Executor recoveryExecutor
+    ) {
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
         this.imageProvider = imageProvider;
@@ -50,6 +83,7 @@ public class PlaceImageEnrichmentService {
         this.backlogRepository = backlogRepository;
         this.properties = properties;
         this.clock = clock;
+        this.recoveryExecutor = recoveryExecutor;
     }
 
     public void enrichImportPlaces(Long importId) {
@@ -61,14 +95,32 @@ public class PlaceImageEnrichmentService {
                 .toList();
         placeRepository.findAllById(placeIds).stream()
                 .filter(this::needsEnrichment)
-                .forEach(this::enrich);
+                .forEach(this::enrichWithLock);
     }
 
     public boolean enrichPlace(Long placeId) {
-        return placeRepository.findById(placeId)
-                .filter(this::needsEnrichment)
-                .map(this::enrich)
-                .orElse(true);
+        if (!inFlightPlaces.add(placeId)) {
+            return true;
+        }
+        try {
+            return placeRepository.findById(placeId)
+                    .filter(this::needsEnrichment)
+                    .map(this::enrich)
+                    .orElse(true);
+        } finally {
+            inFlightPlaces.remove(placeId);
+        }
+    }
+
+    private boolean enrichWithLock(Place place) {
+        if (!inFlightPlaces.add(place.getId())) {
+            return true;
+        }
+        try {
+            return enrich(place);
+        } finally {
+            inFlightPlaces.remove(place.getId());
+        }
     }
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
@@ -78,7 +130,19 @@ public class PlaceImageEnrichmentService {
                         clock.instant().minus(properties.retryCooldown()),
                         PageRequest.of(0, 20)
                 )
-                .forEach(backlog -> enrichPlace(backlog.getPlaceId()));
+                .forEach(backlog -> submitRecovery(backlog.getPlaceId()));
+    }
+
+    private void submitRecovery(Long placeId) {
+        try {
+            recoveryExecutor.execute(() -> enrichPlace(placeId));
+        } catch (RejectedExecutionException exception) {
+            logger.warn(
+                    "Place image recovery dispatch rejected: placeId={}, cause={}",
+                    placeId,
+                    exception.getClass().getSimpleName()
+            );
+        }
     }
 
     public void recordImportDispatchFailure(Long importId) {
