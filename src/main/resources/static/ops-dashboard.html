@@ -55,7 +55,7 @@
   </style>
 </head>
 <body>
-  <header><div class="head"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 대시보드</h1><p class="sub">장소 추출·콘텐츠·이미지 상태를 확인하고 필요한 작업만 재처리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><form method="post" action="/ops/logout"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
+  <header><div class="head"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 대시보드</h1><p class="sub">장소 추출·콘텐츠·이미지 상태를 확인하고 필요한 작업만 재처리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
   <main>
     <p id="status" class="status"></p>
     <div id="cards" class="cards"></div>
@@ -81,11 +81,14 @@
     function setStatus(message, kind) { $("status").textContent = message || ""; $("status").className = "status" + (kind ? " " + kind : ""); }
     async function api(path, options) {
       const headers = Object.assign({Accept:"application/json"}, (options && options.headers) || {});
+      const method = (options && options.method || "GET").toUpperCase();
+      if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-XSRF-TOKEN"] = csrfToken();
       const response = await fetch(path, Object.assign({credentials:"same-origin"}, options || {}, {headers}));
       const text = await response.text(); let body = null; if (text) { try { body = JSON.parse(text); } catch (e) { body = text; } }
       if (!response.ok) throw new Error(body && body.message ? body.message : "요청에 실패했습니다."); return body;
     }
     function text(value) { return value == null || value === "" ? "-" : String(value); }
+    function csrfToken() { const value=document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || ""; return decodeURIComponent(value); }
     function badge(value) { const span = document.createElement("span"); span.className = "badge" + (value === "FAILED" ? " failed" : value === "PUBLIC" || value === "COMPLETED" ? " ok" : value === "PENDING" ? " pending" : ""); span.textContent = text(value); return span; }
     function cell(value, className) { const td = document.createElement("td"); if (className) td.className = className; td.textContent = text(value); return td; }
     function empty(tbody, colspan, message) { tbody.replaceChildren(); const tr=document.createElement("tr"); const td=document.createElement("td"); td.colSpan=colspan; td.className="empty"; td.textContent=message; tr.appendChild(td); tbody.appendChild(tr); }
@@ -104,6 +107,7 @@
     function wire(kind,load){$(kind+"-refresh").onclick=()=>load();$(kind+"-prev").onclick=()=>{if(state[kind].page>0){state[kind].page--;load();}};$(kind+"-next").onclick=()=>{if(state[kind].hasNext){state[kind].page++;load();}};}
     wire("imports",loadImports);wire("contents",loadContents);wire("images",loadImages);$("imports-search").onclick=()=>{state.imports.page=0;loadImports();};$("contents-search").onclick=()=>{state.contents.page=0;loadContents();};$("image-kind").onchange=()=>{state.images.page=0;loadImages();};$("detail-close").onclick=()=>$("detail").close();
     $("marketing-form").addEventListener("submit",sendMarketingNotification);
+    document.querySelectorAll('form[action="/ops/logout"] input[name="_csrf"]').forEach(input => input.value = csrfToken());
     Promise.all([loadOverview(),loadImports(),loadContents(),loadImages()]).catch(error=>setStatus(error.message,"error"));
   </script>
 </body>

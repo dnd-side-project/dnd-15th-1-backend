@@ -16,6 +16,8 @@ import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.http.MediaType;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -30,11 +32,17 @@ public class OpsSecurityConfig {
     };
 
     @Bean
+    public CsrfTokenRepository opsCsrfTokenRepository() {
+        return CookieCsrfTokenRepository.withHttpOnlyFalse();
+    }
+
+    @Bean
     @Order(0)
     public SecurityFilterChain opsSecurityFilterChain(
             HttpSecurity http,
             OpsAccessProperties properties,
-            ObjectProvider<PasswordEncoder> passwordEncoders
+            ObjectProvider<PasswordEncoder> passwordEncoders,
+            CsrfTokenRepository csrfTokenRepository
     ) throws Exception {
         PasswordEncoder encoder = passwordEncoders.getIfAvailable(BCryptPasswordEncoder::new);
         UserDetailsService opsUsers = new InMemoryUserDetailsManager(
@@ -58,7 +66,9 @@ public class OpsSecurityConfig {
         };
         return http
                 .securityMatcher(OPS_PATHS)
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf
+                        .csrfTokenRepository(csrfTokenRepository)
+                )
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )

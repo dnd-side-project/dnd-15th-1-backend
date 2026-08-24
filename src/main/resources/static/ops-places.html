@@ -131,6 +131,7 @@
       <div style="display:flex; gap:8px; align-items:center;">
         <a class="logout" href="/ops" style="text-decoration:none;">대시보드</a>
         <form method="post" action="/ops/logout">
+          <input type="hidden" name="_csrf">
           <button class="logout" type="submit">로그아웃</button>
         </form>
       </div>
@@ -189,6 +190,8 @@
 
     async function api(path, options) {
       const headers = Object.assign({ Accept: "application/json" }, (options && options.headers) || {});
+      const method = (options && options.method || "GET").toUpperCase();
+      if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-XSRF-TOKEN"] = csrfToken();
       const response = await fetch(path, Object.assign({ credentials: "same-origin" }, options, { headers: headers }));
       const text = await response.text();
       let body = null;
@@ -200,6 +203,8 @@
       }
       return body;
     }
+    function csrfToken() { const value=document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || ""; return decodeURIComponent(value); }
+    document.querySelectorAll('form[action="/ops/logout"] input[name="_csrf"]').forEach(input => input.value = csrfToken());
 
     function renderPager(data) {
       const page = Number.isFinite(data && data.page) ? data.page : state.page;
