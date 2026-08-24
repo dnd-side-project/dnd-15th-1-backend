@@ -192,6 +192,7 @@ public class PlaceImportProcessingService {
                         () -> verifyCachedOrExternal(place), verificationExecutor
                 ))
                 .toList();
+        waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (int index = 0; index < extracted.size(); index++) {
             PlaceVerificationResult verification = awaitVerification(futures.get(index));
@@ -205,6 +206,14 @@ public class PlaceImportProcessingService {
             }
         }
         return candidates;
+    }
+
+    private void waitForAllVerifications(List<CompletableFuture<PlaceVerificationResult>> futures) {
+        try {
+            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+        } catch (CompletionException ignored) {
+            // Preserve the original exception while ensuring sibling tasks have finished.
+        }
     }
 
     private PlaceVerificationResult awaitVerification(

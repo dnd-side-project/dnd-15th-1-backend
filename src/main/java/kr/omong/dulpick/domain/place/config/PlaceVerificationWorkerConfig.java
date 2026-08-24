@@ -15,9 +15,11 @@ public class PlaceVerificationWorkerConfig {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setCorePoolSize(properties.verificationConcurrency());
         executor.setMaxPoolSize(properties.verificationConcurrency());
-        executor.setQueueCapacity(properties.maxCandidates());
+        executor.setQueueCapacity(properties.workerConcurrency() * properties.maxCandidates());
         executor.setThreadNamePrefix("place-verification-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        executor.setAwaitTerminationSeconds(1);
         executor.initialize();
         return executor;
     }

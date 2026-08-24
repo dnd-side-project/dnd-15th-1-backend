@@ -40,6 +40,31 @@ final class KakaoPlaceMatcher {
         return !addressKeys(addressHint).isEmpty();
     }
 
+    boolean hasDefinitiveMatch(
+            ExtractedPlace extractedPlace,
+            List<PlaceSearchResult> results
+    ) {
+        return results.stream().anyMatch(result -> isDefinitiveMatch(extractedPlace, result));
+    }
+
+    private boolean isDefinitiveMatch(
+            ExtractedPlace extractedPlace,
+            PlaceSearchResult result
+    ) {
+        String addressHint = extractedPlace.addressHint();
+        String resultAddress = resultAddress(result);
+        if (hasAdministrativeConflict(addressHint, resultAddress)) {
+            return false;
+        }
+        if (nameQuality(extractedPlace.name(), result.name()) != NameQuality.EXACT) {
+            return false;
+        }
+        if (!hasPreciseAddress(addressHint)) {
+            return true;
+        }
+        return addressQuality(addressHint, resultAddress) == AddressQuality.EXACT;
+    }
+
     private Optional<MatchedPlace> match(
             ExtractedPlace extractedPlace,
             PlaceSearchResult result

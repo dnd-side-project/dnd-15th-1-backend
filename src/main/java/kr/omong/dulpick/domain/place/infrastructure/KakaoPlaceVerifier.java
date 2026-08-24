@@ -71,7 +71,12 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
     private List<PlaceSearchResult> searchCandidates(ExtractedPlace extractedPlace) {
         Map<String, PlaceSearchResult> results = new LinkedHashMap<>();
         Set<String> searchedQueries = new LinkedHashSet<>();
-        searchAndAdd(results, searchedQueries, query(extractedPlace));
+        List<PlaceSearchResult> primaryResults = searchAndAdd(
+                results, searchedQueries, query(extractedPlace)
+        );
+        if (placeMatcher.hasDefinitiveMatch(extractedPlace, primaryResults)) {
+            return primaryResults;
+        }
         if (extractedPlace.addressHint() != null && !extractedPlace.addressHint().isBlank()) {
             searchAndAdd(
                     results,
