@@ -10,20 +10,39 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 final class PublicContentDeduplicator {
 
     private PublicContentDeduplicator() {
     }
 
-    static List<Content> deduplicate(Collection<Content> contents) {
-        Map<String, Content> uniqueContents = new LinkedHashMap<>();
-        contents.forEach(content -> uniqueContents.merge(
-                identityOf(content),
-                content,
-                PublicContentDeduplicator::prefer
-        ));
-        return uniqueContents.values().stream().toList();
+    static Result deduplicate(Collection<Content> contents) {
+        Map<String, List<Content>> groups = contents.stream()
+                .collect(Collectors.groupingBy(
+                        PublicContentDeduplicator::identityOf,
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+        Map<Long, List<Long>> sourceIdsByRepresentative = new LinkedHashMap<>();
+        List<Content> representatives = groups.values().stream()
+                .map(group -> representative(group, sourceIdsByRepresentative))
+                .toList();
+        return new Result(representatives, sourceIdsByRepresentative);
+    }
+
+    private static Content representative(
+            List<Content> group,
+            Map<Long, List<Long>> sourceIdsByRepresentative
+    ) {
+        Content representative = group.stream()
+                .reduce(PublicContentDeduplicator::prefer)
+                .orElseThrow();
+        sourceIdsByRepresentative.put(
+                representative.getId(),
+                group.stream().map(Content::getId).toList()
+        );
+        return representative;
     }
 
     private static Content prefer(Content first, Content second) {
@@ -120,5 +139,11 @@ final class PublicContentDeduplicator {
             result = createdAt.compareTo(other.createdAt);
             return result != 0 ? result : Long.compare(id, other.id);
         }
+    }
+
+    record Result(
+            List<Content> contents,
+            Map<Long, List<Long>> sourceIdsByRepresentative
+    ) {
     }
 }

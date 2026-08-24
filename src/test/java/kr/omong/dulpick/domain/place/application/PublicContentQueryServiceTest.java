@@ -184,10 +184,13 @@ class PublicContentQueryServiceTest {
         when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
                 ContentPublicationStatus.PUBLIC
         )).thenReturn(List.of(reel, post));
-        stubPlaces(List.of(contentPlace(11L, 20L)), List.of(place(20L)));
+        stubPlaces(
+                List.of(contentPlace(10L, 21L), contentPlace(11L, 20L)),
+                List.of(place(21L), place(20L))
+        );
         when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
         when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
-                .thenReturn(saveCounts(row(20L, 1L)));
+                .thenReturn(saveCounts(row(20L, 1L), row(21L, 1L)));
         when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
                 .thenReturn(List.of());
 
@@ -199,6 +202,10 @@ class PublicContentQueryServiceTest {
 
         assertThat(result.getContent()).extracting(PublicContentView::contentId)
                 .containsExactly(11L);
+        assertThat(result.getContent().getFirst().places())
+                .extracting(PublicPlaceView::placeId)
+                .containsExactlyInAnyOrder(20L, 21L);
+        assertThat(result.getContent().getFirst().placeCount()).isEqualTo(2);
     }
 
     @Test
@@ -209,12 +216,11 @@ class PublicContentQueryServiceTest {
         when(reel.getCanonicalUrl()).thenReturn("https://www.instagram.com/reel/DcNY1IPT5Yg");
         when(post.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_POST);
         when(post.getCanonicalUrl()).thenReturn("https://www.instagram.com/p/DcNY1IPT5Yg");
-        PageRequest pageable = PageRequest.of(0, 20);
-        when(contentRepository.searchByPublicationStatusAndKeyword(
+        PageRequest pageable = PageRequest.of(0, 1);
+        when(contentRepository.searchAllByPublicationStatusAndKeyword(
                 ContentPublicationStatus.PUBLIC.name(),
-                "+데이트",
-                pageable
-        )).thenReturn(new PageImpl<>(List.of(reel, post), pageable, 2));
+                "+데이트"
+        )).thenReturn(List.of(reel, post));
         when(contentPlaceRepository.findAllByContentIdIn(List.of(11L))).thenReturn(List.of());
         when(placeRepository.findAllById(List.of())).thenReturn(List.of());
 
@@ -227,17 +233,25 @@ class PublicContentQueryServiceTest {
         assertThat(result.getContent()).extracting(PublicContentView::contentId)
                 .containsExactly(11L);
         assertThat(result.getTotalElements()).isEqualTo(1);
+
+        Page<PublicContentView> secondPage = service.searchPublicContents(
+                1L,
+                " 데이트 ",
+                PageRequest.of(1, 1)
+        );
+
+        assertThat(secondPage.getContent()).isEmpty();
+        assertThat(secondPage.getTotalElements()).isEqualTo(1);
     }
 
     @Test
     void searchesOnlyPublicContentTitleAndBodyWithStablePaging() {
         Content content = content(10L);
         PageRequest expectedPage = PageRequest.of(0, 20);
-        when(contentRepository.searchByPublicationStatusAndKeyword(
+        when(contentRepository.searchAllByPublicationStatusAndKeyword(
                 ContentPublicationStatus.PUBLIC.name(),
-                "+서울 +데이트",
-                expectedPage
-        )).thenReturn(new PageImpl<>(List.of(content), expectedPage, 1));
+                "+서울 +데이트"
+        )).thenReturn(List.of(content));
         when(contentPlaceRepository.findAllByContentIdIn(List.of(10L))).thenReturn(List.of());
         when(placeRepository.findAllById(List.of())).thenReturn(List.of());
 
@@ -247,10 +261,9 @@ class PublicContentQueryServiceTest {
                 PageRequest.of(0, 20)
         );
 
-        verify(contentRepository).searchByPublicationStatusAndKeyword(
+        verify(contentRepository).searchAllByPublicationStatusAndKeyword(
                 ContentPublicationStatus.PUBLIC.name(),
-                "+서울 +데이트",
-                expectedPage
+                "+서울 +데이트"
         );
     }
 
@@ -272,9 +285,8 @@ class PublicContentQueryServiceTest {
         PageRequest pageable = PageRequest.of(0, 20);
         when(contentRepository.findAllByPlaceIdAndPublicationStatus(
                 eq(20L),
-                eq(ContentPublicationStatus.PUBLIC),
-                any()
-        )).thenReturn(new PageImpl<>(List.of(linked), pageable, 1));
+                eq(ContentPublicationStatus.PUBLIC)
+        )).thenReturn(List.of(linked));
         stubPlaces(List.of(contentPlace(10L, 20L)), List.of(place(20L)));
         when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
         when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))

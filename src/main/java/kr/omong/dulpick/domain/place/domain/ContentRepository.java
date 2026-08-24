@@ -54,6 +54,23 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
             Pageable pageable
     );
 
+    @Query("""
+            SELECT content
+            FROM Content content
+            WHERE content.publicationStatus = :status
+              AND EXISTS (
+                    SELECT 1
+                    FROM ContentPlace contentPlace
+                    WHERE contentPlace.contentId = content.id
+                      AND contentPlace.placeId = :placeId
+              )
+            ORDER BY content.createdAt DESC, content.id DESC
+            """)
+    List<Content> findAllByPlaceIdAndPublicationStatus(
+            @Param("placeId") Long placeId,
+            @Param("status") ContentPublicationStatus status
+    );
+
     Page<Content> findAllByPublicationStatus(ContentPublicationStatus status, Pageable pageable);
 
     @Query(
@@ -76,6 +93,21 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
             @Param("status") String status,
             @Param("query") String query,
             Pageable pageable
+    );
+
+    @Query(
+            value = """
+                    SELECT *
+                    FROM contents
+                    WHERE publication_status = :status
+                      AND MATCH(title, content) AGAINST(:query IN BOOLEAN MODE)
+                    ORDER BY created_at DESC, id DESC
+                    """,
+            nativeQuery = true
+    )
+    List<Content> searchAllByPublicationStatusAndKeyword(
+            @Param("status") String status,
+            @Param("query") String query
     );
 
     @Modifying
