@@ -1,6 +1,8 @@
 package kr.omong.dulpick.domain.place.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -35,7 +37,10 @@ public class ContentImageController {
     })
     @SecurityRequirements
     @GetMapping("/{imageKey}")
-    public ResponseEntity<byte[]> findImage(@PathVariable String imageKey) {
+    public ResponseEntity<byte[]> findImage(
+            @Parameter(description = "게시글 이미지 고유 키", example = "550e8400-e29b-41d4-a716-446655440000")
+            @PathVariable @Schema(example = "550e8400-e29b-41d4-a716-446655440000") String imageKey
+    ) {
         ContentImageStorageService.StoredImage image = imageStorageService.load(imageKey);
         return ResponseEntity.ok()
                 .contentType(image.contentType())

@@ -55,7 +55,7 @@ jobs:
         run: >-
           JWT_SECRET="$(openssl rand -base64 48)"
           PROVIDER_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)"
-          ./gradlew clean build --no-daemon --info
+          ./gradlew clean build --no-daemon
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/dulpick_test?serverTimezone=UTC&characterEncoding=UTF-8
           SPRING_DATASOURCE_USERNAME: dulpick
