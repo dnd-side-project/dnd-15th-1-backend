@@ -32,8 +32,11 @@ class ContentImageBackfillServiceTest {
         ContentImageStorageService imageStorageService = mock(ContentImageStorageService.class);
         Content content = content(10L);
         when(contentRepository.findAllBySourceTypeInOrderByIdAsc(any())).thenReturn(List.of(content));
-        when(metadataProvider.fetch(content.getCanonicalUrl(), content.getSourceType()))
-                .thenReturn(metadata());
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl()))
+                .thenReturn(List.of(
+                        "https://scontent.cdninstagram.com/first.jpg",
+                        "https://scontent.cdninstagram.com/second.jpg"
+                ));
         ContentImage storedImage = ContentImage.create(
                         10L,
                         "https://scontent.cdninstagram.com/first.jpg",
@@ -61,28 +64,6 @@ class ContentImageBackfillServiceTest {
                 "https://scontent.cdninstagram.com/first.jpg",
                 "https://scontent.cdninstagram.com/second.jpg"
         )));
-    }
-
-    private ContentMetadata metadata() {
-        return new ContentMetadata(
-                "https://www.instagram.com/reel/example-10",
-                ContentSourceType.INSTAGRAM_REEL,
-                "title",
-                "caption",
-                "https://scontent.cdninstagram.com/first.jpg",
-                "content-hash",
-                NOW,
-                null,
-                null,
-                null,
-                null,
-                null,
-                NOW,
-                List.of(
-                        "https://scontent.cdninstagram.com/first.jpg",
-                        "https://scontent.cdninstagram.com/second.jpg"
-                )
-        );
     }
 
     private Content content(Long id) {

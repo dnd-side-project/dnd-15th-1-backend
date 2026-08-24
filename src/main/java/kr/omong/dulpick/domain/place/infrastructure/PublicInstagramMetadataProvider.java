@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
 @Component
 public class PublicInstagramMetadataProvider implements ContentMetadataProvider {
 
-    private static final int MAX_HTML_BYTES = 1_000_000;
+    private static final int MAX_HTML_BYTES = 2_000_000;
     private static final int MAX_REDIRECTS = 4;
     private static final Pattern TITLE = Pattern.compile(
             "<meta[^>]+property=[\\\"']og:title[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
@@ -128,6 +128,16 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
                     clock.instant(),
                     imageUrls
             );
+        } catch (RestClientException exception) {
+            throw new MetadataUnavailableException(exception);
+        }
+    }
+
+    public List<String> fetchImageUrls(String canonicalUrl) {
+        try {
+            return extractImageUrls(fetchFollowingRedirects(canonicalUrl)).stream()
+                    .limit(properties.maxImages())
+                    .toList();
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);
         }

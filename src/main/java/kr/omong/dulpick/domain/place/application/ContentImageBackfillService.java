@@ -67,11 +67,8 @@ public class ContentImageBackfillService {
         List<String> imageUrls = new ArrayList<>();
         addIfPresent(imageUrls, content.getThumbnailUrl());
         try {
-            ContentMetadata metadata = metadataProvider.fetch(
-                    content.getCanonicalUrl(),
-                    content.getSourceType()
-            );
-            metadata.imageUrls().forEach(url -> addIfPresent(imageUrls, url));
+            metadataProvider.fetchImageUrls(content.getCanonicalUrl())
+                    .forEach(url -> addIfPresent(imageUrls, url));
         } catch (RuntimeException exception) {
             logger.warn(
                     "Instagram image metadata backfill failed: contentId={}, cause={}",
