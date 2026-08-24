@@ -83,7 +83,7 @@ public class ContentImageBackfillService {
             return false;
         }
         try {
-            imageStorageService.storeIfAvailable(content, imageUrls);
+            imageStorageService.refreshExistingIfAvailable(content, imageUrls);
             return hasStoredImage(content.getId());
         } catch (RuntimeException exception) {
             logger.warn(

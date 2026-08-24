@@ -25,7 +25,7 @@ class ContentImageBackfillServiceTest {
     private static final Instant NOW = Instant.parse("2026-08-24T00:00:00Z");
 
     @Test
-    void refetchesInstagramMetadataAndStoresAllDiscoveredImages() {
+    void refetchesInstagramMetadataAndRefreshesExistingImageKeys() {
         ContentRepository contentRepository = mock(ContentRepository.class);
         ContentImageRepository imageRepository = mock(ContentImageRepository.class);
         PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
@@ -59,7 +59,7 @@ class ContentImageBackfillServiceTest {
         ContentImageBackfillService.Result result = service.backfill();
 
         assertThat(result).isEqualTo(new ContentImageBackfillService.Result(1, 1, 0));
-        verify(imageStorageService).storeIfAvailable(eq(content), eq(List.of(
+        verify(imageStorageService).refreshExistingIfAvailable(eq(content), eq(List.of(
                 "https://scontent.cdninstagram.com/first.jpg",
                 "https://scontent.cdninstagram.com/second.jpg"
         )));

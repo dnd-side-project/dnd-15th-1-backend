@@ -134,6 +134,34 @@ class ContentImageStorageServiceTest {
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
 
+    @Test
+    void refreshesExistingImageKeyWithoutCreatingAnotherImage() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(13L);
+        ContentImage image = ContentImage.create(
+                13L,
+                "https://scontent.cdninstagram.com/expired.jpg",
+                "expired-hash",
+                0,
+                NOW
+        );
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(13L)).thenReturn(List.of(image));
+        when(downloader.download("https://scontent.cdninstagram.com/fresh.jpg"))
+                .thenReturn(downloaded("fresh"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.refreshExistingIfAvailable(content, List.of("https://scontent.cdninstagram.com/fresh.jpg"));
+
+        verify(imageRepository).saveAll(List.of(image));
+        assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
+        assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,

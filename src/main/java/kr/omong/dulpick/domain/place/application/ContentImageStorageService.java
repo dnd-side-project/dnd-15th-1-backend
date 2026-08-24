@@ -99,6 +99,47 @@ public class ContentImageStorageService {
     }
 
     @Transactional
+    public void refreshExistingIfAvailable(Content content, List<String> sourceUrls) {
+        if (content == null || !isInstagramContent(content) || sourceUrls == null) {
+            return;
+        }
+        List<String> imageUrls = sourceUrls.stream()
+                .filter(url -> url != null && !url.isBlank())
+                .distinct()
+                .limit(properties.maxImages())
+                .toList();
+        if (imageUrls.isEmpty()) {
+            return;
+        }
+        List<ContentImage> existingImages = imageRepository
+                .findAllByContentIdOrderByDisplayOrderAsc(content.getId());
+        if (existingImages.isEmpty()) {
+            storeIfAvailable(content, imageUrls);
+            return;
+        }
+        for (ContentImage image : existingImages) {
+            if (hasStoredFile(image)) {
+                continue;
+            }
+            String freshUrl = selectFreshUrl(imageUrls, image.getDisplayOrder());
+            if (freshUrl == null) {
+                continue;
+            }
+            try {
+                downloadAndStore(image, freshUrl);
+            } catch (RuntimeException exception) {
+                logger.warn(
+                        "Content image refresh failed: contentId={}, imageKey={}, cause={}",
+                        content.getId(),
+                        image.getImageKey(),
+                        exception.getClass().getSimpleName()
+                );
+            }
+        }
+        imageRepository.saveAll(existingImages);
+    }
+
+    @Transactional
     public StoredImage load(String imageKey) {
         ContentImage image = imageRepository.findById(imageKey)
                 .orElseThrow(PublicContentImageUnavailableException::new);
