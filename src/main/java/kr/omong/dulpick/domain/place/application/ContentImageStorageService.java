@@ -8,6 +8,7 @@ import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
+import kr.omong.dulpick.domain.place.infrastructure.PublicInstagramMetadataProvider;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ public class ContentImageStorageService {
     private final ContentImageRepository imageRepository;
     private final ContentRepository contentRepository;
     private final ContentThumbnailDownloader downloader;
+    private final PublicInstagramMetadataProvider metadataProvider;
     private final ContentThumbnailProperties properties;
     private final Clock clock;
     private final Path storageDirectory;
@@ -44,12 +46,14 @@ public class ContentImageStorageService {
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,
             @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
+            PublicInstagramMetadataProvider metadataProvider,
             ContentThumbnailProperties properties,
             Clock clock
     ) {
         this.imageRepository = imageRepository;
         this.contentRepository = contentRepository;
         this.downloader = downloader;
+        this.metadataProvider = metadataProvider;
         this.properties = properties;
         this.clock = clock;
         this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
@@ -98,19 +102,57 @@ public class ContentImageStorageService {
     public StoredImage load(String imageKey) {
         ContentImage image = imageRepository.findById(imageKey)
                 .orElseThrow(PublicContentImageUnavailableException::new);
-        contentRepository.findByIdAndPublicationStatus(image.getContentId(), ContentPublicationStatus.PUBLIC)
+        Content content = contentRepository.findByIdAndPublicationStatus(
+                        image.getContentId(), ContentPublicationStatus.PUBLIC
+                )
                 .orElseThrow(PublicContentImageUnavailableException::new);
         try {
             if (hasStoredFile(image)) {
                 return read(image);
             }
-            ContentThumbnailDownloader.DownloadedThumbnail downloaded = downloader.download(image.getSourceUrl());
-            write(image.getStorageKey(), downloaded.bytes());
-            image.markStored(downloaded.contentType().toString(), clock.instant());
-            return new StoredImage(downloaded.bytes(), downloaded.contentType());
+            return downloadAndStore(image, image.getSourceUrl());
         } catch (IOException | RuntimeException exception) {
+            return refreshFromOriginalContent(content, image, exception);
+        }
+    }
+
+    private StoredImage refreshFromOriginalContent(
+            Content content,
+            ContentImage image,
+            Throwable originalFailure
+    ) {
+        if (!isInstagramContent(content)) {
+            throw new PublicContentImageUnavailableException(originalFailure);
+        }
+        try {
+            List<String> freshUrls = metadataProvider.fetchImageUrls(content.getCanonicalUrl());
+            String freshUrl = selectFreshUrl(freshUrls, image.getDisplayOrder());
+            if (freshUrl == null) {
+                throw new PublicContentImageUnavailableException(originalFailure);
+            }
+            return downloadAndStore(image, freshUrl);
+        } catch (RuntimeException exception) {
             throw new PublicContentImageUnavailableException(exception);
         }
+    }
+
+    private String selectFreshUrl(List<String> freshUrls, int displayOrder) {
+        List<String> availableUrls = freshUrls == null
+                ? List.of()
+                : freshUrls.stream().filter(url -> url != null && !url.isBlank()).toList();
+        if (availableUrls.isEmpty()) {
+            return null;
+        }
+        return availableUrls.get(Math.min(Math.max(displayOrder, 0), availableUrls.size() - 1));
+    }
+
+    private StoredImage downloadAndStore(ContentImage image, String sourceUrl) {
+        ContentThumbnailDownloader.DownloadedThumbnail downloaded = downloader.download(sourceUrl);
+        write(image.getStorageKey(), downloaded.bytes());
+        Instant now = clock.instant();
+        image.replaceSource(sourceUrl, Sha256.hex(sourceUrl), now);
+        image.markStored(downloaded.contentType().toString(), now);
+        return new StoredImage(downloaded.bytes(), downloaded.contentType());
     }
 
     private ContentImage saveImage(

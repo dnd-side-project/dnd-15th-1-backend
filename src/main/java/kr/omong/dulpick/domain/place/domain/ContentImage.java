@@ -75,6 +75,12 @@ public class ContentImage {
         this.updatedAt = now;
     }
 
+    public void replaceSource(String sourceUrl, String sourceUrlHash, Instant now) {
+        this.sourceUrl = sourceUrl;
+        this.sourceUrlHash = sourceUrlHash;
+        this.updatedAt = now;
+    }
+
     public void markStored(String contentType, Instant now) {
         this.contentType = contentType;
         this.updatedAt = now;
@@ -102,5 +108,9 @@ public class ContentImage {
 
     public String getContentType() {
         return contentType;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
     }
 }
