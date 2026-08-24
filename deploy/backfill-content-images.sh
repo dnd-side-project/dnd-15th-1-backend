@@ -51,7 +51,7 @@ docker run --rm \
     --network "${DOCKER_NETWORK}" \
     --env-file "${ENV_FILE}" \
     --env SPRING_PROFILES_ACTIVE=prod \
-    --env SPRING_MAIN_WEB_APPLICATION_TYPE=none \
+    --env SERVER_PORT=0 \
     --env CONTENT_IMAGE_BACKFILL_ENABLED=true \
     --env CONTENT_THUMBNAIL_STORAGE_PATH=/var/lib/dulpick/content-images \
     "${secret_volumes[@]}" \
