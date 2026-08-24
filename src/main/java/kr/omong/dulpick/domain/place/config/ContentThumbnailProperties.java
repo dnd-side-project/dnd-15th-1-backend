@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.config;
 
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("content.thumbnail")
@@ -11,6 +12,7 @@ public record ContentThumbnailProperties(
         int maxImages
 ) {
 
+    @ConstructorBinding
     public ContentThumbnailProperties {
         baseUrl = normalizeBaseUrl(baseUrl);
         if (storagePath == null || storagePath.isBlank()) {

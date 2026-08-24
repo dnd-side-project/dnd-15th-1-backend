@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.config;
 
+import org.springframework.boot.context.properties.bind.ConstructorBinding;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("instagram.metadata")
@@ -13,6 +14,7 @@ public record InstagramProperties(
         int maxImages
 ) {
 
+    @ConstructorBinding
     public InstagramProperties {
         if (baseUrl == null || baseUrl.isBlank()) {
             baseUrl = "https://graph.facebook.com";
