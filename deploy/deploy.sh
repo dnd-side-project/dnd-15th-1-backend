@@ -53,7 +53,7 @@ prepare_secret_permissions() {
         "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
     )
 
-    chmod 400 "${APPLE_PRIVATE_KEY_FILE}"
+    ensure_secret_permissions "${APPLE_PRIVATE_KEY_FILE}"
     mkdir -p "${CONTENT_IMAGE_DIR}"
     docker run --rm \
         --user root \
@@ -63,7 +63,7 @@ prepare_secret_permissions() {
         spring:spring \
         /var/lib/dulpick/content-images
     if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
-        chmod 400 "${FIREBASE_CREDENTIALS_FILE}"
+        ensure_secret_permissions "${FIREBASE_CREDENTIALS_FILE}"
         secret_paths+=("/run/secrets/firebase-service-account.json")
     fi
 
@@ -74,6 +74,16 @@ prepare_secret_permissions() {
         "${image}" \
         spring:spring \
         "${secret_paths[@]}"
+}
+
+ensure_secret_permissions() {
+    local secret_path="$1"
+    local mode
+
+    mode="$(stat -c '%a' "${secret_path}")"
+    if [[ "${mode}" != "400" ]]; then
+        chmod 400 "${secret_path}"
+    fi
 }
 
 run_container() {
