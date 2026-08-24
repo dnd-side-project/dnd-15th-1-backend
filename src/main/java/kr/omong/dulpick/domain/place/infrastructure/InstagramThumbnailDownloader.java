@@ -31,7 +31,6 @@ final class InstagramThumbnailDownloader implements ContentThumbnailDownloader {
     private final HostAddressResolver addressResolver;
     private final RestClient restClient;
 
-    @Autowired
     InstagramThumbnailDownloader(
             ContentThumbnailProperties properties,
             HostAddressResolver addressResolver,
@@ -42,6 +41,7 @@ final class InstagramThumbnailDownloader implements ContentThumbnailDownloader {
         this.restClient = restClientBuilder.build();
     }
 
+    @Autowired
     public InstagramThumbnailDownloader(
             ContentThumbnailProperties properties,
             HostAddressResolver addressResolver
