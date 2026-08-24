@@ -66,5 +66,11 @@ class DulpickPlaceCategoryTest {
                 .isEqualTo(DulpickPlaceCategory.SHOPPING);
         assertThat(DulpickPlaceCategory.fromKakao(null, "문화,예술 > 음악 > 음악감상실"))
                 .isEqualTo(DulpickPlaceCategory.ENTERTAINMENT);
+        assertThat(DulpickPlaceCategory.fromKakao(null, "가정,생활 > 생활용품점 > 인테리어장식판매"))
+                .isEqualTo(DulpickPlaceCategory.SHOPPING);
+        assertThat(DulpickPlaceCategory.fromKakao(null, "가정,생활 > 패션 > 의류판매"))
+                .isEqualTo(DulpickPlaceCategory.SHOPPING);
+        assertThat(DulpickPlaceCategory.fromKakao(null, "가정,생활 > 식품판매 > 아이스크림판매"))
+                .isEqualTo(DulpickPlaceCategory.CAFE);
     }
 }
