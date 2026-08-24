@@ -97,8 +97,8 @@ a {
   width: 24px;
   height: 24px;
   content: "";
-  background: var(--coral);
-  border-radius: 9px 9px 9px 3px;
+  background: url("/assets/logo_app.png") center / cover no-repeat;
+  border-radius: 7px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
@@ -771,8 +771,8 @@ a {
   width: 26px;
   height: 26px;
   content: "";
-  background: var(--coral);
-  border-radius: 9px 9px 9px 3px;
+  background: url("/assets/logo_app.png") center / cover no-repeat;
+  border-radius: 8px;
 }
 
 .invite-page .invite-badge {
