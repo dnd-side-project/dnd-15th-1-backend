@@ -207,6 +207,19 @@ public class Place {
                 : dulpickCategoryCode;
     }
 
+    public DulpickPlaceCategory getDulpickCategory(
+            String fallbackCategoryGroupCode,
+            String fallbackCategory
+    ) {
+        if (dulpickCategoryCode != null) {
+            return dulpickCategoryCode;
+        }
+        if (!DulpickPlaceCategory.isFallback(categoryGroupCode, category)) {
+            return DulpickPlaceCategory.fromKakao(categoryGroupCode, category);
+        }
+        return DulpickPlaceCategory.fromKakao(fallbackCategoryGroupCode, fallbackCategory);
+    }
+
     public String getPhone() {
         return phone;
     }
