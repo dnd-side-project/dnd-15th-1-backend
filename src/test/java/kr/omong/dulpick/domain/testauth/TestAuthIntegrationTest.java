@@ -35,6 +35,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -117,7 +118,7 @@ class TestAuthIntegrationTest {
     }
 
     @Test
-    void logsInCaseInsensitivelyAndReactivatesWithdrawnMember() throws Exception {
+    void logsInCaseInsensitivelyAsNewMemberAfterWithdrawal() throws Exception {
         String email = uniqueEmail("reactivate");
         signUp(email);
         Long memberId = credentialRepository.findByEmail(email)
@@ -131,14 +132,16 @@ class TestAuthIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(credentials(email.toUpperCase(), PASSWORD)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.memberId").value(memberId))
-                .andExpect(jsonPath("$.newMember").value(false))
+                .andExpect(jsonPath("$.memberId").value(not(memberId)))
+                .andExpect(jsonPath("$.newMember").value(true))
                 .andExpect(jsonPath("$.onboardingCompleted").value(false))
                 .andReturn();
 
         assertThat(accessToken(loginResult)).isNotBlank();
         assertThat(memberRepository.findById(memberId).orElseThrow().getStatus())
-                .isEqualTo(MemberStatus.ACTIVE);
+                .isEqualTo(MemberStatus.WITHDRAWN);
+        assertThat(credentialRepository.findByEmail(email).orElseThrow().getMember().getId())
+                .isNotEqualTo(memberId);
     }
 
     @Test
@@ -292,6 +295,8 @@ class TestAuthIntegrationTest {
                 .andExpect(jsonPath("$.paths['/api/v1/connection-codes/me'].get.responses['409'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/contents/{contentId}'].get.responses['404'].content['application/json']")
+                        .exists())
+                .andExpect(jsonPath("$.paths['/api/v1/places/{placeId}/contents'].get.responses['404'].content['application/json']")
                         .exists());
     }
 

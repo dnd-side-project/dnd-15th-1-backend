@@ -3,8 +3,11 @@ package kr.omong.dulpick.domain.place.application;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.MemberProfile;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
+import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentNotFoundException;
 import kr.omong.dulpick.domain.place.domain.Content;
+import kr.omong.dulpick.domain.place.domain.ContentImage;
+import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
@@ -41,6 +44,7 @@ public class PublicContentQueryService {
     private final PlaceClassificationRepository placeClassificationRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final MemberProfileRepository memberProfileRepository;
+    private final ContentImageRepository contentImageRepository;
 
     public PublicContentQueryService(
             ContentRepository contentRepository,
@@ -48,7 +52,8 @@ public class PublicContentQueryService {
             PlaceRepository placeRepository,
             PlaceClassificationRepository placeClassificationRepository,
             MemberPlaceRepository memberPlaceRepository,
-            MemberProfileRepository memberProfileRepository
+            MemberProfileRepository memberProfileRepository,
+            ContentImageRepository contentImageRepository
     ) {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
@@ -56,6 +61,7 @@ public class PublicContentQueryService {
         this.placeClassificationRepository = placeClassificationRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.memberProfileRepository = memberProfileRepository;
+        this.contentImageRepository = contentImageRepository;
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +78,23 @@ public class PublicContentQueryService {
                 sort
         );
         return enrichPage(memberId, slice(ranked, pageable), sort);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PublicContentView> findPublicContentsByPlaceId(
+            Long memberId,
+            Long placeId,
+            Pageable pageable
+    ) {
+        if (!placeRepository.existsById(placeId)) {
+            throw new PlaceNotFoundException();
+        }
+        Page<Content> contents = contentRepository.findAllByPlaceIdAndPublicationStatus(
+                placeId,
+                ContentPublicationStatus.PUBLIC,
+                paged(pageable)
+        );
+        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
     }
 
     @Transactional(readOnly = true)
@@ -130,6 +153,7 @@ public class PublicContentQueryService {
         Map<Long, List<Place>> placesByContent = findPlacesByContent(contentIds);
         Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
         Map<Long, Long> saveCounts = countSaves(placesByContent);
+        Map<Long, List<String>> imageKeysByContent = findImageKeysByContent(contentIds);
         Set<Long> savedPlaceIds = findSavedPlaceIds(memberId, placesByContent);
         DatePreferences preferences = requestedSort == ContentRecommendationSort.PREFERENCE
                 ? datePreferences(memberId)
@@ -141,6 +165,7 @@ public class PublicContentQueryService {
                 traitsByPlace,
                 savedPlaceIds,
                 saveCounts,
+                imageKeysByContent,
                 sort,
                 preferences
         ));
@@ -257,6 +282,7 @@ public class PublicContentQueryService {
             Map<Long, PlaceDateTraitsView> traitsByPlace,
             Set<Long> savedPlaceIds,
             Map<Long, Long> saveCounts,
+            Map<Long, List<String>> imageKeysByContent,
             ContentRecommendationSort sort,
             DatePreferences preferences
     ) {
@@ -277,6 +303,7 @@ public class PublicContentQueryService {
                 content.getTitle(),
                 content.getContent(),
                 content.getThumbnailUrl(),
+                imageKeysByContent.getOrDefault(content.getId(), List.of()),
                 content.getPlaceCount(),
                 places.stream()
                         .map(place -> toPlaceView(
@@ -286,6 +313,18 @@ public class PublicContentQueryService {
                         ))
                         .toList()
         );
+    }
+
+    private Map<Long, List<String>> findImageKeysByContent(List<Long> contentIds) {
+        if (contentIds.isEmpty()) {
+            return Map.of();
+        }
+        return contentImageRepository.findAllByContentIdInOrderByContentIdAscDisplayOrderAsc(contentIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        ContentImage::getContentId,
+                        Collectors.mapping(ContentImage::getImageKey, Collectors.toList())
+                ));
     }
 
     private List<Place> rankedPlaces(

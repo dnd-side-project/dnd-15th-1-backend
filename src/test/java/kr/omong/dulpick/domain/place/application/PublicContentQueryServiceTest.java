@@ -4,8 +4,10 @@ import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.MemberProfile;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
+import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentNotFoundException;
 import kr.omong.dulpick.domain.place.domain.Content;
+import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
@@ -31,6 +33,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -46,13 +49,15 @@ class PublicContentQueryServiceTest {
             mock(PlaceClassificationRepository.class);
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final MemberProfileRepository memberProfileRepository = mock(MemberProfileRepository.class);
+    private final ContentImageRepository contentImageRepository = mock(ContentImageRepository.class);
     private final PublicContentQueryService service = new PublicContentQueryService(
             contentRepository,
             contentPlaceRepository,
             placeRepository,
             placeClassificationRepository,
             memberPlaceRepository,
-            memberProfileRepository
+            memberProfileRepository,
+            contentImageRepository
     );
 
     @Test
@@ -200,6 +205,44 @@ class PublicContentQueryServiceTest {
 
         assertThatThrownBy(() -> service.findPublicContent(1L, 10L))
                 .isInstanceOf(PublicContentNotFoundException.class);
+    }
+
+    @Test
+    void returnsOnlyPublicContentsLinkedToPlace() {
+        Content linked = content(10L);
+        when(placeRepository.existsById(20L)).thenReturn(true);
+        PageRequest pageable = PageRequest.of(0, 20);
+        when(contentRepository.findAllByPlaceIdAndPublicationStatus(
+                eq(20L),
+                eq(ContentPublicationStatus.PUBLIC),
+                any()
+        )).thenReturn(new PageImpl<>(List.of(linked), pageable, 1));
+        stubPlaces(List.of(contentPlace(10L, 20L)), List.of(place(20L)));
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+
+        Page<PublicContentView> result = service.findPublicContentsByPlaceId(
+                1L,
+                20L,
+                pageable
+        );
+
+        assertThat(result.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(10L);
+    }
+
+    @Test
+    void rejectsUnknownPlaceWhenListingLinkedContents() {
+        when(placeRepository.existsById(99L)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.findPublicContentsByPlaceId(
+                1L,
+                99L,
+                PageRequest.of(0, 20)
+        )).isInstanceOf(PlaceNotFoundException.class);
     }
 
     private void stubPlaces(List<ContentPlace> relations, List<Place> places) {

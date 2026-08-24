@@ -22,6 +22,7 @@ import kr.omong.dulpick.domain.place.application.PlaceDetailQueryService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
+import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceSaveRequest;
@@ -30,6 +31,7 @@ import kr.omong.dulpick.domain.place.presentation.dto.response.MemberPlaceRespon
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceDetailResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSaveDeleteResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceSearchPageResponse;
+import kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse;
 import kr.omong.dulpick.domain.place.presentation.dto.response.WalkingRouteResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +41,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
 import kr.omong.dulpick.global.exception.ErrorResponse;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -64,19 +67,22 @@ public class PlaceController {
     private final PlaceDetailQueryService placeDetailQueryService;
     private final PlaceCommandService placeCommandService;
     private final PlaceWalkingRouteService placeWalkingRouteService;
+    private final PublicContentQueryService publicContentQueryService;
 
     public PlaceController(
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService,
             PlaceDetailQueryService placeDetailQueryService,
             PlaceCommandService placeCommandService,
-            PlaceWalkingRouteService placeWalkingRouteService
+            PlaceWalkingRouteService placeWalkingRouteService,
+            PublicContentQueryService publicContentQueryService
     ) {
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
         this.placeDetailQueryService = placeDetailQueryService;
         this.placeCommandService = placeCommandService;
         this.placeWalkingRouteService = placeWalkingRouteService;
+        this.publicContentQueryService = publicContentQueryService;
     }
 
     @Operation(
@@ -309,6 +315,47 @@ public class PlaceController {
                         memberId(jwt),
                         kakaoPlaceId,
                         query
+                )
+        ));
+    }
+
+    @Operation(
+            summary = "장소에 연결된 공개 게시물 조회",
+            description = "해당 장소가 포함된 공개 게시물을 최신순으로 조회합니다. "
+                    + "연결된 게시물이 없으면 빈 배열을 반환합니다."
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "장소에 연결된 공개 게시물 목록 조회 성공. 결과가 없으면 빈 배열을 반환합니다.",
+                    content = @Content(schema = @Schema(implementation = PublicContentPageResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "공용 장소를 찾을 수 없습니다",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/{placeId}/contents")
+    public ResponseEntity<PublicContentPageResponse> findPublicContentsByPlaceId(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "공용 장소 ID", required = true, example = "101")
+            @PathVariable @Schema(example = "101") Long placeId,
+            @Parameter(description = "0부터 시작하는 페이지 번호", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) @Schema(example = "0") int page,
+            @Parameter(description = "페이지당 게시물 수. 최대 50입니다.", example = "20")
+            @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
+    ) {
+        return ResponseEntity.ok(PublicContentPageResponse.from(
+                publicContentQueryService.findPublicContentsByPlaceId(
+                        memberId(jwt),
+                        placeId,
+                        PageRequest.of(page, size)
                 )
         ));
     }

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 public class SocialAccountService {
@@ -44,20 +45,22 @@ public class SocialAccountService {
             ProviderAuthorization providerAuthorization
     ) {
         Instant updatedAt = clock.instant();
-        return socialAccountRepository.findByProviderAndProviderSubject(provider, providerSubject)
-                .map(account -> updateExisting(
-                        account,
-                        email,
-                        providerAuthorization,
-                        updatedAt
-                ))
-                .orElseGet(() -> create(
-                        provider,
-                        providerSubject,
-                        email,
-                        providerAuthorization,
-                        updatedAt
-                ));
+        SocialAccount account = socialAccountRepository
+                .findByProviderAndProviderSubject(provider, providerSubject)
+                .orElse(null);
+        if (account == null) {
+            return create(provider, providerSubject, email, providerAuthorization, updatedAt);
+        }
+        if (account.getMember().isActive()) {
+            return updateExisting(account, email, providerAuthorization, updatedAt);
+        }
+        SocialAccount lockedAccount = socialAccountRepository
+                .findForUpdateByProviderAndProviderSubject(provider, providerSubject)
+                .orElseThrow(() -> new IllegalStateException("Social account was not found"));
+        if (lockedAccount.getMember().isActive()) {
+            return updateExisting(lockedAccount, email, providerAuthorization, updatedAt);
+        }
+        return createReplacementMember(lockedAccount, email, providerAuthorization, updatedAt);
     }
 
     @Transactional
@@ -65,9 +68,18 @@ public class SocialAccountService {
             SocialProvider provider,
             String providerSubject
     ) {
-        return socialAccountRepository.findByProviderAndProviderSubject(provider, providerSubject)
-                .map(this::authenticateExisting)
+        SocialAccount account = socialAccountRepository
+                .findForUpdateByProviderAndProviderSubject(provider, providerSubject)
                 .orElseThrow(() -> new IllegalStateException("Social account was not created"));
+        if (account.getMember().isActive()) {
+            return authenticateExisting(account);
+        }
+        return createReplacementMember(
+                account,
+                account.getEmail(),
+                ProviderAuthorization.none(),
+                clock.instant()
+        );
     }
 
     private AuthenticatedMember updateExisting(
@@ -76,7 +88,6 @@ public class SocialAccountService {
             ProviderAuthorization providerAuthorization,
             Instant updatedAt
     ) {
-        rejoinIfWithdrawn(account.getMember(), updatedAt);
         if (email != null) {
             account.updateEmail(email, updatedAt);
         }
@@ -125,6 +136,25 @@ public class SocialAccountService {
         return new AuthenticatedMember(member, true);
     }
 
+    private AuthenticatedMember createReplacementMember(
+            SocialAccount account,
+            String email,
+            ProviderAuthorization providerAuthorization,
+            Instant createdAt
+    ) {
+        List<SocialAccount> accounts = socialAccountRepository
+                .findAllForUpdateByMemberId(account.getMember().getId());
+        Member replacement = memberRepository.save(Member.create(createdAt));
+        accounts.forEach(socialAccount -> socialAccount.reassignMember(replacement, createdAt));
+        SocialAccount replacementAccount = accounts.stream()
+                .filter(socialAccount -> socialAccount.getProvider() == account.getProvider()
+                        && socialAccount.getProviderSubject().equals(account.getProviderSubject()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("Social account was not found"));
+        updateExisting(replacementAccount, email, providerAuthorization, createdAt);
+        return new AuthenticatedMember(replacement, true);
+    }
+
     private void saveNewAccount(SocialAccount account) {
         try {
             socialAccountRepository.saveAndFlush(account);
@@ -150,14 +180,6 @@ public class SocialAccountService {
     }
 
     private AuthenticatedMember authenticateExisting(SocialAccount account) {
-        rejoinIfWithdrawn(account.getMember(), clock.instant());
         return new AuthenticatedMember(account.getMember(), false);
-    }
-
-    private void rejoinIfWithdrawn(Member member, Instant rejoinedAt) {
-        if (member.isActive()) {
-            return;
-        }
-        member.rejoin(rejoinedAt);
     }
 }

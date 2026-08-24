@@ -8,7 +8,7 @@ public record PlaceImportRequest(
         @NotBlank
         @Size(max = 2_000)
         @Schema(
-                description = "필수 입력. Instagram 게시물·릴스, Naver 지도·블로그·단축 링크 또는 Tistory URL입니다.",
+                description = "필수 입력. Instagram 게시물·릴스, Naver 지도·블로그·단축 링크, Kakao 장소·단축 링크 또는 Tistory URL입니다.",
                 requiredMode = Schema.RequiredMode.REQUIRED,
                 example = "https://www.instagram.com/reel/example/"
         )

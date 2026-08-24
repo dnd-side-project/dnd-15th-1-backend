@@ -83,6 +83,33 @@ class KakaoPlaceVerifierTest {
         server.verify();
     }
 
+    @Test
+    void normalizesMissingKakaoCategoryGroupCodeToNull() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(
+                new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                builder
+        );
+        server.expect(once(), queryParam("query", encoded("카페")))
+                .andRespond(withSuccess("""
+                        {
+                          "documents": [{
+                            "id": "100",
+                            "place_name": "분류 카페",
+                            "address_name": "서울 성동구",
+                            "road_address_name": "서울 성동구 성수이로",
+                            "y": "37.1",
+                            "x": "127.1",
+                            "category_name": "음식점 > 카페"
+                          }]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(searchClient.search("카페").getFirst().categoryGroupCode()).isNull();
+        server.verify();
+    }
+
     private void expectEmpty(MockRestServiceServer server, String query) {
         server.expect(once(), queryParam("query", encoded(query)))
                 .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));

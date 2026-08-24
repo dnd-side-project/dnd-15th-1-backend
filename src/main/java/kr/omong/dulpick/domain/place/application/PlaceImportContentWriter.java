@@ -14,7 +14,10 @@ import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.global.security.crypto.Sha256;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,12 +30,15 @@ import java.util.Map;
 @Service
 public class PlaceImportContentWriter {
 
+    private static final Logger logger = LoggerFactory.getLogger(PlaceImportContentWriter.class);
+
     private final PlaceImportRepository importRepository;
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
     private final ContentRepository contentRepository;
     private final ContentPlaceRepository contentPlaceRepository;
     private final ContentSubmissionRepository submissionRepository;
+    private final ContentImageStorageService imageStorageService;
     private final Clock clock;
 
     public PlaceImportContentWriter(
@@ -42,6 +48,7 @@ public class PlaceImportContentWriter {
             ContentRepository contentRepository,
             ContentPlaceRepository contentPlaceRepository,
             ContentSubmissionRepository submissionRepository,
+            ContentImageStorageService imageStorageService,
             Clock clock
     ) {
         this.importRepository = importRepository;
@@ -50,6 +57,7 @@ public class PlaceImportContentWriter {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
         this.submissionRepository = submissionRepository;
+        this.imageStorageService = imageStorageService;
         this.clock = clock;
     }
 
@@ -61,6 +69,7 @@ public class PlaceImportContentWriter {
         submissionRepository.insertIfAbsent(content.getId(), placeImport.getMemberId(), clock.instant());
         placeImport.recordMetadata(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
                 metadata.contentHash(), metadata.sourceUpdatedAt());
+        imageStorageService.storeIfAvailable(content, metadata.imageUrls());
         recordSourceMetadata(placeImport, metadata);
         return content.getId();
     }
@@ -118,6 +127,9 @@ public class PlaceImportContentWriter {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateMetadata(
                     displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
                     metadata.contentHash(), clock.instant()));
+            contentRepository.findById(resolvedContentId).ifPresent(content ->
+                    imageStorageService.storeIfAvailable(content, metadata.imageUrls())
+            );
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateSourceMetadata(
                     metadata.sourceAuthorName(), metadata.sourceAuthorUsername(), metadata.sourcePublishedOn(),
                     metadata.likeCount(), metadata.commentCount(), metadata.engagementCheckedAt()));
@@ -152,6 +164,7 @@ public class PlaceImportContentWriter {
     private PlaceCandidate saveCandidate(Long importId, Long contentId, VerifiedCandidate candidate) {
         VerifiedPlace verified = candidate.verified();
         Instant now = clock.instant();
+        logFallbackCategory(verified);
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),
                 verified.categoryGroupCode(), verified.phone(), verified.kakaoPlaceUrl(),
@@ -161,6 +174,17 @@ public class PlaceImportContentWriter {
         return PlaceCandidate.matched(importId, place.getId(), candidate.extracted().name(),
                 candidate.extracted().addressHint(), candidate.extracted().evidence(),
                 candidate.extracted().mentionType(), candidate.verificationStatus(), now);
+    }
+
+    private void logFallbackCategory(VerifiedPlace verified) {
+        if (DulpickPlaceCategory.isFallback(verified.categoryGroupCode(), verified.category())) {
+            logger.warn(
+                    "place_category_fallback source=IMPORT kakaoPlaceId={} categoryGroupCode={} category={}",
+                    verified.kakaoPlaceId(),
+                    verified.categoryGroupCode(),
+                    verified.category()
+            );
+        }
     }
 
     private Content findOrCreateContent(ContentMetadata metadata) {

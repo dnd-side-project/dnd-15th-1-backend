@@ -37,6 +37,7 @@ class PublicInstagramMetadataProviderTest {
                         <meta property="og:title" content="둘픽 on Instagram: &quot;성수 카페 모음&quot;">
                         <meta property="og:description" content="12 likes, 3 comments - dulpick on August 10, 2026: &quot;성수 카페 모음\n본문&quot;.">
                         <meta property="og:image" content="https://cdn.example.com/cover.jpg">
+                        <meta property="og:image" content="https://cdn.example.com/cover-2.jpg">
                         """, MediaType.TEXT_HTML));
 
         var metadata = provider.fetch(REEL_URL, ContentSourceType.INSTAGRAM_REEL);
@@ -46,6 +47,10 @@ class PublicInstagramMetadataProviderTest {
         assertThat(metadata.caption()).isEqualTo("본문");
         assertThat(metadata.likeCount()).isEqualTo(12L);
         assertThat(metadata.commentCount()).isEqualTo(3L);
+        assertThat(metadata.imageUrls()).containsExactly(
+                "https://cdn.example.com/cover.jpg",
+                "https://cdn.example.com/cover-2.jpg"
+        );
         server.verify();
     }
 

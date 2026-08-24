@@ -9,7 +9,8 @@ public record InstagramProperties(
         String baseUrl,
         String oembedPath,
         boolean publicCrawlerEnabled,
-        int timeoutSeconds
+        int timeoutSeconds,
+        int maxImages
 ) {
 
     public InstagramProperties {
@@ -22,5 +23,19 @@ public record InstagramProperties(
         if (timeoutSeconds <= 0) {
             timeoutSeconds = 5;
         }
+        if (maxImages <= 0) {
+            maxImages = 10;
+        }
+    }
+
+    public InstagramProperties(
+            boolean officialEnabled,
+            String accessToken,
+            String baseUrl,
+            String oembedPath,
+            boolean publicCrawlerEnabled,
+            int timeoutSeconds
+    ) {
+        this(officialEnabled, accessToken, baseUrl, oembedPath, publicCrawlerEnabled, timeoutSeconds, 10);
     }
 }

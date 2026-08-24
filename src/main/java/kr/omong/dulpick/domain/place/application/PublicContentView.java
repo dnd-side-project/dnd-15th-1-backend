@@ -16,9 +16,15 @@ public record PublicContentView(
         String title,
         String caption,
         String thumbnailUrl,
+        List<String> imageKeys,
         int placeCount,
         List<PublicPlaceView> places
 ) {
+
+    public PublicContentView {
+        imageKeys = imageKeys == null ? List.of() : List.copyOf(imageKeys);
+        places = places == null ? List.of() : List.copyOf(places);
+    }
 
     public record ContentAuthorView(
             String displayName,

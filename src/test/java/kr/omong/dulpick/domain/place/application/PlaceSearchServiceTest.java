@@ -106,6 +106,74 @@ class PlaceSearchServiceTest {
         );
     }
 
+    @Test
+    void prefersFreshKakaoCategoryWhenStoredPlaceCategoryGroupCodeIsMissing() {
+        Place databasePlace = place(10L, "kakao-1", "DB 장소명", "서울 성동구 성수동");
+        when(databasePlace.getCategoryGroupCode()).thenReturn(null);
+        PlaceSearchResult kakaoResult = searchResult(
+                "kakao-1",
+                "Kakao 장소명",
+                "서울 성동구 성수동",
+                "CE7",
+                "음식점 > 카페"
+        );
+        when(placeRepository.searchByKeyword(eq("+카페"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(databasePlace)));
+        when(placeSearcher.search("카페", 1)).thenReturn(new PlaceKeywordSearch(
+                List.of(kakaoResult),
+                true
+        ));
+        when(placeRepository.findAllByKakaoPlaceIdIn(List.of("kakao-1")))
+                .thenReturn(List.of(databasePlace));
+        when(placeQueryService.getOwnerships(1L, List.of(10L))).thenReturn(Map.of());
+
+        PlaceSearchPage result = service.search(1L, "카페", 0);
+
+        assertThat(result.places()).singleElement()
+                .extracting(PlaceSearchView::categoryCode)
+                .isEqualTo(DulpickPlaceCategory.CAFE);
+    }
+
+    @Test
+    void writesRecognizedFreshCategoryWhenStoredCategoryIsMissing() {
+        PlaceCategoryWriteThroughService categoryWriter = mock(PlaceCategoryWriteThroughService.class);
+        PlaceSearchService serviceWithWriter = new PlaceSearchService(
+                placeSearcher,
+                placeRepository,
+                placeQueryService,
+                categoryWriter
+        );
+        Place databasePlace = place(10L, "kakao-1", "DB 장소명", "서울 성동구 성수동");
+        when(databasePlace.getCategoryGroupCode()).thenReturn(null);
+        when(databasePlace.getCategory()).thenReturn(null);
+        PlaceSearchResult kakaoResult = searchResult(
+                "kakao-1",
+                "Kakao 장소명",
+                "서울 성동구 성수동",
+                "CE7",
+                "음식점 > 카페"
+        );
+        when(placeRepository.searchByKeyword(eq("+카페"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(databasePlace)));
+        when(placeSearcher.search("카페", 1)).thenReturn(new PlaceKeywordSearch(
+                List.of(kakaoResult),
+                true
+        ));
+        when(placeRepository.findAllByKakaoPlaceIdIn(List.of("kakao-1")))
+                .thenReturn(List.of(databasePlace));
+        when(placeQueryService.getOwnerships(1L, List.of(10L))).thenReturn(Map.of());
+
+        serviceWithWriter.search(1L, "카페", 0);
+
+        verify(categoryWriter).fillIfMissing(
+                10L,
+                null,
+                null,
+                "CE7",
+                "음식점 > 카페"
+        );
+    }
+
     private Place place(Long id, String kakaoPlaceId, String name, String address) {
         Place place = mock(Place.class);
         when(place.getId()).thenReturn(id);

@@ -8,7 +8,9 @@ public record KakaoMapPhotoProperties(
         String baseUrl,
         int timeoutSeconds,
         int maxImages,
-        String appVersion
+        String appVersion,
+        int retryAttempts,
+        long retryDelayMillis
 ) {
 
     public KakaoMapPhotoProperties {
@@ -23,6 +25,14 @@ public record KakaoMapPhotoProperties(
         }
         if (appVersion == null || appVersion.isBlank()) {
             appVersion = "6.6.0";
+        }
+        if (retryAttempts <= 0) {
+            retryAttempts = 1;
+        } else if (retryAttempts > 3) {
+            retryAttempts = 3;
+        }
+        if (retryDelayMillis < 0) {
+            retryDelayMillis = 0;
         }
     }
 }

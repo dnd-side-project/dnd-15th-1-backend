@@ -11,6 +11,7 @@ deploy/.env
 *.p8
 secrets/
 local-docs/
+data/content-images/
 
 ### STS ###
 .apt_generated

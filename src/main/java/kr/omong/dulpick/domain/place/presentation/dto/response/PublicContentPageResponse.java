@@ -31,8 +31,14 @@ public record PublicContentPageResponse(
 ) {
 
     public static PublicContentPageResponse from(Page<PublicContentView> page) {
+        return from(page, null);
+    }
+
+    public static PublicContentPageResponse from(Page<PublicContentView> page, String thumbnailBaseUrl) {
         return new PublicContentPageResponse(
-                page.getContent().stream().map(PublicContentResponse::from).toList(),
+                page.getContent().stream()
+                        .map(view -> PublicContentResponse.from(view, thumbnailBaseUrl))
+                        .toList(),
                 page.getNumber(),
                 page.getSize(),
                 page.getTotalElements(),

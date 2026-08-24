@@ -49,7 +49,7 @@ public class MemberPlace {
         this.memberId = memberId;
         this.place = place;
         this.sourceImportId = sourceImportId;
-        this.alias = alias;
+        this.alias = normalizeAlias(alias);
         this.savedAt = savedAt;
     }
 
@@ -82,7 +82,11 @@ public class MemberPlace {
     }
 
     public void updateAlias(String alias) {
-        this.alias = alias == null || alias.isBlank() ? null : alias.strip();
+        this.alias = normalizeAlias(alias);
+    }
+
+    private static String normalizeAlias(String alias) {
+        return alias == null || alias.isBlank() ? null : alias.strip();
     }
 
     public String getAlias() {

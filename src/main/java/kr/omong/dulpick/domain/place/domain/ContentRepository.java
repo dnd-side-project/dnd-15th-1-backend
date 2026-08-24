@@ -21,6 +21,37 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
 
     List<Content> findAllByPublicationStatusOrderByCreatedAtDesc(ContentPublicationStatus status);
 
+    @Query(
+            value = """
+                    SELECT content
+                    FROM Content content
+                    WHERE content.publicationStatus = :status
+                      AND EXISTS (
+                            SELECT 1
+                            FROM ContentPlace contentPlace
+                            WHERE contentPlace.contentId = content.id
+                              AND contentPlace.placeId = :placeId
+                      )
+                    ORDER BY content.createdAt DESC, content.id DESC
+                    """,
+            countQuery = """
+                    SELECT COUNT(content)
+                    FROM Content content
+                    WHERE content.publicationStatus = :status
+                      AND EXISTS (
+                            SELECT 1
+                            FROM ContentPlace contentPlace
+                            WHERE contentPlace.contentId = content.id
+                              AND contentPlace.placeId = :placeId
+                      )
+                    """
+    )
+    Page<Content> findAllByPlaceIdAndPublicationStatus(
+            @Param("placeId") Long placeId,
+            @Param("status") ContentPublicationStatus status,
+            Pageable pageable
+    );
+
     Page<Content> findAllByPublicationStatus(ContentPublicationStatus status, Pageable pageable);
 
     @Query(
@@ -134,4 +165,20 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
             @Param("contentId") Long contentId,
             @Param("claimToken") String claimToken
     );
+
+    @Modifying
+    @Query("""
+            UPDATE Content content
+               SET content.analysisContentHash = null,
+                   content.analyzerModel = null,
+                   content.promptVersion = null,
+                   content.analysisStatus = 'FAILED',
+                   content.analysisStartedAt = null,
+                   content.analysisClaimToken = null,
+                   content.analyzedAt = null,
+                   content.extractedCandidatesJson = null
+             WHERE content.id = :contentId
+               AND content.analysisStatus = 'READY'
+            """)
+    int invalidateCachedAnalysis(@Param("contentId") Long contentId);
 }

@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSubmissionRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -42,6 +44,7 @@ class PlaceImportResultWriterTest {
     private final ContentRepository contentRepository = mock(ContentRepository.class);
     private final ContentPlaceRepository contentPlaceRepository = mock(ContentPlaceRepository.class);
     private final ContentSubmissionRepository submissionRepository = mock(ContentSubmissionRepository.class);
+    private final ContentImageStorageService imageStorageService = mock(ContentImageStorageService.class);
     private final ObjectMapper objectMapper = mock(ObjectMapper.class);
     private final PlaceImportAnalysisWriter analysisWriter =
             new PlaceImportAnalysisWriter(contentRepository, objectMapper);
@@ -52,6 +55,7 @@ class PlaceImportResultWriterTest {
             contentRepository,
             contentPlaceRepository,
             submissionRepository,
+            imageStorageService,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
     private final PlaceImportResultWriter writer = new PlaceImportResultWriter(
@@ -108,6 +112,30 @@ class PlaceImportResultWriterTest {
         writer.failAnalysis(10L, "claim-token");
 
         verify(contentRepository).failAnalysis(10L, "claim-token");
+    }
+
+    @Test
+    void invalidatesMalformedCachedAnalysis() throws Exception {
+        Content content = mock(Content.class);
+        when(content.getId()).thenReturn(10L);
+        when(content.getAnalysisContentHash()).thenReturn("content-hash");
+        when(content.getAnalyzerModel()).thenReturn("gemini-2.5-flash");
+        when(content.getPromptVersion()).thenReturn("place-extraction-v3");
+        when(content.getAnalyzedAt()).thenReturn(NOW);
+        when(content.getExtractedCandidatesJson()).thenReturn("malformed-json");
+        when(contentRepository.findById(10L)).thenReturn(Optional.of(content));
+        when(objectMapper.readValue(anyString(), eq(ExtractedPlace[].class)))
+                .thenThrow(new IllegalArgumentException("malformed cache"));
+
+        Optional<List<ExtractedPlace>> cached = writer.loadCachedAnalysis(
+                10L,
+                "content-hash",
+                "gemini-2.5-flash",
+                "place-extraction-v3"
+        );
+
+        assertThat(cached).isEmpty();
+        verify(contentRepository).invalidateCachedAnalysis(10L);
     }
 
     @Test

@@ -36,8 +36,8 @@ public record PlaceImportResponse(
         )
         String canonicalUrl,
         @Schema(
-                description = "분석 대상 콘텐츠 유형입니다. INSTAGRAM_REEL, INSTAGRAM_POST, NAVER_MAP, NAVER_BLOG, NAVER_SHORT_LINK, TISTORY 중 하나입니다.",
-                allowableValues = {"INSTAGRAM_REEL", "INSTAGRAM_POST", "NAVER_MAP", "NAVER_BLOG", "NAVER_SHORT_LINK", "TISTORY"},
+                description = "분석 대상 콘텐츠 유형입니다. INSTAGRAM_REEL, INSTAGRAM_POST, NAVER_MAP, NAVER_BLOG, NAVER_SHORT_LINK, KAKAO_MAP, TISTORY 중 하나입니다.",
+                allowableValues = {"INSTAGRAM_REEL", "INSTAGRAM_POST", "NAVER_MAP", "NAVER_BLOG", "NAVER_SHORT_LINK", "KAKAO_MAP", "TISTORY"},
                 example = "INSTAGRAM_REEL",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )

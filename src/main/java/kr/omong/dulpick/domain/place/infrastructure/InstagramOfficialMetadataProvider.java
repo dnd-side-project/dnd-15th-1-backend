@@ -13,6 +13,7 @@ import org.springframework.web.client.RestClientException;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -72,12 +73,13 @@ public class InstagramOfficialMetadataProvider implements ContentMetadataProvide
             if (content.isBlank()) {
                 throw new MetadataUnavailableException();
             }
+            String thumbnailUrl = text(response, "thumbnail_url");
             return new ContentMetadata(
                     canonicalUrl,
                     sourceType,
                     parsed.title(),
                     parsed.content(),
-                    text(response, "thumbnail_url"),
+                    thumbnailUrl,
                     Sha256.hex(content),
                     clock.instant(),
                     text(response, "author_name"),
@@ -85,7 +87,8 @@ public class InstagramOfficialMetadataProvider implements ContentMetadataProvide
                     null,
                     null,
                     null,
-                    clock.instant()
+                    clock.instant(),
+                    thumbnailUrl.isBlank() ? List.of() : List.of(thumbnailUrl)
             );
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);

@@ -28,6 +28,8 @@ public record PlaceAnalysisProperties(
         }
         if (maxRetries < 0) {
             maxRetries = 1;
+        } else if (maxRetries > 3) {
+            maxRetries = 3;
         }
         if (staleTimeoutSeconds <= 0) {
             staleTimeoutSeconds = 600;
@@ -37,15 +39,21 @@ public record PlaceAnalysisProperties(
         }
         if (maxRetryCount <= 0) {
             maxRetryCount = 3;
+        } else if (maxRetryCount > 5) {
+            maxRetryCount = 5;
         }
         if (recoveryDelay == null || recoveryDelay.isNegative() || recoveryDelay.isZero()) {
             recoveryDelay = Duration.ofSeconds(5);
         }
         if (recoveryBatchSize <= 0) {
             recoveryBatchSize = 20;
+        } else if (recoveryBatchSize > 100) {
+            recoveryBatchSize = 100;
         }
         if (workerConcurrency <= 0) {
             workerConcurrency = 2;
+        } else if (workerConcurrency > 10) {
+            workerConcurrency = 10;
         }
     }
 }

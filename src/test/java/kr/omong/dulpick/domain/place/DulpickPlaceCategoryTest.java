@@ -47,4 +47,24 @@ class DulpickPlaceCategoryTest {
                 "가정,생활 > 목욕탕,사우나 > 찜질방"
         ).getDisplayName()).isEqualTo("생활 편의");
     }
+
+    @Test
+    void keepsConvenienceAsDefaultButReportsUnclassifiedInput() {
+        assertThat(DulpickPlaceCategory.fromKakao(null, "분류되지 않은 장소")).isEqualTo(
+                DulpickPlaceCategory.CONVENIENCE
+        );
+        assertThat(DulpickPlaceCategory.isFallback(null, "분류되지 않은 장소")).isTrue();
+        assertThat(DulpickPlaceCategory.isFallback(null, "여행 > 공원")).isFalse();
+        assertThat(DulpickPlaceCategory.isFallback("CE7", "분류되지 않은 장소")).isFalse();
+    }
+
+    @Test
+    void classifiesCommonKakaoPathsThatDoNotHaveAGroupCode() {
+        assertThat(DulpickPlaceCategory.fromKakao(null, "가정,생활 > 미용 > 화장품"))
+                .isEqualTo(DulpickPlaceCategory.SHOPPING);
+        assertThat(DulpickPlaceCategory.fromKakao(null, "문화,예술 > 도서 > 서점"))
+                .isEqualTo(DulpickPlaceCategory.SHOPPING);
+        assertThat(DulpickPlaceCategory.fromKakao(null, "문화,예술 > 음악 > 음악감상실"))
+                .isEqualTo(DulpickPlaceCategory.ENTERTAINMENT);
+    }
 }

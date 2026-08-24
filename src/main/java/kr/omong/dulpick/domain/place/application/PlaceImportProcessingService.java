@@ -150,7 +150,7 @@ public class PlaceImportProcessingService {
         String sourceText = normalizeText(metadata.title() + " " + metadata.caption());
         String model = placeAnalyzer.modelKey();
         String prompt = placeAnalyzer.promptVersion();
-        List<ExtractedPlace> extracted = isNaverPlace(sourceType)
+        List<ExtractedPlace> extracted = isDirectPlaceSource(sourceType)
                 ? List.of(new ExtractedPlace(metadata.title(), metadata.caption(),
                 metadata.title() + " " + metadata.caption(), "EXPLICIT_VENUE"))
                 : loadCachedCandidates(placeImport, metadata, model, prompt);
@@ -160,7 +160,7 @@ public class PlaceImportProcessingService {
                 return;
             }
         }
-        if (isNaverPlace(sourceType)) {
+        if (isDirectPlaceSource(sourceType)) {
             resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted);
         }
         List<VerifiedCandidate> candidates = new ArrayList<>();
@@ -275,7 +275,9 @@ public class PlaceImportProcessingService {
         return value == null ? "" : value.toLowerCase().replaceAll("\\s+", "");
     }
 
-    private boolean isNaverPlace(ContentSourceType sourceType) {
-        return sourceType == ContentSourceType.NAVER_SHORT_LINK || sourceType == ContentSourceType.NAVER_MAP;
+    private boolean isDirectPlaceSource(ContentSourceType sourceType) {
+        return sourceType == ContentSourceType.NAVER_SHORT_LINK
+                || sourceType == ContentSourceType.NAVER_MAP
+                || sourceType == ContentSourceType.KAKAO_MAP;
     }
 }

@@ -73,6 +73,76 @@ class PlaceDetailQueryServiceTest {
     }
 
     @Test
+    void prefersFreshKakaoCategoryWhenStoredPlaceCategoryGroupCodeIsMissing() {
+        Place place = place();
+        when(place.getCategoryGroupCode()).thenReturn(null);
+        PlaceSearchResult kakao = new PlaceSearchResult(
+                "kakao-10",
+                "저장 장소",
+                "서울 성동구 성수동",
+                "서울 성동구 성수길",
+                new BigDecimal("37.5446"),
+                new BigDecimal("127.0557"),
+                "CE7",
+                "음식점 > 카페",
+                "02-1234-5678",
+                "https://place.map.kakao.com/kakao-10",
+                null
+        );
+        when(placeSearchService.resolve("성수 카페", "kakao-10")).thenReturn(kakao);
+        when(placeRepository.findByKakaoPlaceId("kakao-10")).thenReturn(Optional.of(place));
+        when(placeQueryService.getOwnerships(1L, List.of(10L))).thenReturn(Map.of());
+        when(placeQueryService.savedMemberCount(10L)).thenReturn(0);
+
+        PlaceDetailView result = service.getByKakaoPlaceId(1L, "kakao-10", "성수 카페");
+
+        assertThat(result.categoryCode()).isEqualTo(
+                kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory.CAFE
+        );
+    }
+
+    @Test
+    void writesRecognizedFreshCategoryWhenStoredCategoryIsMissing() {
+        PlaceCategoryWriteThroughService categoryWriter = mock(PlaceCategoryWriteThroughService.class);
+        PlaceDetailQueryService serviceWithWriter = new PlaceDetailQueryService(
+                placeRepository,
+                placeQueryService,
+                placeSearchService,
+                categoryWriter
+        );
+        Place place = place();
+        when(place.getCategoryGroupCode()).thenReturn(null);
+        when(place.getCategory()).thenReturn(null);
+        PlaceSearchResult kakao = new PlaceSearchResult(
+                "kakao-10",
+                "저장 장소",
+                "서울 성동구 성수동",
+                "서울 성동구 성수길",
+                new BigDecimal("37.5446"),
+                new BigDecimal("127.0557"),
+                "CE7",
+                "음식점 > 카페",
+                "02-1234-5678",
+                "https://place.map.kakao.com/kakao-10",
+                null
+        );
+        when(placeSearchService.resolve("성수 카페", "kakao-10")).thenReturn(kakao);
+        when(placeRepository.findByKakaoPlaceId("kakao-10")).thenReturn(Optional.of(place));
+        when(placeQueryService.getOwnerships(1L, List.of(10L))).thenReturn(Map.of());
+        when(placeQueryService.savedMemberCount(10L)).thenReturn(0);
+
+        serviceWithWriter.getByKakaoPlaceId(1L, "kakao-10", "성수 카페");
+
+        org.mockito.Mockito.verify(categoryWriter).fillIfMissing(
+                10L,
+                null,
+                null,
+                "CE7",
+                "음식점 > 카페"
+        );
+    }
+
+    @Test
     void returnsDatabasePlacesMatchingCoordinates() {
         Place place = place();
         when(placeRepository.findAllByLatitudeAndLongitude(

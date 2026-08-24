@@ -17,10 +17,16 @@ public interface AppleRevocationOutboxRepository
     @Query("""
             SELECT outbox.id
             FROM AppleRevocationOutbox outbox
-            WHERE outbox.nextAttemptAt <= :now
+            WHERE outbox.status = kr.omong.dulpick.domain.auth.domain.AppleRevocationStatus.PENDING
+              AND outbox.attemptCount < :maxAttempts
+              AND outbox.nextAttemptAt <= :now
             ORDER BY outbox.id
             """)
-    List<Long> findRetryableIds(@Param("now") Instant now, Pageable pageable);
+    List<Long> findRetryableIds(
+            @Param("now") Instant now,
+            @Param("maxAttempts") int maxAttempts,
+            Pageable pageable
+    );
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""

@@ -100,7 +100,7 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
                 text(document, "road_address_name"),
                 decimal(document, "y"),
                 decimal(document, "x"),
-                text(document, "category_group_code"),
+                optionalText(document, "category_group_code"),
                 text(document, "category_name"),
                 optionalText(document, "phone"),
                 optionalText(document, "place_url"),

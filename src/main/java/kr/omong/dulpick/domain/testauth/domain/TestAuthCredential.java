@@ -65,4 +65,8 @@ public class TestAuthCredential {
     public String getPasswordHash() {
         return passwordHash;
     }
+
+    public void reassignMember(Member member) {
+        this.member = member;
+    }
 }

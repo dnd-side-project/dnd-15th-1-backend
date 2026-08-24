@@ -25,6 +25,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -333,13 +334,55 @@ class DateCourseIntegrationTest {
                         .header("Authorization", bearer(fixture.first()))
                         .param("size", "10"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].dateCourseId").value(dateCourseId));
+                .andExpect(jsonPath("$.totalCount").value(1))
+                .andExpect(jsonPath("$.dateCourses[0].dateCourseId").value(dateCourseId));
 
         mockMvc.perform(get("/api/v1/home/past-dates")
                         .header("Authorization", bearer(fixture.first()))
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].dateCourseId").value(dateCourseId));
+    }
+
+    @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
+    void notifyPartnerCreatesDateCoursePlannedNotification() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Place first = savePlaceForMember(fixture.first().member().getId(), "first", Instant.now());
+        LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(3);
+        MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title":"알림 테스트 데이트",
+                                  "date":"%s",
+                                  "time":"18:00:00"
+                                }
+                                """.formatted(futureDate)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
+
+        mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "version":0,
+                                  "title":"알림 테스트 데이트",
+                                  "date":"%s",
+                                  "time":"18:00:00",
+                                  "placeIds":[%d]
+                                }
+                                """.formatted(futureDate, first.getId())))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/date-courses/{dateCourseId}/notify-partner", dateCourseId)
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.notified").value(true))
+                .andExpect(jsonPath("$.partnerMemberId").value(fixture.second().member().getId()));
     }
 
     private CoupleFixture createConnectedCouple() {

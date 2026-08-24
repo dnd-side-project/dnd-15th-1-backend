@@ -6,18 +6,20 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
 import kr.omong.dulpick.domain.date.application.command.DateCourseCommandService;
 import kr.omong.dulpick.domain.date.application.query.DateCourseQueryService;
 import kr.omong.dulpick.domain.date.presentation.dto.request.CreateDateCourseRequest;
 import kr.omong.dulpick.domain.date.presentation.dto.request.SaveDateCourseRequest;
 import kr.omong.dulpick.domain.date.presentation.dto.response.CurrentDateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePlacePoolResponse;
+import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePartnerNotifyResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseResponse;
-import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseSummaryResponse;
+import kr.omong.dulpick.domain.date.presentation.dto.response.PastDateCoursesPageResponse;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -30,8 +32,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
 
 @Tag(name = SwaggerTagNames.DATE, description = "데이트 코스 생성·수정·조회 API")
 @SecurityRequirement(name = "bearerAuth")
@@ -117,6 +117,25 @@ public class DateCourseController {
     }
 
     @Operation(
+            summary = "커플 상대방에게 데이트 코스 알림 보내기",
+            description = """
+                    연결된 상대방에게 FCM 푸시만 보냅니다. 알림함에는 저장하지 않습니다.
+                    제목은 요청 회원의 닉네임으로 "{닉네임}님이 데이트코스를 짰어요!" 형식입니다.
+                    상대방의 데이트 일정 알림 설정이 OFF이거나 등록된 기기가 없으면 푸시를 생략합니다.
+                    """
+    )
+    @PostMapping("/{dateCourseId}/notify-partner")
+    public ResponseEntity<DateCoursePartnerNotifyResponse> notifyPartner(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(description = "알림을 보낼 데이트 코스 ID", required = true, example = "1001")
+            @PathVariable @Schema(example = "1001") Long dateCourseId
+    ) {
+        return ResponseEntity.ok(DateCoursePartnerNotifyResponse.from(
+                dateCourseCommandService.notifyPartner(memberId(jwt), dateCourseId)
+        ));
+    }
+
+    @Operation(
             summary = "데이트 코스 상세 조회",
             description = "저장된 데이트 코스의 기본 정보, 장소 순서, 인접 장소 간 도보 이동거리/시간을 조회합니다."
     )
@@ -146,18 +165,21 @@ public class DateCourseController {
 
     @Operation(
             summary = "지난 데이트 목록 조회",
-            description = "현재 시각 이전 확정(CONFIRMED) 데이트를 최신순으로 조회합니다."
+            description = """
+                    현재 시각 이전 확정(CONFIRMED) 데이트를 페이징 조회합니다.
+                    기본 정렬은 scheduledAt 내림차순(최신순)이며, sort 파라미터로 변경할 수 있습니다.
+                    totalCount에는 조건에 맞는 전체 지난 데이트 횟수가 포함됩니다.
+                    """
     )
     @GetMapping("/past")
-    public ResponseEntity<List<DateCourseSummaryResponse>> past(
+    public ResponseEntity<PastDateCoursesPageResponse> past(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "조회할 지난 데이트 수(기본값 20, 최소 1, 최대 50)", example = "20")
-            @RequestParam(defaultValue = "20") @Schema(example = "20") @Min(1) @Max(50) int size
+            @PageableDefault(size = 20, sort = "scheduledAt", direction = Sort.Direction.DESC)
+            Pageable pageable
     ) {
-        return ResponseEntity.ok(dateCourseQueryService.getPastConfirmed(memberId(jwt), size)
-                .stream()
-                .map(DateCourseSummaryResponse::from)
-                .toList());
+        return ResponseEntity.ok(PastDateCoursesPageResponse.from(
+                dateCourseQueryService.getPastConfirmed(memberId(jwt), pageable)
+        ));
     }
 
     private Long memberId(Jwt jwt) {
