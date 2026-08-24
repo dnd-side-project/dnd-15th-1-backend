@@ -32,6 +32,7 @@ public class SecurityConfig {
             "/assets/**",
             "/favicon.ico",
             "/favicon.svg",
+            "/favicon.png",
             "/health",
             "/actuator/health",
             "/swagger-ui.html",
