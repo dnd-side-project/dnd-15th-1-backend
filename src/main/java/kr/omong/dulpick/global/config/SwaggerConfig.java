@@ -241,6 +241,9 @@ public class SwaggerConfig {
         if (normalizedName.contains("nonce")) {
             return "l7JcLxgJx7c0nS0wqgWQeQ";
         }
+        if (normalizedName.equals("imagekey") || normalizedName.equals("storagekey")) {
+            return "550e8400-e29b-41d4-a716-446655440000";
+        }
         if (normalizedName.contains("url")) {
             return normalizedName.contains("share")
                     ? "https://dulpick.omong.kr/connect?code=ABCDE"

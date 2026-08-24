@@ -85,6 +85,29 @@ class SwaggerConfigTest {
     }
 
     @Test
+    void fillsImageStorageKeyParameterExamples() {
+        Operation operation = new Operation()
+                .responses(new ApiResponses())
+                .addParametersItem(new Parameter()
+                        .name("imageKey")
+                        .schema(new StringSchema()))
+                .addParametersItem(new Parameter()
+                        .name("storageKey")
+                        .schema(new StringSchema()));
+        OpenAPI openApi = new OpenAPI()
+                .paths(new Paths().addPathItem("/images/{imageKey}", new PathItem().get(operation)));
+
+        swaggerConfig.schemaExampleCustomizer().customise(openApi);
+
+        assertThat(operation.getParameters())
+                .extracting(parameter -> parameter.getSchema().getExample())
+                .containsExactly(
+                        "550e8400-e29b-41d4-a716-446655440000",
+                        "550e8400-e29b-41d4-a716-446655440000"
+                );
+    }
+
+    @Test
     void fillsMissingEnumSchemaExamples() {
         Schema<?> enumSchema = new StringSchema()
                 ._enum(List.of("UNCLASSIFIED", "CLASSIFIED"));
