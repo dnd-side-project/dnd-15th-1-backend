@@ -44,7 +44,6 @@ class PlaceImportResultWriterTest {
     private final ContentRepository contentRepository = mock(ContentRepository.class);
     private final ContentPlaceRepository contentPlaceRepository = mock(ContentPlaceRepository.class);
     private final ContentSubmissionRepository submissionRepository = mock(ContentSubmissionRepository.class);
-    private final ContentImageStorageService imageStorageService = mock(ContentImageStorageService.class);
     private final ObjectMapper objectMapper = mock(ObjectMapper.class);
     private final PlaceImportAnalysisWriter analysisWriter =
             new PlaceImportAnalysisWriter(contentRepository, objectMapper);
@@ -55,7 +54,6 @@ class PlaceImportResultWriterTest {
             contentRepository,
             contentPlaceRepository,
             submissionRepository,
-            imageStorageService,
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
     private final PlaceImportResultWriter writer = new PlaceImportResultWriter(

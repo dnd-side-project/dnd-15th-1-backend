@@ -31,6 +31,7 @@ public class PlaceImportProcessingService {
     private final PlaceRepository placeRepository;
     private final PlaceImportResultWriter resultWriter;
     private final PlaceImageEnrichmentService imageEnrichmentService;
+    private final ContentImageEnrichmentService contentImageEnrichmentService;
     private final PlaceImportReservationService reservationService;
     private final MetadataService metadataService;
     private final PlaceAnalyzer placeAnalyzer;
@@ -44,6 +45,7 @@ public class PlaceImportProcessingService {
             PlaceRepository placeRepository,
             PlaceImportResultWriter resultWriter,
             PlaceImageEnrichmentService imageEnrichmentService,
+            ContentImageEnrichmentService contentImageEnrichmentService,
             PlaceImportReservationService reservationService,
             MetadataService metadataService,
             PlaceAnalyzer placeAnalyzer,
@@ -56,6 +58,7 @@ public class PlaceImportProcessingService {
         this.placeRepository = placeRepository;
         this.resultWriter = resultWriter;
         this.imageEnrichmentService = imageEnrichmentService;
+        this.contentImageEnrichmentService = contentImageEnrichmentService;
         this.reservationService = reservationService;
         this.metadataService = metadataService;
         this.placeAnalyzer = placeAnalyzer;
@@ -136,6 +139,7 @@ public class PlaceImportProcessingService {
         ContentMetadata metadata = metadataService.fetch(placeImport.getCanonicalUrl(), sourceType);
         if (sourceType.storesPublicContent()) {
             if (resultWriter.reuseUnchangedContent(placeImport.getId(), claimToken, metadata)) {
+                dispatchContentImageEnrichment(placeImport.getId(), metadata.imageUrls());
                 imageEnrichmentService.enrichImportPlaces(placeImport.getId());
                 return;
             }
@@ -176,7 +180,14 @@ public class PlaceImportProcessingService {
             return;
         }
         resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, candidates);
+        contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
         imageEnrichmentService.enrichImportPlaces(placeImport.getId());
+    }
+
+    private void dispatchContentImageEnrichment(Long importId, List<String> sourceUrls) {
+        importRepository.findById(importId)
+                .map(PlaceImport::getContentId)
+                .ifPresent(contentId -> contentImageEnrichmentService.dispatch(contentId, sourceUrls));
     }
 
     private List<ExtractedPlace> analyzeWithGemini(PlaceImport placeImport, ContentMetadata metadata,

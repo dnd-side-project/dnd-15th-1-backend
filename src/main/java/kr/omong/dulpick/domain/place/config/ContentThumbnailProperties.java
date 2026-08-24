@@ -9,7 +9,8 @@ public record ContentThumbnailProperties(
         String storagePath,
         int timeoutSeconds,
         long maxBytes,
-        int maxImages
+        int maxImages,
+        int workerConcurrency
 ) {
 
     @ConstructorBinding
@@ -27,6 +28,11 @@ public record ContentThumbnailProperties(
         if (maxImages <= 0) {
             maxImages = 10;
         }
+        if (workerConcurrency <= 0) {
+            workerConcurrency = 2;
+        } else if (workerConcurrency > 10) {
+            workerConcurrency = 10;
+        }
     }
 
     public ContentThumbnailProperties(
@@ -35,7 +41,17 @@ public record ContentThumbnailProperties(
             int timeoutSeconds,
             long maxBytes
     ) {
-        this(baseUrl, storagePath, timeoutSeconds, maxBytes, 10);
+        this(baseUrl, storagePath, timeoutSeconds, maxBytes, 10, 2);
+    }
+
+    public ContentThumbnailProperties(
+            String baseUrl,
+            String storagePath,
+            int timeoutSeconds,
+            long maxBytes,
+            int maxImages
+    ) {
+        this(baseUrl, storagePath, timeoutSeconds, maxBytes, maxImages, 2);
     }
 
     private static String normalizeBaseUrl(String value) {

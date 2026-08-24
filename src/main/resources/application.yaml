@@ -124,6 +124,7 @@ content:
     timeout-seconds: ${CONTENT_THUMBNAIL_TIMEOUT_SECONDS:10}
     max-bytes: ${CONTENT_THUMBNAIL_MAX_BYTES:5000000}
     max-images: ${CONTENT_THUMBNAIL_MAX_IMAGES:10}
+    worker-concurrency: ${CONTENT_THUMBNAIL_WORKER_CONCURRENCY:2}
   image-backfill:
     enabled: ${CONTENT_IMAGE_BACKFILL_ENABLED:false}
     max-contents: ${CONTENT_IMAGE_BACKFILL_MAX_CONTENTS:10000}

@@ -38,7 +38,6 @@ public class PlaceImportContentWriter {
     private final ContentRepository contentRepository;
     private final ContentPlaceRepository contentPlaceRepository;
     private final ContentSubmissionRepository submissionRepository;
-    private final ContentImageStorageService imageStorageService;
     private final Clock clock;
 
     public PlaceImportContentWriter(
@@ -48,7 +47,6 @@ public class PlaceImportContentWriter {
             ContentRepository contentRepository,
             ContentPlaceRepository contentPlaceRepository,
             ContentSubmissionRepository submissionRepository,
-            ContentImageStorageService imageStorageService,
             Clock clock
     ) {
         this.importRepository = importRepository;
@@ -57,7 +55,6 @@ public class PlaceImportContentWriter {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
         this.submissionRepository = submissionRepository;
-        this.imageStorageService = imageStorageService;
         this.clock = clock;
     }
 
@@ -69,7 +66,6 @@ public class PlaceImportContentWriter {
         submissionRepository.insertIfAbsent(content.getId(), placeImport.getMemberId(), clock.instant());
         placeImport.recordMetadata(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
                 metadata.contentHash(), metadata.sourceUpdatedAt());
-        imageStorageService.storeIfAvailable(content, metadata.imageUrls());
         recordSourceMetadata(placeImport, metadata);
         return content.getId();
     }
@@ -127,9 +123,6 @@ public class PlaceImportContentWriter {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateMetadata(
                     displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
                     metadata.contentHash(), clock.instant()));
-            contentRepository.findById(resolvedContentId).ifPresent(content ->
-                    imageStorageService.storeIfAvailable(content, metadata.imageUrls())
-            );
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateSourceMetadata(
                     metadata.sourceAuthorName(), metadata.sourceAuthorUsername(), metadata.sourcePublishedOn(),
                     metadata.likeCount(), metadata.commentCount(), metadata.engagementCheckedAt()));

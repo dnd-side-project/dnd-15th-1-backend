@@ -56,6 +56,15 @@ public class ContentImageStorageService {
     }
 
     @Transactional
+    public void storeIfAvailable(Long contentId, List<String> sourceUrls) {
+        if (contentId == null) {
+            return;
+        }
+        contentRepository.findById(contentId)
+                .ifPresent(content -> storeIfAvailable(content, sourceUrls));
+    }
+
+    @Transactional
     public void storeIfAvailable(Content content, List<String> sourceUrls) {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;

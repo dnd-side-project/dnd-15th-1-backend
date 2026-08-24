@@ -49,6 +49,8 @@ class PlaceImportServiceTest {
     private final PlaceImportResultWriter resultWriter = mock(PlaceImportResultWriter.class);
     private final PlaceImageEnrichmentService imageEnrichmentService =
             mock(PlaceImageEnrichmentService.class);
+    private final ContentImageEnrichmentService contentImageEnrichmentService =
+            mock(ContentImageEnrichmentService.class);
     private final PlaceImportReservationService reservationService =
             mock(PlaceImportReservationService.class);
     private final ContentSourceUrlParser urlParser = mock(ContentSourceUrlParser.class);
@@ -93,6 +95,7 @@ class PlaceImportServiceTest {
             placeRepository,
             resultWriter,
             imageEnrichmentService,
+            contentImageEnrichmentService,
             reservationService,
             metadataService,
             placeAnalyzer,
