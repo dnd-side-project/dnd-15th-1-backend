@@ -23,17 +23,20 @@ public class PlaceImageBackfillRunner implements ApplicationRunner {
 
     private final PlaceRepository placeRepository;
     private final PlaceImageEnrichmentService enrichmentService;
+    private final PlaceImageStorageService storageService;
     private final PlaceImageBackfillProperties properties;
     private final ConfigurableApplicationContext applicationContext;
 
     public PlaceImageBackfillRunner(
             PlaceRepository placeRepository,
             PlaceImageEnrichmentService enrichmentService,
+            PlaceImageStorageService storageService,
             PlaceImageBackfillProperties properties,
             ConfigurableApplicationContext applicationContext
     ) {
         this.placeRepository = placeRepository;
         this.enrichmentService = enrichmentService;
+        this.storageService = storageService;
         this.properties = properties;
         this.applicationContext = applicationContext;
     }
@@ -44,17 +47,27 @@ public class PlaceImageBackfillRunner implements ApplicationRunner {
                 .filter(place -> !isStored(place.getThumbnailUrl()))
                 .limit(properties.maxPlaces())
                 .toList();
+        int succeeded = 0;
+        int failed = 0;
         for (int index = 0; index < places.size(); index++) {
-            enrichmentService.enrichPlace(places.get(index).getId());
+            if (enrichmentService.enrichPlace(places.get(index).getId())) {
+                succeeded++;
+            } else {
+                failed++;
+            }
             waitBetweenRequests(index, places.size());
         }
-        logger.info("Kakao place image backfill completed: total={}", places.size());
-        int exitCode = SpringApplication.exit(applicationContext, () -> 0);
+        logger.info(
+                "Kakao place image backfill completed: total={}, succeeded={}, failed={}",
+                places.size(), succeeded, failed
+        );
+        int exitCode = failed == 0 ? 0 : 1;
+        SpringApplication.exit(applicationContext, () -> exitCode);
         System.exit(exitCode);
     }
 
     private boolean isStored(String imageUrl) {
-        return imageUrl != null && imageUrl.contains("/api/v1/place-images/");
+        return storageService.isPublicUrl(imageUrl);
     }
 
     private void waitBetweenRequests(int index, int total) {

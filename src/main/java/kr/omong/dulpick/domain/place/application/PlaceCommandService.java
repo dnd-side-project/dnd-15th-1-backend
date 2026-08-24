@@ -31,8 +31,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -127,7 +125,7 @@ public class PlaceCommandService {
                 searchResult.categoryGroupCode(),
                 searchResult.phone(),
                 searchResult.kakaoPlaceUrl(),
-                searchResult.thumbnailUrl(),
+                null,
                 now
         );
         Place place = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
@@ -149,28 +147,16 @@ public class PlaceCommandService {
                     publishSavedEvent(membership, memberId, partnerId, placeForSave.getId(), now);
                     return created;
                 });
-        scheduleImageEnrichment(place.getId());
+        if (imageEnrichmentService != null) {
+            imageEnrichmentService.enrichPlace(place.getId());
+        }
+        Place responsePlace = placeRepository.findByKakaoPlaceId(searchResult.kakaoPlaceId())
+                .orElse(place);
         return toView(
                 saved,
-                place,
+                responsePlace,
                 ownershipStatus(partnerId, place.getId())
         );
-    }
-
-    private void scheduleImageEnrichment(Long placeId) {
-        if (imageEnrichmentService == null) {
-            return;
-        }
-        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            imageEnrichmentService.enrichPlace(placeId);
-            return;
-        }
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCommit() {
-                imageEnrichmentService.enrichPlace(placeId);
-            }
-        });
     }
 
     private void logFallbackCategory(String kakaoPlaceId, String categoryGroupCode, String category) {

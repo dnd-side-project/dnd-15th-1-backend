@@ -60,6 +60,14 @@ public class PlaceImageStorageService {
         return properties.baseUrl() + "/api/v1/place-images/" + storageKey;
     }
 
+    public void delete(String storageKey) {
+        try {
+            Files.deleteIfExists(resolve(storageKey));
+        } catch (IOException exception) {
+            throw new PublicContentImageUnavailableException(exception);
+        }
+    }
+
     public boolean isPublicUrl(String imageUrl) {
         return imageUrl != null && imageUrl.startsWith(properties.baseUrl() + "/api/v1/place-images/");
     }
