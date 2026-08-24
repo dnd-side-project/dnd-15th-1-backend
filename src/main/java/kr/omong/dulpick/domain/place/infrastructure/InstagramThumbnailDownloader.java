@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.place.infrastructure;
 import kr.omong.dulpick.domain.place.application.ContentThumbnailDownloader;
 import kr.omong.dulpick.domain.place.application.exception.PublicContentImageUnavailableException;
 import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -30,6 +31,7 @@ final class InstagramThumbnailDownloader implements ContentThumbnailDownloader {
     private final HostAddressResolver addressResolver;
     private final RestClient restClient;
 
+    @Autowired
     InstagramThumbnailDownloader(
             ContentThumbnailProperties properties,
             HostAddressResolver addressResolver,
