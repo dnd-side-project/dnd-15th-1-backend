@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -24,6 +25,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.function.LongConsumer;
+import java.util.function.Supplier;
 
 @Service
 public class PlaceImportProcessingService {
@@ -89,13 +92,17 @@ public class PlaceImportProcessingService {
     }
 
     public void processClaimed(Long importId, String claimToken) {
+        processClaimed(importId, claimToken, clock.instant());
+    }
+
+    public void processClaimed(Long importId, String claimToken, Instant queuedAt) {
         PlaceImport placeImport = importRepository.findById(importId).orElse(null);
         if (placeImport == null
                 || placeImport.getStatus() != PlaceImportStatus.PROCESSING
                 || !Objects.equals(claimToken, placeImport.getProcessingClaimToken())) {
             return;
         }
-        processWithRetry(placeImport, placeImport.getSourceType(), claimToken);
+        processWithRetry(placeImport, placeImport.getSourceType(), claimToken, queuedAt);
     }
 
     private boolean isRecoverable(PlaceImport placeImport) {
@@ -111,30 +118,57 @@ public class PlaceImportProcessingService {
                 .isBefore(clock.instant());
     }
 
-    private void processWithRetry(PlaceImport placeImport, ContentSourceType sourceType, String claimToken) {
+    private void processWithRetry(
+            PlaceImport placeImport,
+            ContentSourceType sourceType,
+            String claimToken,
+            Instant queuedAt
+    ) {
         int attempts = properties.maxRetries() + 1;
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            try {
-                process(placeImport, sourceType, claimToken);
-                return;
-            } catch (PlaceImportClaimLostException exception) {
-                logger.info("Place import claim lost: importId={}", placeImport.getId());
-                return;
-            } catch (BusinessException exception) {
-                if (!canRetryImmediately(exception) || attempt == attempts - 1) {
-                    reservationService.failClaimed(placeImport.getId(), claimToken,
-                            exception.getErrorCode().getCode(), clock.instant());
+        ProcessingTiming timing = new ProcessingTiming();
+        long totalStartedAt = System.nanoTime();
+        try {
+            for (int attempt = 0; attempt < attempts; attempt++) {
+                try {
+                    process(placeImport, sourceType, claimToken, timing);
+                    return;
+                } catch (PlaceImportClaimLostException exception) {
+                    logger.info("Place import claim lost: importId={}", placeImport.getId());
+                    return;
+                } catch (BusinessException exception) {
+                    if (!canRetryImmediately(exception) || attempt == attempts - 1) {
+                        measureDbWrite(
+                                () -> reservationService.failClaimed(
+                                        placeImport.getId(), claimToken,
+                                        exception.getErrorCode().getCode(), clock.instant()
+                                ),
+                                timing
+                        );
+                        return;
+                    }
+                    boolean heartbeatSucceeded = measure(
+                            () -> reservationService.heartbeatClaim(
+                                    placeImport.getId(), claimToken, clock.instant()
+                            ),
+                            timing::addDbWrite
+                    );
+                    if (!heartbeatSucceeded) {
+                        return;
+                    }
+                } catch (RuntimeException exception) {
+                    logger.error("Place import processing failed: importId={}", placeImport.getId(), exception);
+                    measureDbWrite(
+                            () -> reservationService.failClaimed(
+                                    placeImport.getId(), claimToken,
+                                    ErrorCode.INTERNAL_ERROR.getCode(), clock.instant()
+                            ),
+                            timing
+                    );
                     return;
                 }
-                if (!reservationService.heartbeatClaim(placeImport.getId(), claimToken, clock.instant())) {
-                    return;
-                }
-            } catch (RuntimeException exception) {
-                logger.error("Place import processing failed: importId={}", placeImport.getId(), exception);
-                reservationService.failClaimed(placeImport.getId(), claimToken,
-                        ErrorCode.INTERNAL_ERROR.getCode(), clock.instant());
-                return;
             }
+        } finally {
+            logTiming(placeImport, queuedAt, totalStartedAt, timing);
         }
     }
 
@@ -143,15 +177,29 @@ public class PlaceImportProcessingService {
                 || exception.getErrorCode() == ErrorCode.PLACE_VERIFICATION_UNAVAILABLE;
     }
 
-    private void process(PlaceImport placeImport, ContentSourceType sourceType, String claimToken) {
-        ContentMetadata metadata = metadataService.fetch(placeImport.getCanonicalUrl(), sourceType);
+    private void process(
+            PlaceImport placeImport,
+            ContentSourceType sourceType,
+            String claimToken,
+            ProcessingTiming timing
+    ) {
+        ContentMetadata metadata = measure(
+                () -> metadataService.fetch(placeImport.getCanonicalUrl(), sourceType),
+                timing::addMetadata
+        );
         if (sourceType.storesPublicContent()) {
-            if (resultWriter.reuseUnchangedContent(placeImport.getId(), claimToken, metadata)) {
+            if (measure(
+                    () -> resultWriter.reuseUnchangedContent(placeImport.getId(), claimToken, metadata),
+                    timing::addDbWrite
+            )) {
                 dispatchContentImageEnrichment(placeImport.getId(), metadata.imageUrls());
                 imageEnrichmentService.enrichImportPlaces(placeImport.getId());
                 return;
             }
-            placeImport.attachContent(resultWriter.saveMetadata(placeImport.getId(), claimToken, metadata));
+            placeImport.attachContent(measure(
+                    () -> resultWriter.saveMetadata(placeImport.getId(), claimToken, metadata),
+                    timing::addDbWrite
+            ));
         } else {
             placeImport.recordMetadata(metadata.title(), metadata.caption(), metadata.thumbnailUrl(),
                     metadata.contentHash(), metadata.sourceUpdatedAt());
@@ -167,21 +215,40 @@ public class PlaceImportProcessingService {
                 metadata.title() + " " + metadata.caption(), "EXPLICIT_VENUE"))
                 : loadCachedCandidates(placeImport, metadata, model, prompt);
         if (extracted == null) {
-            extracted = analyzeWithGemini(placeImport, metadata, sourceText, model, prompt, claimToken);
+            extracted = analyzeWithGemini(
+                    placeImport, metadata, sourceText, model, prompt, claimToken, timing
+            );
             if (extracted == null) {
                 return;
             }
         }
+        List<ExtractedPlace> extractedCandidates = extracted;
         if (isDirectPlaceSource(sourceType)) {
-            resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted);
+            measureDbWrite(
+                    () -> resultWriter.saveExtractedCandidates(
+                            placeImport.getId(), claimToken, extractedCandidates
+                    ),
+                    timing
+            );
         }
-        List<VerifiedCandidate> candidates = verifyCandidates(extracted);
+        List<VerifiedCandidate> candidates = measure(
+                () -> verifyCandidates(extractedCandidates),
+                timing::addKakaoVerification
+        );
         if (candidates.isEmpty()) {
-            reservationService.failClaimed(placeImport.getId(), claimToken,
-                    ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant());
+            measureDbWrite(
+                    () -> reservationService.failClaimed(
+                            placeImport.getId(), claimToken,
+                            ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant()
+                    ),
+                    timing
+            );
             return;
         }
-        resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, candidates);
+        measureDbWrite(
+                () -> resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, candidates),
+                timing
+        );
         contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
         imageEnrichmentService.enrichImportPlaces(placeImport.getId());
     }
@@ -238,33 +305,71 @@ public class PlaceImportProcessingService {
 
     private List<ExtractedPlace> analyzeWithGemini(PlaceImport placeImport, ContentMetadata metadata,
                                                     String sourceText, String model, String prompt,
-                                                    String claimToken) {
+                                                    String claimToken, ProcessingTiming timing) {
         Long contentId = placeImport.getContentId();
         if (contentId == null) {
-            List<ExtractedPlace> extracted = analyze(metadata, sourceText);
-            resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted);
+            List<ExtractedPlace> extracted = measure(
+                    () -> analyze(metadata, sourceText),
+                    timing::addGemini
+            );
+            measureDbWrite(
+                    () -> resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted),
+                    timing
+            );
             return extracted;
         }
-        String analysisClaim = resultWriter.claimAnalysis(contentId, metadata.contentHash(), model, prompt,
-                clock.instant(), clock.instant().minusSeconds(properties.staleTimeoutSeconds()));
+        String analysisClaim = measure(
+                () -> resultWriter.claimAnalysis(
+                        contentId,
+                        metadata.contentHash(),
+                        model,
+                        prompt,
+                        clock.instant(),
+                        clock.instant().minusSeconds(properties.staleTimeoutSeconds())
+                ),
+                timing::addDbWrite
+        );
         if (analysisClaim == null) {
             List<ExtractedPlace> cached = loadCachedCandidates(placeImport, metadata, model, prompt);
             if (cached == null) {
-                reservationService.requeueClaimed(placeImport.getId(), claimToken, clock.instant());
+                measureDbWrite(
+                        () -> reservationService.requeueClaimed(placeImport.getId(), claimToken, clock.instant()),
+                        timing
+                );
             }
             return cached;
         }
         try {
-            List<ExtractedPlace> extracted = analyze(metadata, sourceText);
-            if (!resultWriter.saveAnalysis(contentId, analysisClaim, metadata.contentHash(), model, prompt,
-                    extracted, clock.instant())) {
-                reservationService.requeueClaimed(placeImport.getId(), claimToken, clock.instant());
+            List<ExtractedPlace> extracted = measure(
+                    () -> analyze(metadata, sourceText),
+                    timing::addGemini
+            );
+            boolean saved = measure(
+                    () -> resultWriter.saveAnalysis(
+                            contentId,
+                            analysisClaim,
+                            metadata.contentHash(),
+                            model,
+                            prompt,
+                            extracted,
+                            clock.instant()
+                    ),
+                    timing::addDbWrite
+            );
+            if (!saved) {
+                measureDbWrite(
+                        () -> reservationService.requeueClaimed(placeImport.getId(), claimToken, clock.instant()),
+                        timing
+                );
                 return null;
             }
-            resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted);
+            measureDbWrite(
+                    () -> resultWriter.saveExtractedCandidates(placeImport.getId(), claimToken, extracted),
+                    timing
+            );
             return extracted;
         } catch (RuntimeException exception) {
-            resultWriter.failAnalysis(contentId, analysisClaim);
+            measureDbWrite(() -> resultWriter.failAnalysis(contentId, analysisClaim), timing);
             throw exception;
         }
     }
@@ -336,5 +441,75 @@ public class PlaceImportProcessingService {
         return sourceType == ContentSourceType.NAVER_SHORT_LINK
                 || sourceType == ContentSourceType.NAVER_MAP
                 || sourceType == ContentSourceType.KAKAO_MAP;
+    }
+
+    private void measureDbWrite(Runnable action, ProcessingTiming timing) {
+        measure(action, timing::addDbWrite);
+    }
+
+    private <T> T measure(Supplier<T> action, LongConsumer recorder) {
+        long startedAt = System.nanoTime();
+        try {
+            return action.get();
+        } finally {
+            recorder.accept(elapsedMillis(startedAt));
+        }
+    }
+
+    private void measure(Runnable action, LongConsumer recorder) {
+        long startedAt = System.nanoTime();
+        try {
+            action.run();
+        } finally {
+            recorder.accept(elapsedMillis(startedAt));
+        }
+    }
+
+    private long elapsedMillis(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
+    private void logTiming(
+            PlaceImport placeImport,
+            Instant queuedAt,
+            long totalStartedAt,
+            ProcessingTiming timing
+    ) {
+        long queueWaitMillis = Math.max(Duration.between(queuedAt, clock.instant()).toMillis(), 0L);
+        logger.info(
+                "place_import_timing importId={} metadata_ms={} gemini_ms={} "
+                        + "kakao_verification_ms={} db_write_ms={} queue_wait_ms={} total_ms={}",
+                placeImport.getId(),
+                timing.metadataMillis,
+                timing.geminiMillis,
+                timing.kakaoVerificationMillis,
+                timing.dbWriteMillis,
+                queueWaitMillis,
+                elapsedMillis(totalStartedAt)
+        );
+    }
+
+    private static final class ProcessingTiming {
+
+        private long metadataMillis;
+        private long geminiMillis;
+        private long kakaoVerificationMillis;
+        private long dbWriteMillis;
+
+        private void addMetadata(long elapsedMillis) {
+            metadataMillis += elapsedMillis;
+        }
+
+        private void addGemini(long elapsedMillis) {
+            geminiMillis += elapsedMillis;
+        }
+
+        private void addKakaoVerification(long elapsedMillis) {
+            kakaoVerificationMillis += elapsedMillis;
+        }
+
+        private void addDbWrite(long elapsedMillis) {
+            dbWriteMillis += elapsedMillis;
+        }
     }
 }

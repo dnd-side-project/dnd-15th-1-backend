@@ -24,9 +24,11 @@ import java.nio.file.StandardCopyOption;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -74,11 +76,7 @@ public class ContentImageStorageService {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
         }
-        List<String> imageUrls = sourceUrls.stream()
-                .filter(url -> url != null && !url.isBlank())
-                .distinct()
-                .limit(properties.maxImages())
-                .toList();
+        List<String> imageUrls = normalizeImageUrls(sourceUrls);
         if (imageUrls.isEmpty()) {
             return;
         }
@@ -91,15 +89,22 @@ public class ContentImageStorageService {
                         (first, second) -> first,
                         LinkedHashMap::new
                 ));
+        Set<String> occupiedHashes = new HashSet<>(existingImages.keySet());
         Instant now = clock.instant();
         List<ContentImage> images = new ArrayList<>();
+        List<ContentImage> failedImages = new ArrayList<>();
         for (int index = 0; index < imageUrls.size(); index++) {
-            ContentImage image = saveImage(content.getId(), imageUrls, existingImages, index, now);
+            ContentImage image = saveImage(
+                    content.getId(), imageUrls, existingImages, occupiedHashes, index, now
+            );
             existingImages.put(image.getSourceUrlHash(), image);
-            if (!images.contains(image)) {
+            if (hasStoredFile(image) && !images.contains(image)) {
                 images.add(image);
+            } else if (!hasStoredFile(image) && !failedImages.contains(image)) {
+                failedImages.add(image);
             }
         }
+        retryNewImagesFromOriginalContent(content, failedImages, occupiedHashes, images);
         imageRepository.saveAll(images);
     }
 
@@ -108,11 +113,7 @@ public class ContentImageStorageService {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
         }
-        List<String> imageUrls = sourceUrls.stream()
-                .filter(url -> url != null && !url.isBlank())
-                .distinct()
-                .limit(properties.maxImages())
-                .toList();
+        List<String> imageUrls = normalizeImageUrls(sourceUrls);
         if (imageUrls.isEmpty()) {
             return;
         }
@@ -122,12 +123,15 @@ public class ContentImageStorageService {
             storeIfAvailable(content, imageUrls);
             return;
         }
+        Set<String> occupiedHashes = existingImages.stream()
+                .map(ContentImage::getSourceUrlHash)
+                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
         List<ContentImage> failedImages = new ArrayList<>();
         for (ContentImage image : existingImages) {
             if (hasStoredFile(image)) {
                 continue;
             }
-            if (!storeFromCandidates(image, imageUrls)) {
+            if (!storeFromCandidates(image, imageUrls, occupiedHashes)) {
                 failedImages.add(image);
                 logger.warn(
                         "Content image refresh failed: contentId={}, imageKey={}, cause={}",
@@ -137,7 +141,7 @@ public class ContentImageStorageService {
                 );
             }
         }
-        retryFailedImages(content, failedImages);
+        retryFailedImages(content, failedImages, occupiedHashes);
         imageRepository.saveAllAndFlush(existingImages);
     }
 
@@ -167,7 +171,39 @@ public class ContentImageStorageService {
         return !images.isEmpty() && images.stream().allMatch(this::hasStoredFile);
     }
 
-    private void retryFailedImages(Content content, List<ContentImage> failedImages) {
+    private void retryNewImagesFromOriginalContent(
+            Content content,
+            List<ContentImage> failedImages,
+            Set<String> occupiedHashes,
+            List<ContentImage> storedImages
+    ) {
+        if (failedImages.isEmpty()) {
+            return;
+        }
+        List<String> freshUrls;
+        try {
+            freshUrls = normalizeImageUrls(metadataProvider.fetchImageUrls(content.getCanonicalUrl()));
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Content image original refresh failed: contentId={}, cause={}",
+                    content.getId(),
+                    exception.getClass().getSimpleName()
+            );
+            return;
+        }
+        for (ContentImage image : failedImages) {
+            if (storeFromCandidates(image, freshUrls, occupiedHashes)
+                    && !storedImages.contains(image)) {
+                storedImages.add(image);
+            }
+        }
+    }
+
+    private void retryFailedImages(
+            Content content,
+            List<ContentImage> failedImages,
+            Set<String> occupiedHashes
+    ) {
         if (failedImages.isEmpty()) {
             return;
         }
@@ -178,7 +214,7 @@ public class ContentImageStorageService {
             return;
         }
         for (ContentImage image : failedImages) {
-            if (!storeFromCandidates(image, retryUrls)) {
+            if (!storeFromCandidates(image, retryUrls, occupiedHashes)) {
                 logger.warn(
                         "Content image retry failed: contentId={}, imageKey={}, cause={}",
                         content.getId(),
@@ -214,12 +250,24 @@ public class ContentImageStorageService {
         throw new PublicContentImageUnavailableException(lastFailure);
     }
 
-    private boolean storeFromCandidates(ContentImage image, List<String> freshUrls) {
-        List<String> candidates = orderCandidates(freshUrls, image.getDisplayOrder());
+    private boolean storeFromCandidates(
+            ContentImage image,
+            List<String> freshUrls,
+            Set<String> occupiedHashes
+    ) {
+        String previousHash = image.getSourceUrlHash();
+        List<String> candidates = orderCandidates(freshUrls, image.getDisplayOrder()).stream()
+                .filter(url -> {
+                    String hash = Sha256.hex(url);
+                    return !occupiedHashes.contains(hash) || hash.equals(previousHash);
+                })
+                .toList();
         for (int index = 0; index < Math.min(candidates.size(), MAX_IMAGE_URL_ATTEMPTS); index++) {
             String freshUrl = candidates.get(index);
             try {
                 downloadAndStore(image, freshUrl);
+                occupiedHashes.remove(previousHash);
+                occupiedHashes.add(image.getSourceUrlHash());
                 return true;
             } catch (RuntimeException ignored) {
                 // Try another fresh image URL for the same stable image key.
@@ -272,6 +320,7 @@ public class ContentImageStorageService {
             Long contentId,
             List<String> sourceUrls,
             Map<String, ContentImage> existingImages,
+            Set<String> occupiedHashes,
             int displayOrder,
             Instant now
     ) {
@@ -283,8 +332,12 @@ public class ContentImageStorageService {
         } else {
             image.updateDisplayOrder(displayOrder, now);
         }
+        occupiedHashes.add(image.getSourceUrlHash());
+        if (hasStoredFile(image)) {
+            return image;
+        }
         try {
-            if (!storeFromCandidates(image, sourceUrls)) {
+            if (!storeFromCandidates(image, sourceUrls, occupiedHashes)) {
                 throw new PublicContentImageUnavailableException();
             }
         } catch (RuntimeException exception) {
@@ -296,6 +349,30 @@ public class ContentImageStorageService {
             );
         }
         return image;
+    }
+
+    private List<String> normalizeImageUrls(List<String> sourceUrls) {
+        if (sourceUrls == null) {
+            return List.of();
+        }
+        return sourceUrls.stream()
+                .map(this::normalizeImageUrl)
+                .filter(url -> url != null && !url.isBlank() && url.length() <= 2_000)
+                .distinct()
+                .limit(properties.maxImages())
+                .toList();
+    }
+
+    private String normalizeImageUrl(String sourceUrl) {
+        if (sourceUrl == null) {
+            return null;
+        }
+        return org.springframework.web.util.HtmlUtils.htmlUnescape(sourceUrl)
+                .replace("\\u002F", "/")
+                .replace("\\u0026", "&")
+                .replace("\\u003D", "=")
+                .replace("\\/", "/")
+                .strip();
     }
 
     private boolean isInstagramContent(Content content) {

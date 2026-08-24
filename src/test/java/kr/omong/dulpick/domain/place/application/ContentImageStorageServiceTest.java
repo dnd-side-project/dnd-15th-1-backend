@@ -225,6 +225,37 @@ class ContentImageStorageServiceTest {
                 .isEqualTo("https://scontent.cdninstagram.com/available.jpg");
     }
 
+    @Test
+    void refetchesOriginalInstagramPageWhenInitialImageUrlsAreExpired() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(16L);
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(16L)).thenReturn(List.of());
+        when(downloader.download("https://scontent.cdninstagram.com/expired.jpg"))
+                .thenThrow(new PublicContentImageUnavailableException());
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl()))
+                .thenReturn(List.of("https://scontent.cdninstagram.com/fresh.jpg"));
+        when(downloader.download("https://scontent.cdninstagram.com/fresh.jpg"))
+                .thenReturn(downloaded("fresh"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider
+        );
+
+        service.storeIfAvailable(content, List.of(
+                "https://scontent.cdninstagram.com/expired.jpg"
+        ));
+
+        org.mockito.ArgumentCaptor<List> captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        verify(imageRepository).saveAll(captor.capture());
+        @SuppressWarnings("unchecked")
+        List<ContentImage> images = captor.getValue();
+        assertThat(images).hasSize(1);
+        assertThat(images.getFirst().getSourceUrl())
+                .isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,
