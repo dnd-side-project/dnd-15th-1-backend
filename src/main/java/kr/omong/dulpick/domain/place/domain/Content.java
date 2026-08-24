@@ -171,6 +171,11 @@ public class Content {
         this.updatedAt = now;
     }
 
+    public void updatePublicationStatus(ContentPublicationStatus status, Instant now) {
+        this.publicationStatus = status;
+        this.updatedAt = now;
+    }
+
     public void updatePlaceCount(int placeCount) {
         this.placeCount = Math.max(placeCount, 0);
     }
@@ -286,6 +291,10 @@ public class Content {
 
     public Instant getCreatedAt() {
         return createdAt;
+    }
+
+    public Instant getUpdatedAt() {
+        return updatedAt;
     }
 
     public Instant getLastCheckedAt() {

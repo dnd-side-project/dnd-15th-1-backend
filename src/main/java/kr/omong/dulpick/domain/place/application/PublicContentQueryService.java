@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
+import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -70,14 +71,23 @@ public class PublicContentQueryService {
             Pageable pageable,
             ContentRecommendationSort sort
     ) {
-        List<Content> ranked = rankContents(
+        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
                 contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
                         ContentPublicationStatus.PUBLIC
-                ),
-                memberId,
-                sort
+                )
         );
-        return enrichPage(memberId, slice(ranked, pageable), sort);
+        List<Content> ranked = rankContents(
+                deduplicated.contents(),
+                memberId,
+                sort,
+                deduplicated.sourceIdsByRepresentative()
+        );
+        return enrichPage(
+                memberId,
+                slice(ranked, pageable),
+                sort,
+                deduplicated.sourceIdsByRepresentative()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -89,12 +99,18 @@ public class PublicContentQueryService {
         if (!placeRepository.existsById(placeId)) {
             throw new PlaceNotFoundException();
         }
-        Page<Content> contents = contentRepository.findAllByPlaceIdAndPublicationStatus(
-                placeId,
-                ContentPublicationStatus.PUBLIC,
-                paged(pageable)
+        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
+                contentRepository.findAllByPlaceIdAndPublicationStatus(
+                        placeId,
+                        ContentPublicationStatus.PUBLIC
+                )
         );
-        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
+        return enrichPage(
+                memberId,
+                slice(deduplicated.contents(), pageable),
+                ContentRecommendationSort.POPULAR,
+                deduplicated.sourceIdsByRepresentative()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -103,12 +119,18 @@ public class PublicContentQueryService {
             String query,
             Pageable pageable
     ) {
-        Page<Content> contents = contentRepository.searchByPublicationStatusAndKeyword(
-                ContentPublicationStatus.PUBLIC.name(),
-                FullTextBooleanQuery.from(query.strip()),
-                paged(pageable)
+        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
+                contentRepository.searchAllByPublicationStatusAndKeyword(
+                        ContentPublicationStatus.PUBLIC.name(),
+                        FullTextBooleanQuery.from(query.strip())
+                )
         );
-        return enrichPage(memberId, contents, ContentRecommendationSort.POPULAR);
+        return enrichPage(
+                memberId,
+                slice(deduplicated.contents(), pageable),
+                ContentRecommendationSort.POPULAR,
+                deduplicated.sourceIdsByRepresentative()
+        );
     }
 
     @Transactional(readOnly = true)
@@ -118,20 +140,39 @@ public class PublicContentQueryService {
                         ContentPublicationStatus.PUBLIC
                 )
                 .orElseThrow(PublicContentNotFoundException::new);
+        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
+                contentRepository.findAllBySourceTypeInOrderByIdAsc(List.of(
+                        ContentSourceType.INSTAGRAM_REEL,
+                        ContentSourceType.INSTAGRAM_POST
+                ))
+        );
+        Content representative = deduplicated.contents().stream()
+                .filter(candidate -> deduplicated.sourceIdsByRepresentative()
+                        .getOrDefault(candidate.getId(), List.of())
+                        .contains(contentId))
+                .findFirst()
+                .orElse(content);
+        Map<Long, List<Long>> sourceIdsByRepresentative = new java.util.HashMap<>(
+                deduplicated.sourceIdsByRepresentative()
+        );
+        sourceIdsByRepresentative.putIfAbsent(contentId, List.of(contentId));
         return enrichPage(
                 memberId,
-                new PageImpl<>(List.of(content)),
-                ContentRecommendationSort.POPULAR
+                new PageImpl<>(List.of(representative)),
+                ContentRecommendationSort.POPULAR,
+                sourceIdsByRepresentative
         ).getContent().getFirst();
     }
 
     private List<Content> rankContents(
             List<Content> contents,
             Long memberId,
-            ContentRecommendationSort requestedSort
+            ContentRecommendationSort requestedSort,
+            Map<Long, List<Long>> sourceIdsByRepresentative
     ) {
-        Map<Long, List<Place>> placesByContent = findPlacesByContent(
-                contents.stream().map(Content::getId).toList()
+        Map<Long, List<Place>> placesByContent = findRepresentativePlaces(
+                contents,
+                sourceIdsByRepresentative
         );
         Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
         Map<Long, Long> saveCounts = countSaves(placesByContent);
@@ -147,13 +188,20 @@ public class PublicContentQueryService {
     private Page<PublicContentView> enrichPage(
             Long memberId,
             Page<Content> contents,
-            ContentRecommendationSort requestedSort
+            ContentRecommendationSort requestedSort,
+            Map<Long, List<Long>> sourceIdsByRepresentative
     ) {
         List<Long> contentIds = contents.getContent().stream().map(Content::getId).toList();
-        Map<Long, List<Place>> placesByContent = findPlacesByContent(contentIds);
+        Map<Long, List<Place>> placesByContent = findRepresentativePlaces(
+                contents.getContent(),
+                sourceIdsByRepresentative
+        );
         Map<Long, PlaceDateTraitsView> traitsByPlace = findTraitsByPlace(placesByContent);
         Map<Long, Long> saveCounts = countSaves(placesByContent);
-        Map<Long, List<String>> imageKeysByContent = findImageKeysByContent(contentIds);
+        Map<Long, List<String>> imageKeysByContent = findRepresentativeImageKeys(
+                contents.getContent(),
+                sourceIdsByRepresentative
+        );
         Set<Long> savedPlaceIds = findSavedPlaceIds(memberId, placesByContent);
         DatePreferences preferences = requestedSort == ContentRecommendationSort.PREFERENCE
                 ? datePreferences(memberId)
@@ -168,6 +216,52 @@ public class PublicContentQueryService {
                 imageKeysByContent,
                 sort,
                 preferences
+        ));
+    }
+
+    private Map<Long, List<Place>> findRepresentativePlaces(
+            List<Content> representatives,
+            Map<Long, List<Long>> sourceIdsByRepresentative
+    ) {
+        List<Long> sourceContentIds = representatives.stream()
+                .flatMap(content -> sourceIdsByRepresentative
+                        .getOrDefault(content.getId(), List.of(content.getId()))
+                        .stream())
+                .distinct()
+                .toList();
+        Map<Long, List<Place>> placesBySource = findPlacesByContent(sourceContentIds);
+        return representatives.stream().collect(Collectors.toMap(
+                Content::getId,
+                content -> sourceIdsByRepresentative
+                        .getOrDefault(content.getId(), List.of(content.getId()))
+                        .stream()
+                        .flatMap(sourceId -> placesBySource.getOrDefault(sourceId, List.of()).stream())
+                        .collect(Collectors.toMap(Place::getId, Function.identity(), (first, second) -> first))
+                        .values()
+                        .stream()
+                        .toList()
+        ));
+    }
+
+    private Map<Long, List<String>> findRepresentativeImageKeys(
+            List<Content> representatives,
+            Map<Long, List<Long>> sourceIdsByRepresentative
+    ) {
+        List<Long> sourceContentIds = representatives.stream()
+                .flatMap(content -> sourceIdsByRepresentative
+                        .getOrDefault(content.getId(), List.of(content.getId()))
+                        .stream())
+                .distinct()
+                .toList();
+        Map<Long, List<String>> imageKeysBySource = findImageKeysByContent(sourceContentIds);
+        return representatives.stream().collect(Collectors.toMap(
+                Content::getId,
+                content -> sourceIdsByRepresentative
+                        .getOrDefault(content.getId(), List.of(content.getId()))
+                        .stream()
+                        .flatMap(sourceId -> imageKeysBySource.getOrDefault(sourceId, List.of()).stream())
+                        .distinct()
+                        .toList()
         ));
     }
 
@@ -304,7 +398,7 @@ public class PublicContentQueryService {
                 content.getContent(),
                 content.getThumbnailUrl(),
                 imageKeysByContent.getOrDefault(content.getId(), List.of()),
-                content.getPlaceCount(),
+                places.size(),
                 places.stream()
                         .map(place -> toPlaceView(
                                 place,

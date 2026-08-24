@@ -7,12 +7,20 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
+import org.springframework.data.domain.Pageable;
 
 public interface PlaceImageEnrichmentBacklogRepository
         extends JpaRepository<PlaceImageEnrichmentBacklog, Long> {
 
     Optional<PlaceImageEnrichmentBacklog> findByPlaceId(Long placeId);
+
+    List<PlaceImageEnrichmentBacklog> findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
+            String status,
+            Instant before,
+            Pageable pageable
+    );
 
     @Transactional
     @Modifying

@@ -31,6 +31,9 @@ public class ContentImage {
     @Column(name = "content_type", length = 100)
     private String contentType;
 
+    @Column(name = "content_hash", length = 64)
+    private String contentHash;
+
     @Column(name = "display_order", nullable = false)
     private int displayOrder;
 
@@ -86,6 +89,17 @@ public class ContentImage {
         this.updatedAt = now;
     }
 
+    public void markStored(String contentType, String contentHash, Instant now) {
+        this.contentType = contentType;
+        this.contentHash = contentHash;
+        this.updatedAt = now;
+    }
+
+    public void markContentHash(String contentHash, Instant now) {
+        this.contentHash = contentHash;
+        this.updatedAt = now;
+    }
+
     public String getImageKey() {
         return imageKey;
     }
@@ -108,6 +122,10 @@ public class ContentImage {
 
     public String getContentType() {
         return contentType;
+    }
+
+    public String getContentHash() {
+        return contentHash;
     }
 
     public int getDisplayOrder() {

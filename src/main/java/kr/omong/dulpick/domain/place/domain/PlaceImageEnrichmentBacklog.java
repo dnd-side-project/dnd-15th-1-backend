@@ -51,6 +51,10 @@ public class PlaceImageEnrichmentBacklog {
         return attemptCount;
     }
 
+    public Long getPlaceId() {
+        return placeId;
+    }
+
     public String getStatus() {
         return status;
     }

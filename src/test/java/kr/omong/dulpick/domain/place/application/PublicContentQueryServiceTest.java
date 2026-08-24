@@ -13,6 +13,7 @@ import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRecommendationSort;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
+import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -172,14 +173,85 @@ class PublicContentQueryServiceTest {
     }
 
     @Test
+    void doesNotReturnInstagramReelAndPostAsSeparatePublicContents() {
+        Content reel = content(10L);
+        Content post = content(11L);
+        when(reel.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_REEL);
+        when(reel.getCanonicalUrl()).thenReturn("https://www.instagram.com/reel/DcNY1IPT5Yg");
+        when(post.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_POST);
+        when(post.getCanonicalUrl()).thenReturn("https://www.instagram.com/p/DcNY1IPT5Yg");
+        when(post.getPlaceCount()).thenReturn(2);
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(reel, post));
+        stubPlaces(
+                List.of(contentPlace(10L, 21L), contentPlace(11L, 20L)),
+                List.of(place(21L), place(20L))
+        );
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 1L), row(21L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+
+        Page<PublicContentView> result = service.findPublicContents(
+                1L,
+                PageRequest.of(0, 20),
+                ContentRecommendationSort.POPULAR
+        );
+
+        assertThat(result.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(11L);
+        assertThat(result.getContent().getFirst().places())
+                .extracting(PublicPlaceView::placeId)
+                .containsExactlyInAnyOrder(20L, 21L);
+        assertThat(result.getContent().getFirst().placeCount()).isEqualTo(2);
+    }
+
+    @Test
+    void doesNotReturnInstagramReelAndPostTwiceInSearchResults() {
+        Content reel = content(10L);
+        Content post = content(11L);
+        when(reel.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_REEL);
+        when(reel.getCanonicalUrl()).thenReturn("https://www.instagram.com/reel/DcNY1IPT5Yg");
+        when(post.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_POST);
+        when(post.getCanonicalUrl()).thenReturn("https://www.instagram.com/p/DcNY1IPT5Yg");
+        PageRequest pageable = PageRequest.of(0, 1);
+        when(contentRepository.searchAllByPublicationStatusAndKeyword(
+                ContentPublicationStatus.PUBLIC.name(),
+                "+데이트"
+        )).thenReturn(List.of(reel, post));
+        when(contentPlaceRepository.findAllByContentIdIn(List.of(11L))).thenReturn(List.of());
+        when(placeRepository.findAllById(List.of())).thenReturn(List.of());
+
+        Page<PublicContentView> result = service.searchPublicContents(
+                1L,
+                " 데이트 ",
+                pageable
+        );
+
+        assertThat(result.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(11L);
+        assertThat(result.getTotalElements()).isEqualTo(1);
+
+        Page<PublicContentView> secondPage = service.searchPublicContents(
+                1L,
+                " 데이트 ",
+                PageRequest.of(1, 1)
+        );
+
+        assertThat(secondPage.getContent()).isEmpty();
+        assertThat(secondPage.getTotalElements()).isEqualTo(1);
+    }
+
+    @Test
     void searchesOnlyPublicContentTitleAndBodyWithStablePaging() {
         Content content = content(10L);
         PageRequest expectedPage = PageRequest.of(0, 20);
-        when(contentRepository.searchByPublicationStatusAndKeyword(
+        when(contentRepository.searchAllByPublicationStatusAndKeyword(
                 ContentPublicationStatus.PUBLIC.name(),
-                "+서울 +데이트",
-                expectedPage
-        )).thenReturn(new PageImpl<>(List.of(content), expectedPage, 1));
+                "+서울 +데이트"
+        )).thenReturn(List.of(content));
         when(contentPlaceRepository.findAllByContentIdIn(List.of(10L))).thenReturn(List.of());
         when(placeRepository.findAllById(List.of())).thenReturn(List.of());
 
@@ -189,10 +261,9 @@ class PublicContentQueryServiceTest {
                 PageRequest.of(0, 20)
         );
 
-        verify(contentRepository).searchByPublicationStatusAndKeyword(
+        verify(contentRepository).searchAllByPublicationStatusAndKeyword(
                 ContentPublicationStatus.PUBLIC.name(),
-                "+서울 +데이트",
-                expectedPage
+                "+서울 +데이트"
         );
     }
 
@@ -214,9 +285,8 @@ class PublicContentQueryServiceTest {
         PageRequest pageable = PageRequest.of(0, 20);
         when(contentRepository.findAllByPlaceIdAndPublicationStatus(
                 eq(20L),
-                eq(ContentPublicationStatus.PUBLIC),
-                any()
-        )).thenReturn(new PageImpl<>(List.of(linked), pageable, 1));
+                eq(ContentPublicationStatus.PUBLIC)
+        )).thenReturn(List.of(linked));
         stubPlaces(List.of(contentPlace(10L, 20L)), List.of(place(20L)));
         when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
         when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))

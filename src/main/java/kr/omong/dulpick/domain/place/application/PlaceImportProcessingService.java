@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportClaimLostException;
+import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
@@ -12,6 +13,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -25,6 +27,7 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.function.LongConsumer;
 import java.util.function.Supplier;
 
@@ -38,6 +41,7 @@ public class PlaceImportProcessingService {
     private final PlaceRepository placeRepository;
     private final PlaceImportResultWriter resultWriter;
     private final PlaceImageEnrichmentService imageEnrichmentService;
+    private final PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher;
     private final ContentImageEnrichmentService contentImageEnrichmentService;
     private final PlaceImportReservationService reservationService;
     private final MetadataService metadataService;
@@ -63,11 +67,82 @@ public class PlaceImportProcessingService {
             @Qualifier("placeVerificationExecutor")
             Executor verificationExecutor
     ) {
+        this(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                resultWriter,
+                imageEnrichmentService,
+                contentImageEnrichmentService,
+                reservationService,
+                metadataService,
+                placeAnalyzer,
+                placeVerifier,
+                properties,
+                clock,
+                verificationExecutor,
+                null
+        );
+    }
+
+    @Autowired
+    public PlaceImportProcessingService(
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            PlaceImportResultWriter resultWriter,
+            PlaceImageEnrichmentService imageEnrichmentService,
+            ContentImageEnrichmentService contentImageEnrichmentService,
+            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher,
+            PlaceImportReservationService reservationService,
+            MetadataService metadataService,
+            PlaceAnalyzer placeAnalyzer,
+            PlaceVerifier placeVerifier,
+            PlaceAnalysisProperties properties,
+            Clock clock,
+            @Qualifier("placeVerificationExecutor")
+            Executor verificationExecutor
+    ) {
+        this(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                resultWriter,
+                imageEnrichmentService,
+                contentImageEnrichmentService,
+                reservationService,
+                metadataService,
+                placeAnalyzer,
+                placeVerifier,
+                properties,
+                clock,
+                verificationExecutor,
+                imageEnrichmentDispatcher
+        );
+    }
+
+    private PlaceImportProcessingService(
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            PlaceImportResultWriter resultWriter,
+            PlaceImageEnrichmentService imageEnrichmentService,
+            ContentImageEnrichmentService contentImageEnrichmentService,
+            PlaceImportReservationService reservationService,
+            MetadataService metadataService,
+            PlaceAnalyzer placeAnalyzer,
+            PlaceVerifier placeVerifier,
+            PlaceAnalysisProperties properties,
+            Clock clock,
+            Executor verificationExecutor,
+            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher
+    ) {
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
         this.resultWriter = resultWriter;
         this.imageEnrichmentService = imageEnrichmentService;
+        this.imageEnrichmentDispatcher = imageEnrichmentDispatcher;
         this.contentImageEnrichmentService = contentImageEnrichmentService;
         this.reservationService = reservationService;
         this.metadataService = metadataService;
@@ -194,7 +269,7 @@ public class PlaceImportProcessingService {
                     timing::addDbWrite
             )) {
                 dispatchContentImageEnrichment(placeImport.getId(), metadata.imageUrls());
-                imageEnrichmentService.enrichImportPlaces(placeImport.getId());
+                dispatchPlaceImageEnrichment(placeImport.getId());
                 return;
             }
             placeImport.attachContent(measure(
@@ -251,15 +326,21 @@ public class PlaceImportProcessingService {
                 timing
         );
         contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
-        imageEnrichmentService.enrichImportPlaces(placeImport.getId());
+        dispatchPlaceImageEnrichment(placeImport.getId());
     }
 
     private List<VerifiedCandidate> verifyCandidates(List<ExtractedPlace> extracted) {
-        List<CompletableFuture<PlaceVerificationResult>> futures = extracted.stream()
-                .map(place -> CompletableFuture.supplyAsync(
+        List<CompletableFuture<PlaceVerificationResult>> futures = new ArrayList<>();
+        try {
+            for (ExtractedPlace place : extracted) {
+                futures.add(CompletableFuture.supplyAsync(
                         () -> verifyCachedOrExternal(place), verificationExecutor
-                ))
-                .toList();
+                ));
+            }
+        } catch (RejectedExecutionException exception) {
+            waitForAllVerifications(futures);
+            throw new PlaceVerificationUnavailableException(exception);
+        }
         waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
         for (int index = 0; index < extracted.size(); index++) {
@@ -302,6 +383,16 @@ public class PlaceImportProcessingService {
         importRepository.findById(importId)
                 .map(PlaceImport::getContentId)
                 .ifPresent(contentId -> contentImageEnrichmentService.dispatch(contentId, sourceUrls));
+    }
+
+    private void dispatchPlaceImageEnrichment(Long importId) {
+        if (imageEnrichmentDispatcher != null) {
+            imageEnrichmentDispatcher.dispatchImport(importId);
+            return;
+        }
+        if (imageEnrichmentService != null) {
+            imageEnrichmentService.enrichImportPlaces(importId);
+        }
     }
 
     private List<ExtractedPlace> analyzeWithGemini(PlaceImport placeImport, ContentMetadata metadata,

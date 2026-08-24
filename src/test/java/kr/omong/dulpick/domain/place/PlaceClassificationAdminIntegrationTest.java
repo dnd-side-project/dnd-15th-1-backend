@@ -23,9 +23,11 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -110,6 +112,7 @@ class PlaceClassificationAdminIntegrationTest {
 
         mockMvc.perform(patch("/api/v1/admin/place-classifications/{placeId}", linked.getId())
                         .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
@@ -138,6 +141,7 @@ class PlaceClassificationAdminIntegrationTest {
 
         mockMvc.perform(patch("/api/v1/admin/place-classifications/{placeId}", linked.getId())
                         .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 { "time": null }
@@ -163,9 +167,19 @@ class PlaceClassificationAdminIntegrationTest {
     }
 
     @Test
+    void rejectsAuthenticatedOperatorMutationWithoutCsrfToken() throws Exception {
+        mockMvc.perform(patch("/api/v1/admin/place-classifications/{placeId}", 1L)
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
     void servesOperatorLoginPageWithoutAuthentication() throws Exception {
         mockMvc.perform(get("/ops/login").accept(MediaType.TEXT_HTML))
                 .andExpect(status().isOk())
+                .andExpect(cookie().exists("XSRF-TOKEN"))
                 .andExpect(content().string(containsString("운영자 계정으로 로그인")));
     }
 

@@ -128,9 +128,13 @@
         <h1>콘텐츠 장소 분류</h1>
         <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
       </div>
-      <form method="post" action="/ops/logout">
-        <button class="logout" type="submit">로그아웃</button>
-      </form>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <a class="logout" href="/ops" style="text-decoration:none;">대시보드</a>
+        <form method="post" action="/ops/logout">
+          <input type="hidden" name="_csrf">
+          <button class="logout" type="submit">로그아웃</button>
+        </form>
+      </div>
     </div>
     <div class="toolbar">
       <button type="button" data-status="UNCLASSIFIED" class="active">미분류</button>
@@ -186,6 +190,8 @@
 
     async function api(path, options) {
       const headers = Object.assign({ Accept: "application/json" }, (options && options.headers) || {});
+      const method = (options && options.method || "GET").toUpperCase();
+      if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-XSRF-TOKEN"] = csrfToken();
       const response = await fetch(path, Object.assign({ credentials: "same-origin" }, options, { headers: headers }));
       const text = await response.text();
       let body = null;
@@ -197,6 +203,8 @@
       }
       return body;
     }
+    function csrfToken() { const value=document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || ""; return decodeURIComponent(value); }
+    document.querySelectorAll('form[action="/ops/logout"] input[name="_csrf"]').forEach(input => input.value = csrfToken());
 
     function renderPager(data) {
       const page = Number.isFinite(data && data.page) ? data.page : state.page;
@@ -315,6 +323,14 @@
       addr.textContent = place.roadAddress || place.address || "";
       info.appendChild(name);
       info.appendChild(addr);
+      const requesters = document.createElement("div");
+      requesters.className = "addr";
+      requesters.textContent = "추출 요청자: " + ((place.requesterNicknames || []).join(", ") || "없음");
+      info.appendChild(requesters);
+      const savers = document.createElement("div");
+      savers.className = "addr";
+      savers.textContent = "저장 사용자: " + ((place.saverNicknames || []).join(", ") || "없음");
+      info.appendChild(savers);
       tr.appendChild(info);
       AXES.forEach((axis) => tr.appendChild(axisCell(place, axis)));
 

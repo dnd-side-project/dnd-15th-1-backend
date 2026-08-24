@@ -17,6 +17,25 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     Optional<Place> findByKakaoPlaceId(String kakaoPlaceId);
 
+    @Query(value = """
+            SELECT candidate.place_id, profile.nickname
+              FROM place_candidates candidate
+              JOIN place_imports place_import ON place_import.id = candidate.import_id
+              JOIN member_profiles profile ON profile.member_id = place_import.member_id
+             WHERE candidate.place_id IN (:placeIds)
+             GROUP BY candidate.place_id, profile.nickname
+            """, nativeQuery = true)
+    List<Object[]> findImportRequesterNicknamesByPlaceIdIn(@Param("placeIds") Collection<Long> placeIds);
+
+    @Query(value = """
+            SELECT member_place.place_id, profile.nickname
+              FROM member_places member_place
+              JOIN member_profiles profile ON profile.member_id = member_place.member_id
+             WHERE member_place.place_id IN (:placeIds)
+             GROUP BY member_place.place_id, profile.nickname
+            """, nativeQuery = true)
+    List<Object[]> findSaverNicknamesByPlaceIdIn(@Param("placeIds") Collection<Long> placeIds);
+
     List<Place> findAllByKakaoPlaceIdIn(Collection<String> kakaoPlaceIds);
 
     List<Place> findAllByLatitudeAndLongitude(BigDecimal latitude, BigDecimal longitude);
