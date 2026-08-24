@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
-import org.springframework.http.client.JdkClientHttpRequestFactory;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -19,7 +19,6 @@ import org.springframework.web.util.HtmlUtils;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -33,6 +32,10 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
 
     private static final int MAX_HTML_BYTES = 2_000_000;
     private static final int MAX_REDIRECTS = 4;
+    private static final String BROWSER_USER_AGENT =
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) "
+                    + "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.5 "
+                    + "Mobile/15E148 Safari/604.1";
     private static final Pattern TITLE = Pattern.compile(
             "<meta[^>]+property=[\\\"']og:title[\\\"'][^>]+content=[\\\"']([^\\\"']*)",
             Pattern.CASE_INSENSITIVE
@@ -77,11 +80,8 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
     }
 
     private static RestClient.Builder createRestClientBuilder(InstagramProperties properties) {
-        HttpClient httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(properties.timeoutSeconds()))
-                .followRedirects(HttpClient.Redirect.NEVER)
-                .build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
         factory.setReadTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
         return RestClient.builder().requestFactory(factory);
     }
@@ -96,7 +96,7 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
     @Override
     public ContentMetadata fetch(String canonicalUrl, ContentSourceType sourceType) {
         try {
-            String html = fetchFollowingRedirects(canonicalUrl);
+            String html = fetchFollowingRedirects(withCacheBuster(canonicalUrl));
             String title = extract(html, TITLE);
             String description = extract(html, DESCRIPTION);
             List<String> imageUrls = extractImageUrls(html).stream()
@@ -135,12 +135,17 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
 
     public List<String> fetchImageUrls(String canonicalUrl) {
         try {
-            return extractImageUrls(fetchFollowingRedirects(canonicalUrl)).stream()
+            return extractImageUrls(fetchFollowingRedirects(withCacheBuster(canonicalUrl))).stream()
                     .limit(properties.maxImages())
                     .toList();
         } catch (RestClientException exception) {
             throw new MetadataUnavailableException(exception);
         }
+    }
+
+    private String withCacheBuster(String canonicalUrl) {
+        String separator = canonicalUrl.contains("?") ? "&" : "?";
+        return canonicalUrl + separator + "_dulpick_image_refresh=" + clock.millis();
     }
 
     private String fetchFollowingRedirects(String canonicalUrl) {
@@ -162,8 +167,11 @@ public class PublicInstagramMetadataProvider implements ContentMetadataProvider 
     private FetchedResponse request(String url) {
         return restClient.get()
                 .uri(url)
-                .header(HttpHeaders.USER_AGENT, "Mozilla/5.0")
-                .accept(MediaType.TEXT_HTML)
+                .header(HttpHeaders.USER_AGENT, BROWSER_USER_AGENT)
+                .header(HttpHeaders.CACHE_CONTROL, "no-cache")
+                .header(HttpHeaders.PRAGMA, "no-cache")
+                .header(HttpHeaders.ACCEPT,
+                        "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
                 .exchange((request, response) -> readResponse(
                         response.getStatusCode(),
                         response.getHeaders(),

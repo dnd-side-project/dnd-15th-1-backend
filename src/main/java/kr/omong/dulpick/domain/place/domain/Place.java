@@ -2,6 +2,8 @@ package kr.omong.dulpick.domain.place.domain;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -47,6 +49,10 @@ public class Place {
 
     @Column(name = "category_group_code", length = 3)
     private String categoryGroupCode;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "dulpick_category_code", length = 30)
+    private DulpickPlaceCategory dulpickCategoryCode;
 
     @Column(length = 50)
     private String phone;
@@ -195,6 +201,12 @@ public class Place {
         return categoryGroupCode;
     }
 
+    public DulpickPlaceCategory getDulpickCategory() {
+        return dulpickCategoryCode == null
+                ? DulpickPlaceCategory.fromKakao(categoryGroupCode, category)
+                : dulpickCategoryCode;
+    }
+
     public String getPhone() {
         return phone;
     }
@@ -204,7 +216,7 @@ public class Place {
     }
 
     public String getCategoryName() {
-        return DulpickPlaceCategory.fromKakao(categoryGroupCode, category).getDisplayName();
+        return getDulpickCategory().getDisplayName();
     }
 
     public String getThumbnailUrl() {

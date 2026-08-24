@@ -58,7 +58,7 @@ public enum DulpickPlaceCategory {
 
     private static DulpickPlaceCategory fromCategoryPathOrNull(String kakaoCategory) {
         String category = normalize(kakaoCategory);
-        if (containsAny(category, "카페", "커피", "디저트")) {
+        if (containsAny(category, "카페", "커피", "디저트", "아이스크림")) {
             return CAFE;
         }
         if (containsAny(category, "음식점", "한식", "중식", "일식", "양식", "분식", "주점", "술집")) {
@@ -73,7 +73,8 @@ public enum DulpickPlaceCategory {
         if (containsAny(
                 category,
                 "마트", "편의점", "쇼핑", "백화점", "아울렛", "시장", "화장품", "미용",
-                "도서", "서점", "문구", "완구"
+                "도서", "서점", "문구", "완구", "생활용품", "인테리어", "패션", "의류",
+                "꽃집", "꽃배달", "식품판매"
         )) {
             return SHOPPING;
         }

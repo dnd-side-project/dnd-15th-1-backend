@@ -34,7 +34,8 @@ class PlaceImportRecoveryProcessorTest {
             3,
             Duration.ofSeconds(5),
             20,
-            2
+            2,
+            3
         );
         PlaceImportRecoveryProcessor processor = new PlaceImportRecoveryProcessor(
                 importRepository,

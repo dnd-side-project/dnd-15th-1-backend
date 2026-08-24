@@ -105,7 +105,9 @@ public class PlaceDetailQueryService {
                 place == null ? kakao.latitude() : place.getLatitude(),
                 place == null ? kakao.longitude() : place.getLongitude(),
                 category,
-                DulpickPlaceCategory.fromKakao(categoryGroupCode, category),
+                place == null
+                        ? DulpickPlaceCategory.fromKakao(categoryGroupCode, category)
+                        : place.getDulpickCategory(),
                 firstNonBlank(
                         place == null ? null : place.getPhone(),
                         kakao == null ? null : kakao.phone()

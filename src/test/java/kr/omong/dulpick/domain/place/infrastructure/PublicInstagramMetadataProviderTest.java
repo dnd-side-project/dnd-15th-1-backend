@@ -32,7 +32,7 @@ class PublicInstagramMetadataProviderTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         PublicInstagramMetadataProvider provider = provider(builder);
-        server.expect(once(), requestTo(REEL_URL))
+        server.expect(once(), requestTo(requestUrl()))
                 .andRespond(withSuccess("""
                         <meta property="og:title" content="둘픽 on Instagram: &quot;성수 카페 모음&quot;">
                         <meta property="og:description" content="12 likes, 3 comments - dulpick on August 10, 2026: &quot;성수 카페 모음\n본문&quot;.">
@@ -59,7 +59,7 @@ class PublicInstagramMetadataProviderTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         PublicInstagramMetadataProvider provider = provider(builder);
-        server.expect(once(), requestTo(REEL_URL))
+        server.expect(once(), requestTo(requestUrl()))
                 .andRespond(withStatus(HttpStatus.FOUND)
                         .header(HttpHeaders.LOCATION, "https://example.com/private"));
 
@@ -74,7 +74,7 @@ class PublicInstagramMetadataProviderTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         PublicInstagramMetadataProvider provider = provider(builder);
-        server.expect(once(), requestTo(REEL_URL))
+        server.expect(once(), requestTo(requestUrl()))
                 .andRespond(withSuccess("x".repeat(1_000_001), MediaType.TEXT_HTML));
 
         assertThatThrownBy(() -> provider.fetch(REEL_URL, ContentSourceType.INSTAGRAM_REEL))
@@ -88,7 +88,7 @@ class PublicInstagramMetadataProviderTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         PublicInstagramMetadataProvider provider = provider(builder);
-        server.expect(once(), requestTo(REEL_URL))
+        server.expect(once(), requestTo(requestUrl()))
                 .andRespond(withSuccess("""
                         <meta property="og:title" content="둘픽 on Instagram: &quot;성수 카페&quot;">
                         <meta property="og:description" content="성수 카페">
@@ -122,6 +122,11 @@ class PublicInstagramMetadataProviderTest {
                 true,
                 5
         );
+    }
+
+    private String requestUrl() {
+        return REEL_URL + "?_dulpick_image_refresh="
+                + Instant.parse("2026-08-10T03:00:00Z").toEpochMilli();
     }
 
     private InetAddress publicAddress() {

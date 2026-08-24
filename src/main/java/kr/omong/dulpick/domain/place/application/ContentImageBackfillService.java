@@ -2,8 +2,6 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.config.ContentImageBackfillProperties;
 import kr.omong.dulpick.domain.place.domain.Content;
-import kr.omong.dulpick.domain.place.domain.ContentImage;
-import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.infrastructure.PublicInstagramMetadataProvider;
@@ -24,20 +22,17 @@ public class ContentImageBackfillService {
     );
 
     private final ContentRepository contentRepository;
-    private final ContentImageRepository imageRepository;
     private final PublicInstagramMetadataProvider metadataProvider;
     private final ContentImageStorageService imageStorageService;
     private final ContentImageBackfillProperties properties;
 
     public ContentImageBackfillService(
             ContentRepository contentRepository,
-            ContentImageRepository imageRepository,
             PublicInstagramMetadataProvider metadataProvider,
             ContentImageStorageService imageStorageService,
             ContentImageBackfillProperties properties
     ) {
         this.contentRepository = contentRepository;
-        this.imageRepository = imageRepository;
         this.metadataProvider = metadataProvider;
         this.imageStorageService = imageStorageService;
         this.properties = properties;
@@ -83,8 +78,8 @@ public class ContentImageBackfillService {
             return false;
         }
         try {
-            imageStorageService.storeIfAvailable(content, imageUrls);
-            return hasStoredImage(content.getId());
+            imageStorageService.refreshExistingIfAvailable(content, imageUrls);
+            return imageStorageService.hasAllStoredImages(content.getId());
         } catch (RuntimeException exception) {
             logger.warn(
                     "Instagram image backfill failed: contentId={}, cause={}",
@@ -93,12 +88,6 @@ public class ContentImageBackfillService {
             );
             return false;
         }
-    }
-
-    private boolean hasStoredImage(Long contentId) {
-        return imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId).stream()
-                .map(ContentImage::getContentType)
-                .anyMatch(contentType -> contentType != null && !contentType.isBlank());
     }
 
     private void addIfPresent(List<String> imageUrls, String imageUrl) {

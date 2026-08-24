@@ -110,6 +110,35 @@ class KakaoPlaceVerifierTest {
         server.verify();
     }
 
+    @Test
+    void stopsFallbackSearchWhenPrimaryQueryHasDefinitiveMatch() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoProperties properties = new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3);
+        KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(properties, builder);
+        KakaoPlaceVerifier verifier = new KakaoPlaceVerifier(properties, searchClient, new KakaoPlaceMatcher());
+        server.expect(once(), queryParam("query", encoded("밀빛 망원점 서울 마포구")))
+                .andRespond(withSuccess("""
+                        {
+                          "documents": [{
+                            "id": "100",
+                            "place_name": "밀빛 망원점",
+                            "address_name": "서울 마포구 망원동 10",
+                            "road_address_name": "서울 마포구 희우정로 10",
+                            "y": "37.1",
+                            "x": "127.1",
+                            "category_name": "음식점 > 카페"
+                          }]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(verifier.verify(new ExtractedPlace(
+                "밀빛 망원점", "서울 마포구", "밀빛 망원점", "EXPLICIT_VENUE"
+        ))).isNotNull();
+
+        server.verify();
+    }
+
     private void expectEmpty(MockRestServiceServer server, String query) {
         server.expect(once(), queryParam("query", encoded(query)))
                 .andRespond(withSuccess("{\"documents\":[]}", MediaType.APPLICATION_JSON));
