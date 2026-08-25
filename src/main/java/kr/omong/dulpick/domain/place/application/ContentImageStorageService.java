@@ -9,6 +9,8 @@ import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.infrastructure.PublicInstagramMetadataProvider;
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -231,6 +233,120 @@ public class ContentImageStorageService {
         }
         List<ContentImage> images = imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
         return !images.isEmpty() && images.stream().allMatch(this::hasStoredFile);
+    }
+
+    @Transactional
+    public ContentImage storeManual(
+            Long contentId,
+            byte[] bytes,
+            MediaType contentType,
+            boolean makeThumbnail
+    ) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(PublicContentImageUnavailableException::new);
+        validateManualImage(bytes, contentType);
+        List<ContentImage> images = imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
+        ContentImage image = images.stream()
+                .filter(candidate -> candidate.getContentType() == null
+                        || candidate.getContentType().isBlank())
+                .findFirst()
+                .orElse(null);
+        if (image == null && images.size() >= properties.maxImages()) {
+            throw new PublicContentImageUnavailableException();
+        }
+        Instant now = clock.instant();
+        int displayOrder = makeThumbnail
+                ? 0
+                : image == null ? images.size() : image.getDisplayOrder();
+        if (makeThumbnail) {
+            for (ContentImage candidate : images) {
+                if (candidate != image) {
+                    candidate.updateDisplayOrder(candidate.getDisplayOrder() + 1, now);
+                }
+            }
+            displayOrder = 0;
+        }
+        String imageKey = image == null ? UUID.randomUUID().toString() : image.getImageKey();
+        String sourceUrl = "manual://ops/" + imageKey;
+        if (image == null) {
+            image = ContentImage.createManual(
+                    content.getId(),
+                    sourceUrl,
+                    Sha256.hex(sourceUrl),
+                    displayOrder,
+                    now
+            );
+        } else {
+            image.replaceSource(sourceUrl, Sha256.hex(sourceUrl), now);
+            image.updateDisplayOrder(displayOrder, now);
+        }
+        try {
+            write(image.getStorageKey(), bytes);
+            image.markStored(contentType.toString(), Sha256.hex(bytes), now);
+            ContentImage saved = imageRepository.saveAndFlush(image);
+            if (makeThumbnail || content.getThumbnailUrl() == null) {
+                content.updateThumbnail(publicUrl(saved.getImageKey()), now);
+            }
+            return saved;
+        } catch (RuntimeException exception) {
+            deleteStoredFile(image.getStorageKey());
+            throw exception;
+        }
+    }
+
+    @Transactional
+    public void deleteManual(String imageKey, Long contentId) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ContentImage image = imageRepository.findById(imageKey)
+                .filter(candidate -> candidate.getContentId().equals(contentId))
+                .orElseThrow(PublicContentImageUnavailableException::new);
+        deleteStoredFile(image.getStorageKey());
+        imageRepository.delete(image);
+        imageRepository.flush();
+        List<ContentImage> remaining = imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
+        for (int index = 0; index < remaining.size(); index++) {
+            remaining.get(index).updateDisplayOrder(index, clock.instant());
+        }
+        if (content.getThumbnailUrl() != null
+                && content.getThumbnailUrl().equals(publicUrl(image.getImageKey()))) {
+            content.updateThumbnail(
+                    remaining.isEmpty() ? null : publicUrl(remaining.getFirst().getImageKey()),
+                    clock.instant()
+            );
+        }
+    }
+
+    public String publicUrl(String imageKey) {
+        return properties.baseUrl() + "/api/v1/content-images/" + imageKey;
+    }
+
+    public String adminUrl(Long contentId, String imageKey) {
+        return properties.baseUrl() + "/api/v1/admin/contents/" + contentId
+                + "/images/" + imageKey + "/file";
+    }
+
+    @Transactional(readOnly = true)
+    public StoredImage loadForAdmin(String imageKey, Long contentId) {
+        ContentImage image = imageRepository.findById(imageKey)
+                .filter(candidate -> candidate.getContentId().equals(contentId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+        if (!hasStoredFile(image)) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+        try {
+            return read(image);
+        } catch (IOException | RuntimeException exception) {
+            throw new BusinessException(ErrorCode.NOT_FOUND);
+        }
+    }
+
+    private void validateManualImage(byte[] bytes, MediaType contentType) {
+        if (bytes == null || bytes.length == 0 || bytes.length > properties.maxBytes()
+                || contentType == null || !"image".equalsIgnoreCase(contentType.getType())
+                || !List.of("jpeg", "png", "webp", "gif").contains(contentType.getSubtype().toLowerCase())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private void retryNewImagesFromOriginalContent(

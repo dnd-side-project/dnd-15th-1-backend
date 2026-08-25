@@ -99,6 +99,36 @@ public class PlaceImage {
         return image;
     }
 
+    public static PlaceImage createManualStored(
+            Long placeId,
+            String imageUrl,
+            String imageUrlHash,
+            String storageKey,
+            String contentType,
+            int displayOrder,
+            Instant createdAt
+    ) {
+        PlaceImage image = createStored(
+                placeId,
+                imageUrl,
+                imageUrlHash,
+                storageKey,
+                contentType,
+                displayOrder,
+                createdAt
+        );
+        image.sourceProvider = "OPS_UPLOAD";
+        return image;
+    }
+
+    public Long getId() {
+        return id;
+    }
+
+    public Long getPlaceId() {
+        return placeId;
+    }
+
     public String getImageUrl() {
         return imageUrl;
     }
@@ -109,5 +139,13 @@ public class PlaceImage {
 
     public String getContentType() {
         return contentType;
+    }
+
+    public int getDisplayOrder() {
+        return displayOrder;
+    }
+
+    public void updateDisplayOrder(int displayOrder) {
+        this.displayOrder = displayOrder;
     }
 }

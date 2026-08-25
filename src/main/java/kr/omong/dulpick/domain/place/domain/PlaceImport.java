@@ -216,6 +216,14 @@ public class PlaceImport {
         }
     }
 
+    public void adminComplete(Instant now) {
+        this.status = PlaceImportStatus.COMPLETED;
+        this.failureCode = null;
+        this.processingClaimToken = null;
+        this.updatedAt = now;
+        this.completedAt = now;
+    }
+
     public Long getId() {
         return id;
     }

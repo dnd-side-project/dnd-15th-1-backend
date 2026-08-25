@@ -8,19 +8,29 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.place.application.OperationsAdminService;
 import kr.omong.dulpick.domain.place.application.OperationsAdminView;
+import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -91,6 +101,130 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.updatePublicationStatus(contentId, request));
     }
 
+    @Operation(summary = "게시글 운영자 상세 조회")
+    @GetMapping("/contents/{contentId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> contentDetail(
+            @PathVariable Long contentId
+    ) {
+        return ResponseEntity.ok(adminService.contentDetail(contentId));
+    }
+
+    @Operation(summary = "게시글 제목·내용 수정")
+    @PatchMapping("/contents/{contentId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> updateContent(
+            @PathVariable Long contentId,
+            @Valid @RequestBody UpdateContentAdminRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateContent(contentId, request));
+    }
+
+    @Operation(summary = "게시글 연결 장소 수정")
+    @PatchMapping("/contents/{contentId:[0-9]+}/places")
+    public ResponseEntity<OperationsAdminView.ContentDetail> updateContentPlaces(
+            @PathVariable Long contentId,
+            @Valid @RequestBody UpdateContentPlacesRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateContentPlaces(contentId, request));
+    }
+
+    @Operation(summary = "게시글 이미지 운영자 업로드")
+    @PostMapping(value = "/contents/{contentId:[0-9]+}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OperationsAdminView.ContentDetail> uploadContentImage(
+            @PathVariable Long contentId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean thumbnail
+    ) throws java.io.IOException {
+        return ResponseEntity.ok(adminService.uploadContentImage(
+                contentId,
+                file.getBytes(),
+                parseContentType(file),
+                thumbnail
+        ));
+    }
+
+    @Operation(summary = "게시글 이미지 삭제")
+    @DeleteMapping("/contents/{contentId:[0-9]+}/images/{imageKey}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> deleteContentImage(
+            @PathVariable Long contentId,
+            @PathVariable String imageKey
+    ) {
+        return ResponseEntity.ok(adminService.deleteContentImage(contentId, imageKey));
+    }
+
+    @Operation(summary = "운영자용 게시글 이미지 조회")
+    @GetMapping("/contents/{contentId:[0-9]+}/images/{imageKey}/file")
+    public ResponseEntity<byte[]> findContentImage(
+            @PathVariable Long contentId,
+            @PathVariable String imageKey
+    ) {
+        ContentImageStorageService.StoredImage image = adminService.contentImage(imageKey, contentId);
+        return ResponseEntity.ok()
+                .contentType(image.contentType())
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.bytes());
+    }
+
+    @Operation(summary = "장소 운영자 상세 조회")
+    @GetMapping("/places/{placeId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> placeDetail(
+            @PathVariable Long placeId
+    ) {
+        return ResponseEntity.ok(adminService.placeDetail(placeId));
+    }
+
+    @Operation(summary = "장소 세부사항 수정")
+    @PatchMapping("/places/{placeId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> updatePlace(
+            @PathVariable Long placeId,
+            @Valid @RequestBody UpdatePlaceAdminRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updatePlace(placeId, request));
+    }
+
+    @Operation(summary = "장소 이미지 운영자 업로드")
+    @PostMapping(value = "/places/{placeId:[0-9]+}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OperationsAdminView.PlaceDetail> uploadPlaceImage(
+            @PathVariable Long placeId,
+            @RequestPart("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean thumbnail
+    ) throws java.io.IOException {
+        return ResponseEntity.ok(adminService.uploadPlaceImage(
+                placeId,
+                file.getBytes(),
+                parseContentType(file),
+                thumbnail
+        ));
+    }
+
+    @Operation(summary = "장소 이미지 삭제")
+    @DeleteMapping("/places/{placeId:[0-9]+}/images/{imageId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> deletePlaceImage(
+            @PathVariable Long placeId,
+            @PathVariable Long imageId
+    ) {
+        return ResponseEntity.ok(adminService.deletePlaceImage(placeId, imageId));
+    }
+
+    @Operation(summary = "장소 검색")
+    @GetMapping("/places/search")
+    public ResponseEntity<OperationsAdminView.PlaceSearchPage> searchPlaces(
+            @RequestParam(defaultValue = "") String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+    }
+
+    @Operation(summary = "실패한 장소 추출에 장소를 수동 연결하고 공개 처리")
+    @PostMapping("/place-imports/{importId:[0-9]+}/manual-place")
+    public ResponseEntity<OperationsAdminView.ContentDetail> manuallyLinkPlace(
+            @PathVariable Long importId,
+            @Valid @RequestBody ManualPlaceLinkRequest request
+    ) {
+        return ResponseEntity.ok(adminService.manuallyLinkPlace(importId, request));
+    }
+
     @Operation(summary = "이미지 보강 백로그 조회")
     @GetMapping("/image-backlogs")
     public ResponseEntity<OperationsAdminView.ImageBacklogPage> imageBacklogs(
@@ -117,5 +251,15 @@ public class OperationsAdminController {
     ) {
         adminService.retryPlaceImages(placeId);
         return ResponseEntity.accepted().build();
+    }
+
+    private MediaType parseContentType(MultipartFile file) {
+        try {
+            return file.getContentType() == null
+                    ? null
+                    : MediaType.parseMediaType(file.getContentType());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 }

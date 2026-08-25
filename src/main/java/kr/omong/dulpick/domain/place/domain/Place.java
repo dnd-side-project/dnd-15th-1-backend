@@ -220,6 +220,34 @@ public class Place {
         return DulpickPlaceCategory.fromKakao(fallbackCategoryGroupCode, fallbackCategory);
     }
 
+    public void updateDetails(
+            String name,
+            String address,
+            String roadAddress,
+            String category,
+            String categoryGroupCode,
+            String phone,
+            String kakaoPlaceUrl,
+            Instant now
+    ) {
+        this.name = required(name, this.name);
+        this.address = required(address, this.address);
+        this.roadAddress = optional(roadAddress, this.roadAddress);
+        this.category = optional(category, this.category);
+        this.categoryGroupCode = optional(categoryGroupCode, this.categoryGroupCode);
+        this.phone = optional(phone, this.phone);
+        this.kakaoPlaceUrl = optional(kakaoPlaceUrl, this.kakaoPlaceUrl);
+        this.updatedAt = now;
+    }
+
+    private String required(String requested, String current) {
+        return requested == null || requested.isBlank() ? current : requested.strip();
+    }
+
+    private String optional(String requested, String current) {
+        return requested == null ? current : requested.strip().isEmpty() ? null : requested.strip();
+    }
+
     public String getPhone() {
         return phone;
     }

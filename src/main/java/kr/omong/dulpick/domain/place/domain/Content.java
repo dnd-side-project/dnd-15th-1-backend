@@ -162,6 +162,11 @@ public class Content {
         this.updatedAt = now;
     }
 
+    public void updateThumbnail(String thumbnailUrl, Instant now) {
+        this.thumbnailUrl = thumbnailUrl;
+        this.updatedAt = now;
+    }
+
     public String getContentHash() {
         return contentHash;
     }

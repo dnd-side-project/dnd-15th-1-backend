@@ -143,6 +143,65 @@ public final class OperationsAdminView {
             Instant createdAt,
             @Schema(example = "2026-08-24T10:00:05Z")
             Instant updatedAt
+        ) {
+    }
+
+    public record ContentDetail(
+            Long contentId,
+            ContentSourceType sourceType,
+            String canonicalUrl,
+            String title,
+            String content,
+            ContentPublicationStatus publicationStatus,
+            List<ContentImage> images,
+            List<PlaceSummary> places,
+            Instant createdAt,
+            Instant updatedAt
+    ) {
+    }
+
+    public record ContentImage(
+            String imageKey,
+            String imageUrl,
+            String sourceUrl,
+            String contentType,
+            int displayOrder
+    ) {
+    }
+
+    public record PlaceSummary(
+            Long placeId,
+            String kakaoPlaceId,
+            String name,
+            String address,
+            String roadAddress,
+            String category,
+            String categoryGroupCode,
+            String phone,
+            String kakaoPlaceUrl,
+            String thumbnailUrl
+    ) {
+    }
+
+    public record PlaceDetail(
+            PlaceSummary place,
+            List<PlaceImage> images
+    ) {
+    }
+
+    public record PlaceImage(
+            Long imageId,
+            String imageUrl,
+            String contentType,
+            int displayOrder
+    ) {
+    }
+
+    public record PlaceSearchPage(
+            List<PlaceSummary> places,
+            int page,
+            int size,
+            boolean hasNext
     ) {
     }
 

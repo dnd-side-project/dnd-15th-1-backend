@@ -73,6 +73,16 @@ public class ContentImage {
         return new ContentImage(contentId, sourceUrl, sourceUrlHash, displayOrder, now);
     }
 
+    public static ContentImage createManual(
+            Long contentId,
+            String sourceUrl,
+            String sourceUrlHash,
+            int displayOrder,
+            Instant now
+    ) {
+        return create(contentId, sourceUrl, sourceUrlHash, displayOrder, now);
+    }
+
     public void updateDisplayOrder(int displayOrder, Instant now) {
         this.displayOrder = displayOrder;
         this.updatedAt = now;

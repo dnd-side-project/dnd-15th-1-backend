@@ -2,16 +2,30 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
+import kr.omong.dulpick.domain.place.domain.ContentPlace;
+import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
+import kr.omong.dulpick.domain.place.domain.PlaceImport;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
+import kr.omong.dulpick.domain.place.domain.PlaceImage;
+import kr.omong.dulpick.domain.place.domain.PlaceImageRepository;
+import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -43,8 +57,13 @@ public class OperationsAdminService {
     private final ContentRepository contentRepository;
     private final ContentImageRepository contentImageRepository;
     private final ContentImageEnrichmentService contentImageEnrichmentService;
+    private final ContentImageStorageService contentImageStorageService;
     private final PlaceRepository placeRepository;
     private final PlaceImageEnrichmentDispatcher placeImageEnrichmentDispatcher;
+    private final ContentPlaceRepository contentPlaceRepository;
+    private final PlaceCandidateRepository placeCandidateRepository;
+    private final PlaceImageRepository placeImageRepository;
+    private final PlaceImageStorageService placeImageStorageService;
 
     public OperationsAdminService(
             JdbcTemplate jdbcTemplate,
@@ -54,8 +73,13 @@ public class OperationsAdminService {
             ContentRepository contentRepository,
             ContentImageRepository contentImageRepository,
             ContentImageEnrichmentService contentImageEnrichmentService,
+            ContentImageStorageService contentImageStorageService,
             PlaceRepository placeRepository,
-            PlaceImageEnrichmentDispatcher placeImageEnrichmentDispatcher
+            PlaceImageEnrichmentDispatcher placeImageEnrichmentDispatcher,
+            ContentPlaceRepository contentPlaceRepository,
+            PlaceCandidateRepository placeCandidateRepository,
+            PlaceImageRepository placeImageRepository,
+            PlaceImageStorageService placeImageStorageService
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
@@ -64,8 +88,13 @@ public class OperationsAdminService {
         this.contentRepository = contentRepository;
         this.contentImageRepository = contentImageRepository;
         this.contentImageEnrichmentService = contentImageEnrichmentService;
+        this.contentImageStorageService = contentImageStorageService;
         this.placeRepository = placeRepository;
         this.placeImageEnrichmentDispatcher = placeImageEnrichmentDispatcher;
+        this.contentPlaceRepository = contentPlaceRepository;
+        this.placeCandidateRepository = placeCandidateRepository;
+        this.placeImageRepository = placeImageRepository;
+        this.placeImageStorageService = placeImageStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -253,6 +282,289 @@ public class OperationsAdminService {
                 content.getThumbnailUrl(),
                 content.getCreatedAt(),
                 content.getUpdatedAt()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsAdminView.ContentDetail contentDetail(Long contentId) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        return contentDetail(content);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail updateContent(
+            Long contentId,
+            UpdateContentAdminRequest request
+    ) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        content.updateMetadata(
+                request.title() == null ? content.getTitle() : request.title().strip(),
+                request.content() == null ? content.getContent() : request.content(),
+                content.getThumbnailUrl(),
+                content.getContentHash(),
+                clock.instant()
+        );
+        return contentDetail(content);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail updateContentPlaces(
+            Long contentId,
+            UpdateContentPlacesRequest request
+    ) {
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        List<Long> placeIds = request.placeIds().stream().distinct().toList();
+        if (placeIds.size() != request.placeIds().size()
+                || placeRepository.findAllById(placeIds).size() != placeIds.size()) {
+            throw new BusinessException(ErrorCode.PLACE_NOT_FOUND);
+        }
+        contentPlaceRepository.deleteAllByContentId(contentId);
+        placeIds.forEach(placeId -> contentPlaceRepository.insertIfAbsent(
+                contentId,
+                placeId,
+                clock.instant()
+        ));
+        content.updatePlaceCount(placeIds.size());
+        return contentDetail(content);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail uploadContentImage(
+            Long contentId,
+            byte[] bytes,
+            MediaType contentType,
+            boolean makeThumbnail
+    ) {
+        contentImageStorageService.storeManual(contentId, bytes, contentType, makeThumbnail);
+        return contentDetail(contentId);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail deleteContentImage(Long contentId, String imageKey) {
+        contentImageStorageService.deleteManual(imageKey, contentId);
+        return contentDetail(contentId);
+    }
+
+    @Transactional(readOnly = true)
+    public ContentImageStorageService.StoredImage contentImage(String imageKey, Long contentId) {
+        return contentImageStorageService.loadForAdmin(imageKey, contentId);
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsAdminView.PlaceDetail placeDetail(Long placeId) {
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        return placeDetail(place);
+    }
+
+    @Transactional
+    public OperationsAdminView.PlaceDetail updatePlace(
+            Long placeId,
+            UpdatePlaceAdminRequest request
+    ) {
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        place.updateDetails(
+                request.name(),
+                request.address(),
+                request.roadAddress(),
+                request.category(),
+                request.categoryGroupCode(),
+                request.phone(),
+                request.kakaoPlaceUrl(),
+                clock.instant()
+        );
+        return placeDetail(place);
+    }
+
+    @Transactional
+    public OperationsAdminView.PlaceDetail uploadPlaceImage(
+            Long placeId,
+            byte[] bytes,
+            MediaType contentType,
+            boolean makeThumbnail
+    ) {
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        List<PlaceImage> images = placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(placeId);
+        PlaceImage image = placeImageStorageService.storeManual(
+                placeId,
+                bytes,
+                contentType,
+                makeThumbnail ? 0 : images.size()
+        );
+        try {
+            if (makeThumbnail) {
+                images.forEach(existing -> existing.updateDisplayOrder(existing.getDisplayOrder() + 1));
+            }
+            placeImageRepository.saveAndFlush(image);
+            if (makeThumbnail || place.getThumbnailUrl() == null) {
+                placeRepository.updateThumbnail(
+                        placeId,
+                        image.getImageUrl(),
+                        clock.instant()
+                );
+            }
+            return placeDetail(placeId);
+        } catch (RuntimeException exception) {
+            placeImageStorageService.delete(image.getStorageKey());
+            throw exception;
+        }
+    }
+
+    @Transactional
+    public OperationsAdminView.PlaceDetail deletePlaceImage(Long placeId, Long imageId) {
+        Place place = placeRepository.findById(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        PlaceImage image = placeImageRepository.findById(imageId)
+                .filter(candidate -> candidate.getPlaceId().equals(placeId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        placeImageStorageService.delete(image.getStorageKey());
+        placeImageRepository.delete(image);
+        List<PlaceImage> remaining = placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(placeId);
+        for (int index = 0; index < remaining.size(); index++) {
+            remaining.get(index).updateDisplayOrder(index);
+        }
+        String thumbnailUrl = java.util.Objects.equals(place.getThumbnailUrl(), image.getImageUrl())
+                ? remaining.isEmpty() ? null : remaining.getFirst().getImageUrl()
+                : place.getThumbnailUrl();
+        placeRepository.updateThumbnail(
+                placeId,
+                thumbnailUrl,
+                clock.instant()
+        );
+        return placeDetail(place);
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsAdminView.PlaceSearchPage searchPlaces(String query, int page, int size) {
+        PageBounds bounds = bounds(page, size);
+        String keyword = query == null ? "" : query.strip();
+        List<OperationsAdminView.PlaceSummary> places = jdbcTemplate.query(
+                "SELECT id, kakao_place_id, name, address, road_address, category, "
+                        + "category_group_code, phone, kakao_place_url, thumbnail_url FROM places "
+                        + "WHERE name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ? "
+                        + "ORDER BY id DESC LIMIT ? OFFSET ?",
+                (rs, rowNum) -> new OperationsAdminView.PlaceSummary(
+                        rs.getLong("id"),
+                        rs.getString("kakao_place_id"),
+                        rs.getString("name"),
+                        rs.getString("address"),
+                        rs.getString("road_address"),
+                        rs.getString("category"),
+                        rs.getString("category_group_code"),
+                        rs.getString("phone"),
+                        rs.getString("kakao_place_url"),
+                        rs.getString("thumbnail_url")
+                ),
+                "%" + keyword + "%",
+                "%" + keyword + "%",
+                "%" + keyword + "%",
+                bounds.size() + 1,
+                bounds.offset()
+        );
+        boolean hasNext = places.size() > bounds.size();
+        return new OperationsAdminView.PlaceSearchPage(
+                hasNext ? places.subList(0, bounds.size()) : places,
+                bounds.page(),
+                bounds.size(),
+                hasNext
+        );
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail manuallyLinkPlace(
+            Long importId,
+            ManualPlaceLinkRequest request
+    ) {
+        PlaceImport placeImport = placeImportRepository.findById(importId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_IMPORT_NOT_FOUND));
+        Long contentId = placeImport.getContentId();
+        if (contentId == null) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        Place place = placeRepository.findById(request.placeId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        if (request.candidateId() != null) {
+            PlaceCandidate candidate = placeCandidateRepository
+                    .findByIdAndImportId(request.candidateId(), importId)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_INPUT));
+            candidate.adminVerify(place.getId());
+        }
+        contentPlaceRepository.insertIfAbsent(contentId, place.getId(), clock.instant());
+        Content content = contentRepository.findById(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        content.updatePlaceCount(contentPlaceRepository.findAllByContentId(contentId).size());
+        if (request.publish()) {
+            content.publish(clock.instant());
+            placeImport.adminComplete(clock.instant());
+        }
+        return contentDetail(content);
+    }
+
+    private OperationsAdminView.ContentDetail contentDetail(Content content) {
+        List<OperationsAdminView.ContentImage> images = contentImageRepository
+                .findAllByContentIdOrderByDisplayOrderAsc(content.getId())
+                .stream()
+                .map(image -> new OperationsAdminView.ContentImage(
+                        image.getImageKey(),
+                        contentImageStorageService.adminUrl(content.getId(), image.getImageKey()),
+                        image.getSourceUrl(),
+                        image.getContentType(),
+                        image.getDisplayOrder()
+                ))
+                .toList();
+        List<Long> placeIds = contentPlaceRepository.findAllByContentId(content.getId())
+                .stream()
+                .map(ContentPlace::getPlaceId)
+                .toList();
+        List<OperationsAdminView.PlaceSummary> places = placeRepository.findAllById(placeIds)
+                .stream()
+                .map(this::placeSummary)
+                .toList();
+        return new OperationsAdminView.ContentDetail(
+                content.getId(),
+                content.getSourceType(),
+                content.getCanonicalUrl(),
+                content.getTitle(),
+                content.getContent(),
+                content.getPublicationStatus(),
+                images,
+                places,
+                content.getCreatedAt(),
+                content.getUpdatedAt()
+        );
+    }
+
+    private OperationsAdminView.PlaceDetail placeDetail(Place place) {
+        List<OperationsAdminView.PlaceImage> images = placeImageRepository
+                .findAllByPlaceIdOrderByDisplayOrderAsc(place.getId())
+                .stream()
+                .map(image -> new OperationsAdminView.PlaceImage(
+                        image.getId(),
+                        image.getImageUrl(),
+                        image.getContentType(),
+                        image.getDisplayOrder()
+                ))
+                .toList();
+        return new OperationsAdminView.PlaceDetail(placeSummary(place), images);
+    }
+
+    private OperationsAdminView.PlaceSummary placeSummary(Place place) {
+        return new OperationsAdminView.PlaceSummary(
+                place.getId(),
+                place.getKakaoPlaceId(),
+                place.getName(),
+                place.getAddress(),
+                place.getRoadAddress(),
+                place.getCategory(),
+                place.getCategoryGroupCode(),
+                place.getPhone(),
+                place.getKakaoPlaceUrl(),
+                place.getThumbnailUrl()
         );
     }
 
