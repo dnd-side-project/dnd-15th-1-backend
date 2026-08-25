@@ -8,6 +8,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -146,12 +147,45 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(
+    public ResponseEntity<?> handleUnexpected(
             Exception exception,
             HttpServletRequest request
     ) {
+        if (isClientDisconnect(exception)) {
+            return ResponseEntity.noContent().build();
+        }
         errorMonitoringService.record(ErrorLevel.CRITICAL, ErrorCode.INTERNAL_ERROR, exception, request);
         return response(ErrorCode.INTERNAL_ERROR);
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleClientDisconnect(AsyncRequestNotUsableException exception) {
+        return ResponseEntity.noContent().build();
+    }
+
+    private boolean isClientDisconnect(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            String type = current.getClass().getSimpleName();
+            String message = current.getMessage();
+            if (current instanceof AsyncRequestNotUsableException
+                    || "ClientAbortException".equals(type)
+                    || containsClientDisconnectMessage(message)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsClientDisconnectMessage(String message) {
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("broken pipe")
+                || normalized.contains("connection reset by peer")
+                || normalized.contains("clientabortexception");
     }
 
     private ErrorLevel resolveBusinessLevel(ErrorCode errorCode) {
