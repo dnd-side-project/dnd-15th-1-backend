@@ -397,7 +397,7 @@ public class OperationsAdminService {
         ContentImage image = contentImageRepository.findById(imageKey)
                 .filter(candidate -> candidate.getContentId().equals(contentId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE));
-        if (image.getContentType() == null || image.getContentType().isBlank()) {
+        if (!contentImageStorageService.hasStoredFile(image)) {
             throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
         }
         content.updateThumbnail(contentImageStorageService.publicUrl(imageKey), clock.instant());
@@ -535,7 +535,7 @@ public class OperationsAdminService {
         PlaceImage image = placeImageRepository.findById(imageId)
                 .filter(candidate -> candidate.getPlaceId().equals(placeId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
-        if (image.getStorageKey() == null) {
+        if (!placeImageStorageService.isStored(image.getStorageKey())) {
             throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
         }
         placeRepository.updateThumbnail(placeId, image.getImageUrl(), clock.instant());
@@ -626,7 +626,7 @@ public class OperationsAdminService {
                         image.getSourceUrl(),
                         image.getContentType(),
                         image.getDisplayOrder(),
-                        image.getContentType() != null && !image.getContentType().isBlank(),
+                        contentImageStorageService.hasStoredFile(image),
                         java.util.Objects.equals(
                                 content.getThumbnailUrl(),
                                 contentImageStorageService.publicUrl(image.getImageKey())
@@ -664,7 +664,7 @@ public class OperationsAdminService {
                         image.getImageUrl(),
                         image.getContentType(),
                         image.getDisplayOrder(),
-                        image.getStorageKey() != null,
+                        placeImageStorageService.isStored(image.getStorageKey()),
                         java.util.Objects.equals(place.getThumbnailUrl(), image.getImageUrl())
                 ))
                 .toList();

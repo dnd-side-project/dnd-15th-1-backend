@@ -663,11 +663,17 @@ public class ContentImageStorageService {
                 || content.getSourceType() == ContentSourceType.INSTAGRAM_POST;
     }
 
-    private boolean hasStoredFile(ContentImage image) {
-        return image.getContentType() != null
-                && !image.getContentType().isBlank()
-                && Files.isRegularFile(resolve(image.getStorageKey()))
-                && fileSize(image.getStorageKey()) <= properties.maxBytes();
+    public boolean hasStoredFile(ContentImage image) {
+        if (image == null || image.getContentType() == null || image.getContentType().isBlank()) {
+            return false;
+        }
+        try {
+            Path path = resolve(image.getStorageKey());
+            long size = Files.size(path);
+            return Files.isRegularFile(path) && size > 0 && size <= properties.maxBytes();
+        } catch (IOException | RuntimeException exception) {
+            return false;
+        }
     }
 
     private StoredImage read(ContentImage image) throws IOException {

@@ -68,6 +68,19 @@ public class PlaceImageStorageService {
         return properties.baseUrl() + "/api/v1/place-images/" + storageKey;
     }
 
+    public boolean isStored(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            return false;
+        }
+        try {
+            Path path = resolve(storageKey);
+            long size = Files.size(path);
+            return Files.isRegularFile(path) && size > 0 && size <= properties.maxBytes();
+        } catch (IOException | RuntimeException exception) {
+            return false;
+        }
+    }
+
     public PlaceImage storeManual(
             Long placeId,
             byte[] bytes,
