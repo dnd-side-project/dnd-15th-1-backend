@@ -66,6 +66,9 @@ def configureTestTask = { Test testTask ->
     // The suite uses several intentional property and mock variants. Keep them
     // cached long enough to avoid repeatedly booting Spring and Flyway.
     testTask.systemProperty 'spring.test.context.cache.maxSize', '32'
+    // Scheduled recovery workers are not part of test assertions. Do not wait
+    // for their production shutdown grace period between cached contexts.
+    testTask.systemProperty 'spring.task.scheduling.shutdown.await-termination', 'false'
     testTask.jvmArgs += '-Xshare:off'
     testTask.jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
 }
@@ -99,6 +102,7 @@ tasks.named('test', Test) {
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
         'MarketingNotificationAdminIntegrationTest',
+        'OperationsAdminIntegrationTest',
         'NotificationDeliveryWorkerIntegrationTest',
         'NotificationInboxIntegrationTest',
         'LoginNonceServiceTest',
@@ -123,6 +127,8 @@ tasks.named('test', Test) {
     include '**/PublicInstagramMetadataProviderTest.class'
     include '**/PublicWebMetadataProviderTest.class'
     include '**/PushRegistrationCipherTest.class'
+    include '**/ContentImageStorageServiceTest.class'
+    include '**/PlaceImageStorageServiceTest.class'
 }
 
 tasks.register('extendedTest', Test) {
