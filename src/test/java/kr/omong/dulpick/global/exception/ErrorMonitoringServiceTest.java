@@ -55,6 +55,21 @@ class ErrorMonitoringServiceTest {
         assertThat(alertSender.lastMessage).contains("token=secret123");
     }
 
+    @Test
+    void doesNotAlertForClientDisconnectDuringImageResponse() {
+        CapturingAlertSender alertSender = new CapturingAlertSender();
+        ErrorMonitoringService service = new ErrorMonitoringService(alertSender);
+
+        service.record(
+                ErrorLevel.CRITICAL,
+                ErrorCode.INTERNAL_ERROR,
+                new java.io.IOException("ServletOutputStream failed to write: java.io.IOException: Broken pipe"),
+                request()
+        );
+
+        assertThat(alertSender.callCount).isZero();
+    }
+
     private MockHttpServletRequest request() {
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/v1/test");
         request.setRemoteAddr("127.0.0.1");
