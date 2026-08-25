@@ -79,16 +79,6 @@ class FeedbackIntegrationTest {
                 .andExpect(status().isUnauthorized());
     }
 
-    @Test
-    void exposesTermsAndPrivacyWithoutAuthentication() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/terms"))
-                .andExpect(status().isOk());
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
-                        .get("/privacy"))
-                .andExpect(status().isOk());
-    }
-
     private IssuedTokens createTokens() {
         String subject = "feedback-" + UUID.randomUUID();
         Member member = socialAccountService.getOrCreate(

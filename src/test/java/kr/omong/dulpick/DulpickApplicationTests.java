@@ -14,10 +14,6 @@ class DulpickApplicationTests {
     private Environment environment;
 
     @Test
-    void contextLoads() {
-    }
-
-    @Test
     void baselinesExistingSchemaBeforeFirstMigration() {
         assertThat(environment.getProperty("spring.flyway.baseline-on-migrate"))
                 .isEqualTo("true");

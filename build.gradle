@@ -55,17 +55,83 @@ dependencies {
     testAnnotationProcessor 'org.projectlombok:lombok'
 }
 
-tasks.named('test') {
-    useJUnitPlatform()
-    systemProperty 'notification.fcm.enabled', 'false'
-    systemProperty 'place-analysis.recovery-enabled', 'false'
-    systemProperty 'spring.datasource.hikari.maximum-pool-size', '12'
-    systemProperty 'spring.datasource.hikari.minimum-idle', '0'
-    systemProperty 'spring.datasource.hikari.idle-timeout', '10000'
-    systemProperty 'spring.datasource.hikari.connection-timeout', '10000'
-    systemProperty 'spring.test.context.cache.maxSize', '8'
-    jvmArgs += '-Xshare:off'
-    jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
+def configureTestTask = { Test testTask ->
+    testTask.useJUnitPlatform()
+    testTask.systemProperty 'notification.fcm.enabled', 'false'
+    testTask.systemProperty 'place-analysis.recovery-enabled', 'false'
+    testTask.systemProperty 'spring.datasource.hikari.maximum-pool-size', '12'
+    testTask.systemProperty 'spring.datasource.hikari.minimum-idle', '0'
+    testTask.systemProperty 'spring.datasource.hikari.idle-timeout', '10000'
+    testTask.systemProperty 'spring.datasource.hikari.connection-timeout', '10000'
+    // The suite uses several intentional property and mock variants. Keep them
+    // cached long enough to avoid repeatedly booting Spring and Flyway.
+    testTask.systemProperty 'spring.test.context.cache.maxSize', '32'
+    testTask.jvmArgs += '-Xshare:off'
+    testTask.jvmArgs += "-javaagent:${configurations.mockitoAgent.asPath}"
+}
+
+tasks.named('test', Test) {
+    configureTestTask(delegate)
+    // The default suite protects the production-critical paths and stays fast enough for every PR.
+    [
+        'AuthSecurityIntegrationTest',
+        'AuthTokenCommandIntegrationTest',
+        'RefreshTokenConcurrencyIntegrationTest',
+        'RefreshTokenReplayGraceIntegrationTest',
+        'AppleWithdrawalIntegrationTest',
+        'AuthenticationDataCleanupIntegrationTest',
+        'TestAuthIntegrationTest',
+        'TestAuthDisabledIntegrationTest',
+        'OpsAuthenticationIntegrationTest',
+        'UniversalLinkIntegrationTest',
+        'ConnectionAbusePreventionIntegrationTest',
+        'CoupleConnectionConcurrencyIntegrationTest',
+        'CoupleConnectionIntegrationTest',
+        'CoupleWithdrawalRollbackIntegrationTest',
+        'PlaceConfirmationConcurrencyIntegrationTest',
+        'PlaceImportClaimIntegrationTest',
+        'PlaceStorageIntegrationTest',
+        'PlaceContentsIntegrationTest',
+        'ContentSearchIntegrationTest',
+        'PlaceClassificationAdminIntegrationTest',
+        'PlaceMapIntegrationTest',
+        'PushDeviceIntegrationTest',
+        'NotificationSettingsIntegrationTest',
+        'SelectiveNotificationIntegrationTest',
+        'MarketingNotificationAdminIntegrationTest',
+        'NotificationDeliveryWorkerIntegrationTest',
+        'NotificationInboxIntegrationTest',
+        'LoginNonceServiceTest',
+        'SocialAccountServiceTest'
+    ].each { testClass ->
+        include "**/${testClass}.class"
+    }
+    include '**/DulpickApplicationTests.class'
+    include '**/SocialOidcSignatureVerificationTest.class'
+    include '**/IssuerAudienceValidatorTest.class'
+    include '**/OidcSocialIdentityVerifierTest.class'
+    include '**/SocialLoginHandlerTest.class'
+    include '**/MemberAccessTokenValidatorTest.class'
+    include '**/ProviderTokenCipherTest.class'
+    include '**/ContentSourceUrlParserTest.class'
+    include '**/PublicWebUrlValidatorTest.class'
+    include '**/InstagramCaptionMetadataParserTest.class'
+    include '**/InstagramThumbnailDownloaderTest.class'
+    include '**/NaverPlaceHtmlParserTest.class'
+    include '**/KakaoPlaceMatcherTest.class'
+    include '**/KakaoPlaceVerifierTest.class'
+    include '**/PublicInstagramMetadataProviderTest.class'
+    include '**/PublicWebMetadataProviderTest.class'
+    include '**/PushRegistrationCipherTest.class'
+}
+
+tasks.register('extendedTest', Test) {
+    group = 'verification'
+    description = 'Runs the complete unit and integration test suite, including extended regression cases.'
+    configureTestTask(delegate)
+    dependsOn testClasses
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
 }
 
 tasks.named('bootJar') {

@@ -11,6 +11,7 @@ deploy/.env
 *.p8
 secrets/
 local-docs/
+local-docs/production-source-links-*.md
 docs/prd/place-import-performance-and-status-prd.md
 data/content-images/
 
