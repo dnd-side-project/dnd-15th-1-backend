@@ -11,6 +11,8 @@ import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.notification.application.admin.MarketingNotificationAdminService;
 import kr.omong.dulpick.domain.notification.presentation.dto.request.MarketingNotificationRequest;
 import kr.omong.dulpick.domain.notification.presentation.dto.response.MarketingNotificationResponse;
+import kr.omong.dulpick.domain.notification.presentation.dto.response.MarketingNotificationPreviewResponse;
+import kr.omong.dulpick.domain.notification.presentation.dto.response.MarketingNotificationHistoryResponse;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
 import kr.omong.dulpick.global.exception.ErrorResponse;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -60,6 +63,21 @@ public class NotificationAdminController {
         ));
     }
 
+    @Operation(summary = "마케팅 알림 발송 대상 미리보기")
+    @GetMapping("/marketing/preview")
+    public ResponseEntity<MarketingNotificationPreviewResponse> previewMarketingNotification() {
+        return ResponseEntity.ok(MarketingNotificationPreviewResponse.from(adminService.preview()));
+    }
+
+    @Operation(summary = "마케팅 알림 발송 이력 조회")
+    @GetMapping("/marketing")
+    public ResponseEntity<MarketingNotificationHistoryResponse> listMarketingNotifications(
+            @io.swagger.v3.oas.annotations.Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
+            @io.swagger.v3.oas.annotations.Parameter(example = "10") @RequestParam(defaultValue = "10") @Schema(example = "10") int size
+    ) {
+        return ResponseEntity.ok(MarketingNotificationHistoryResponse.from(adminService.list(page, size)));
+    }
+
     @Operation(summary = "마케팅 알림 발송 상태 조회")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "발송 상태 조회 성공"),
@@ -69,7 +87,7 @@ public class NotificationAdminController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
-    @GetMapping("/marketing/{campaignId}")
+    @GetMapping("/marketing/{campaignId:[0-9a-fA-F-]{36}}")
     public ResponseEntity<MarketingNotificationResponse> getMarketingNotification(
             @PathVariable @Schema(example = "8f4d1f6f-4d9b-4f5e-9c53-7d2c0e4b7a11") String campaignId
     ) {

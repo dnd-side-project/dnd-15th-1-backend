@@ -3,14 +3,18 @@ package kr.omong.dulpick.domain.place.domain;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import java.util.List;
 import java.util.Optional;
 
 public interface ContentRepository extends JpaRepository<Content, Long> {
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT content FROM Content content WHERE content.id = :contentId")
+    java.util.Optional<Content> findByIdForUpdate(@Param("contentId") Long contentId);
 
     Optional<Content> findByCanonicalUrlHash(String canonicalUrlHash);
 

@@ -8,6 +8,9 @@ import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -53,5 +56,30 @@ public class MarketingNotificationAdminService {
         return campaignRepository.findById(campaignId)
                 .map(MarketingNotificationSendView::from)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
+    }
+
+    @Transactional(readOnly = true)
+    public MarketingNotificationPreviewView preview() {
+        return new MarketingNotificationPreviewView(
+                Math.toIntExact(settingsRepository.countMembersWithMarketingEnabled(MemberStatus.ACTIVE)),
+                clock.instant()
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public MarketingNotificationHistoryView list(int page, int size) {
+        int normalizedPage = Math.max(page, 0);
+        int normalizedSize = Math.min(Math.max(size, 1), 50);
+        Page<MarketingNotificationCampaign> campaigns = campaignRepository.findAllByOrderByCreatedAtDesc(
+                PageRequest.of(normalizedPage, normalizedSize, Sort.by(Sort.Direction.DESC, "createdAt"))
+        );
+        return new MarketingNotificationHistoryView(
+                campaigns.getContent().stream().map(MarketingNotificationSendView::from).toList(),
+                campaigns.getNumber(),
+                campaigns.getSize(),
+                campaigns.getTotalElements(),
+                campaigns.getTotalPages(),
+                campaigns.hasNext()
+        );
     }
 }

@@ -5,11 +5,11 @@ import jakarta.validation.constraints.Size;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 
-import java.util.List;
 import java.time.Instant;
+import java.util.List;
 
-public record UpdateContentPlacesRequest(
-        @NotNull @Size(max = 50) @ArraySchema(schema = @Schema(example = "101"), arraySchema = @Schema(example = "[101, 102]")) List<@NotNull Long> placeIds,
+public record ReorderPlaceImagesRequest(
+        @NotNull @Size(max = 50) @ArraySchema(schema = @Schema(example = "501"), arraySchema = @Schema(example = "[501, 502]")) List<@NotNull Long> imageIds,
         @NotNull @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
 ) {
 }

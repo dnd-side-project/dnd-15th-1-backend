@@ -22,6 +22,8 @@ import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdmin
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReorderContentImagesRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReorderPlaceImagesRequest;
 import kr.omong.dulpick.global.exception.BusinessException;
 import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -43,6 +45,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 @Service
 public class OperationsAdminService {
@@ -268,8 +272,9 @@ public class OperationsAdminService {
             Long contentId,
             UpdateContentPublicationStatusRequest request
     ) {
-        var content = contentRepository.findById(contentId)
+        var content = contentRepository.findByIdForUpdate(contentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), content.getUpdatedAt());
         content.updatePublicationStatus(request.publicationStatus(), clock.instant());
         contentRepository.save(content);
         return new OperationsAdminView.ContentSummary(
@@ -297,8 +302,9 @@ public class OperationsAdminService {
             Long contentId,
             UpdateContentAdminRequest request
     ) {
-        Content content = contentRepository.findById(contentId)
+        Content content = contentRepository.findByIdForUpdate(contentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), content.getUpdatedAt());
         content.updateMetadata(
                 request.title() == null ? content.getTitle() : request.title().strip(),
                 request.content() == null ? content.getContent() : request.content(),
@@ -314,8 +320,9 @@ public class OperationsAdminService {
             Long contentId,
             UpdateContentPlacesRequest request
     ) {
-        Content content = contentRepository.findById(contentId)
+        Content content = contentRepository.findByIdForUpdate(contentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), content.getUpdatedAt());
         List<Long> placeIds = request.placeIds().stream().distinct().toList();
         if (placeIds.size() != request.placeIds().size()
                 || placeRepository.findAllById(placeIds).size() != placeIds.size()) {
@@ -327,7 +334,7 @@ public class OperationsAdminService {
                 placeId,
                 clock.instant()
         ));
-        content.updatePlaceCount(placeIds.size());
+        content.updatePlaceCount(placeIds.size(), clock.instant());
         return contentDetail(content);
     }
 
@@ -336,16 +343,65 @@ public class OperationsAdminService {
             Long contentId,
             byte[] bytes,
             MediaType contentType,
-            boolean makeThumbnail
+            boolean makeThumbnail,
+            Instant expectedUpdatedAt
     ) {
+        Content content = contentRepository.findByIdForUpdate(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, content.getUpdatedAt());
         contentImageStorageService.storeManual(contentId, bytes, contentType, makeThumbnail);
         return contentDetail(contentId);
     }
 
     @Transactional
-    public OperationsAdminView.ContentDetail deleteContentImage(Long contentId, String imageKey) {
+    public OperationsAdminView.ContentDetail deleteContentImage(
+            Long contentId,
+            String imageKey,
+            Instant expectedUpdatedAt
+    ) {
+        Content content = contentRepository.findByIdForUpdate(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, content.getUpdatedAt());
         contentImageStorageService.deleteManual(imageKey, contentId);
         return contentDetail(contentId);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail reorderContentImages(
+            Long contentId,
+            ReorderContentImagesRequest request
+    ) {
+        Content content = contentRepository.findByIdForUpdate(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), content.getUpdatedAt());
+        List<ContentImage> images = contentImageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
+        if (!sameImageKeys(images, request.imageKeys())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        Map<String, ContentImage> byKey = images.stream()
+                .collect(java.util.stream.Collectors.toMap(ContentImage::getImageKey, image -> image));
+        Instant now = clock.instant();
+        request.imageKeys().forEach(key -> byKey.get(key).updateDisplayOrder(request.imageKeys().indexOf(key), now));
+        return contentDetail(content);
+    }
+
+    @Transactional
+    public OperationsAdminView.ContentDetail setContentThumbnail(
+            Long contentId,
+            String imageKey,
+            Instant expectedUpdatedAt
+    ) {
+        Content content = contentRepository.findByIdForUpdate(contentId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, content.getUpdatedAt());
+        ContentImage image = contentImageRepository.findById(imageKey)
+                .filter(candidate -> candidate.getContentId().equals(contentId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE));
+        if (image.getContentType() == null || image.getContentType().isBlank()) {
+            throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
+        }
+        content.updateThumbnail(contentImageStorageService.publicUrl(imageKey), clock.instant());
+        return contentDetail(content);
     }
 
     @Transactional(readOnly = true)
@@ -365,8 +421,9 @@ public class OperationsAdminService {
             Long placeId,
             UpdatePlaceAdminRequest request
     ) {
-        Place place = placeRepository.findById(placeId)
+        Place place = placeRepository.findByIdForUpdate(placeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), place.getUpdatedAt());
         place.updateDetails(
                 request.name(),
                 request.address(),
@@ -385,10 +442,12 @@ public class OperationsAdminService {
             Long placeId,
             byte[] bytes,
             MediaType contentType,
-            boolean makeThumbnail
+            boolean makeThumbnail,
+            Instant expectedUpdatedAt
     ) {
-        Place place = placeRepository.findById(placeId)
+        Place place = placeRepository.findByIdForUpdate(placeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, place.getUpdatedAt());
         List<PlaceImage> images = placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(placeId);
         PlaceImage image = placeImageStorageService.storeManual(
                 placeId,
@@ -416,9 +475,14 @@ public class OperationsAdminService {
     }
 
     @Transactional
-    public OperationsAdminView.PlaceDetail deletePlaceImage(Long placeId, Long imageId) {
-        Place place = placeRepository.findById(placeId)
+    public OperationsAdminView.PlaceDetail deletePlaceImage(
+            Long placeId,
+            Long imageId,
+            Instant expectedUpdatedAt
+    ) {
+        Place place = placeRepository.findByIdForUpdate(placeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, place.getUpdatedAt());
         PlaceImage image = placeImageRepository.findById(imageId)
                 .filter(candidate -> candidate.getPlaceId().equals(placeId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
@@ -439,13 +503,52 @@ public class OperationsAdminService {
         return placeDetail(place);
     }
 
+    @Transactional
+    public OperationsAdminView.PlaceDetail reorderPlaceImages(
+            Long placeId,
+            ReorderPlaceImagesRequest request
+    ) {
+        Place place = placeRepository.findByIdForUpdate(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), place.getUpdatedAt());
+        List<PlaceImage> images = placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(placeId);
+        Set<Long> current = images.stream().map(PlaceImage::getId).collect(java.util.stream.Collectors.toSet());
+        if (current.size() != request.imageIds().size()
+                || !current.equals(new HashSet<>(request.imageIds()))) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        Map<Long, PlaceImage> byId = images.stream()
+                .collect(java.util.stream.Collectors.toMap(PlaceImage::getId, image -> image));
+        request.imageIds().forEach(id -> byId.get(id).updateDisplayOrder(request.imageIds().indexOf(id)));
+        return placeDetail(place);
+    }
+
+    @Transactional
+    public OperationsAdminView.PlaceDetail setPlaceThumbnail(
+            Long placeId,
+            Long imageId,
+            Instant expectedUpdatedAt
+    ) {
+        Place place = placeRepository.findByIdForUpdate(placeId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        ensureFresh(expectedUpdatedAt, place.getUpdatedAt());
+        PlaceImage image = placeImageRepository.findById(imageId)
+                .filter(candidate -> candidate.getPlaceId().equals(placeId))
+                .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
+        if (image.getStorageKey() == null) {
+            throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
+        }
+        placeRepository.updateThumbnail(placeId, image.getImageUrl(), clock.instant());
+        return placeDetail(placeId);
+    }
+
     @Transactional(readOnly = true)
     public OperationsAdminView.PlaceSearchPage searchPlaces(String query, int page, int size) {
         PageBounds bounds = bounds(page, size);
         String keyword = query == null ? "" : query.strip();
         List<OperationsAdminView.PlaceSummary> places = jdbcTemplate.query(
                 "SELECT id, kakao_place_id, name, address, road_address, category, "
-                        + "category_group_code, phone, kakao_place_url, thumbnail_url FROM places "
+                        + "category_group_code, phone, kakao_place_url, thumbnail_url, updated_at FROM places "
                         + "WHERE name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ? "
                         + "ORDER BY id DESC LIMIT ? OFFSET ?",
                 (rs, rowNum) -> new OperationsAdminView.PlaceSummary(
@@ -458,7 +561,8 @@ public class OperationsAdminService {
                         rs.getString("category_group_code"),
                         rs.getString("phone"),
                         rs.getString("kakao_place_url"),
-                        rs.getString("thumbnail_url")
+                        rs.getString("thumbnail_url"),
+                        instant(rs, "updated_at")
                 ),
                 "%" + keyword + "%",
                 "%" + keyword + "%",
@@ -467,10 +571,16 @@ public class OperationsAdminService {
                 bounds.offset()
         );
         boolean hasNext = places.size() > bounds.size();
+        long total = count(
+                "SELECT COUNT(*) FROM places WHERE name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ?",
+                "%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"
+        );
         return new OperationsAdminView.PlaceSearchPage(
                 hasNext ? places.subList(0, bounds.size()) : places,
                 bounds.page(),
                 bounds.size(),
+                total,
+                totalPages(total, bounds.size()),
                 hasNext
         );
     }
@@ -480,13 +590,14 @@ public class OperationsAdminService {
             Long importId,
             ManualPlaceLinkRequest request
     ) {
-        PlaceImport placeImport = placeImportRepository.findById(importId)
+        PlaceImport placeImport = placeImportRepository.findByIdForUpdate(importId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_IMPORT_NOT_FOUND));
+        ensureFresh(request.expectedUpdatedAt(), placeImport.getUpdatedAt());
         Long contentId = placeImport.getContentId();
         if (contentId == null) {
             throw new BusinessException(ErrorCode.INVALID_INPUT);
         }
-        Place place = placeRepository.findById(request.placeId())
+        Place place = placeRepository.findByIdForUpdate(request.placeId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
         if (request.candidateId() != null) {
             PlaceCandidate candidate = placeCandidateRepository
@@ -495,9 +606,9 @@ public class OperationsAdminService {
             candidate.adminVerify(place.getId());
         }
         contentPlaceRepository.insertIfAbsent(contentId, place.getId(), clock.instant());
-        Content content = contentRepository.findById(contentId)
+        Content content = contentRepository.findByIdForUpdate(contentId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_NOT_FOUND));
-        content.updatePlaceCount(contentPlaceRepository.findAllByContentId(contentId).size());
+        content.updatePlaceCount(contentPlaceRepository.findAllByContentId(contentId).size(), clock.instant());
         if (request.publish()) {
             content.publish(clock.instant());
             placeImport.adminComplete(clock.instant());
@@ -514,7 +625,12 @@ public class OperationsAdminService {
                         contentImageStorageService.adminUrl(content.getId(), image.getImageKey()),
                         image.getSourceUrl(),
                         image.getContentType(),
-                        image.getDisplayOrder()
+                        image.getDisplayOrder(),
+                        image.getContentType() != null && !image.getContentType().isBlank(),
+                        java.util.Objects.equals(
+                                content.getThumbnailUrl(),
+                                contentImageStorageService.publicUrl(image.getImageKey())
+                        )
                 ))
                 .toList();
         List<Long> placeIds = contentPlaceRepository.findAllByContentId(content.getId())
@@ -547,7 +663,9 @@ public class OperationsAdminService {
                         image.getId(),
                         image.getImageUrl(),
                         image.getContentType(),
-                        image.getDisplayOrder()
+                        image.getDisplayOrder(),
+                        image.getStorageKey() != null,
+                        java.util.Objects.equals(place.getThumbnailUrl(), image.getImageUrl())
                 ))
                 .toList();
         return new OperationsAdminView.PlaceDetail(placeSummary(place), images);
@@ -564,7 +682,8 @@ public class OperationsAdminService {
                 place.getCategoryGroupCode(),
                 place.getPhone(),
                 place.getKakaoPlaceUrl(),
-                place.getThumbnailUrl()
+                place.getThumbnailUrl(),
+                place.getUpdatedAt()
         );
     }
 
@@ -751,6 +870,20 @@ public class OperationsAdminService {
     private Long nullableLong(ResultSet resultSet, String column) throws SQLException {
         long value = resultSet.getLong(column);
         return resultSet.wasNull() ? null : value;
+    }
+
+    private void ensureFresh(Instant expectedUpdatedAt, Instant actualUpdatedAt) {
+        if (expectedUpdatedAt == null || actualUpdatedAt == null || !expectedUpdatedAt.equals(actualUpdatedAt)) {
+            throw new BusinessException(ErrorCode.ADMIN_RESOURCE_MODIFIED);
+        }
+    }
+
+    private boolean sameImageKeys(List<ContentImage> images, List<String> requestedKeys) {
+        Set<String> current = images.stream()
+                .map(ContentImage::getImageKey)
+                .collect(java.util.stream.Collectors.toSet());
+        return current.size() == requestedKeys.size()
+                && current.equals(new HashSet<>(requestedKeys));
     }
 
     private record PageBounds(int page, int size, int offset) {

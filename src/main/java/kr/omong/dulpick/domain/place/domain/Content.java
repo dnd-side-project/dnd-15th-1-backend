@@ -185,6 +185,11 @@ public class Content {
         this.placeCount = Math.max(placeCount, 0);
     }
 
+    public void updatePlaceCount(int placeCount, Instant now) {
+        this.placeCount = Math.max(placeCount, 0);
+        this.updatedAt = now;
+    }
+
     public void updateSourceMetadata(
             String sourceAuthorName,
             String sourceAuthorUsername,

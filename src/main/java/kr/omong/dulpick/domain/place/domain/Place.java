@@ -256,6 +256,10 @@ public class Place {
         return kakaoPlaceUrl;
     }
 
+    public Instant getUpdatedAt() {
+        return updatedAt;
+    }
+
     public String getCategoryName() {
         return getDulpickCategory().getDisplayName();
     }
