@@ -102,7 +102,7 @@ tasks.named('test', Test) {
         'PlaceImportViewMapperRetryAfterTest',
         'PlaceImportPartialVerificationTest',
         'ImageEnrichmentBacklogSqlIntegrationTest',
-        'FlywayResetPreparationTest',
+        'FlywaySchemaPreparationTest',
         'PushDeviceIntegrationTest',
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
