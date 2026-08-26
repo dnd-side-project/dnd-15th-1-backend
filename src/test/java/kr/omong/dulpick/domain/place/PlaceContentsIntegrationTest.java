@@ -5,6 +5,8 @@ import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.domain.Content;
+import kr.omong.dulpick.domain.place.domain.ContentImage;
+import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
 import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
@@ -15,11 +17,14 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -49,6 +54,21 @@ class PlaceContentsIntegrationTest {
     @Autowired
     private ContentPlaceRepository contentPlaceRepository;
 
+    @Autowired
+    private ContentImageRepository contentImageRepository;
+
+    @Autowired
+    private kr.omong.dulpick.domain.place.config.ContentThumbnailProperties thumbnailProperties;
+
+    private Path storedImagePath;
+
+    @AfterEach
+    void removeStoredImage() throws Exception {
+        if (storedImagePath != null) {
+            Files.deleteIfExists(storedImagePath);
+        }
+    }
+
     @Test
     void returnsOnlyPublicContentsLinkedToPlace() throws Exception {
         Instant now = Instant.now();
@@ -57,6 +77,7 @@ class PlaceContentsIntegrationTest {
         Place target = savePlace("대상 카페", now);
         Place other = savePlace("다른 카페", now);
         Content linkedPublic = saveContent("연결된 공개 게시물", true, now);
+        ContentImage linkedPublicImage = saveStoredImage(linkedPublic, now);
         Content linkedPending = saveContent("연결된 비공개 게시물", false, now);
         Content unlinkedPublic = saveContent("다른 장소 공개 게시물", true, now);
         contentPlaceRepository.save(ContentPlace.create(linkedPublic.getId(), target.getId(), now));
@@ -69,6 +90,10 @@ class PlaceContentsIntegrationTest {
                 .andExpect(jsonPath("$.contents.length()").value(1))
                 .andExpect(jsonPath("$.contents[0].contentId").value(linkedPublic.getId()))
                 .andExpect(jsonPath("$.contents[0].title").value("연결된 공개 게시물"))
+                .andExpect(jsonPath("$.contents[0].thumbnailUrl")
+                        .value(thumbnailProperties.baseUrl() + "/api/v1/content-images/" + linkedPublicImage.getImageKey()))
+                .andExpect(jsonPath("$.contents[0].imageUrls[0]")
+                        .value(thumbnailProperties.baseUrl() + "/api/v1/content-images/" + linkedPublicImage.getImageKey()))
                 .andExpect(jsonPath("$.totalElements").value(1));
     }
 
@@ -127,5 +152,24 @@ class PlaceContentsIntegrationTest {
             content.publish(now);
         }
         return contentRepository.save(content);
+    }
+
+    private ContentImage saveStoredImage(Content content, Instant now) throws Exception {
+        ContentImage image = ContentImage.create(
+                content.getId(),
+                "https://example.com/content-image.jpg",
+                UUID.randomUUID().toString(),
+                0,
+                now
+        );
+        image.markStored("image/jpeg", now);
+        contentImageRepository.save(image);
+        storedImagePath = Path.of(thumbnailProperties.storagePath())
+                .toAbsolutePath()
+                .normalize()
+                .resolve(image.getStorageKey());
+        Files.createDirectories(storedImagePath.getParent());
+        Files.write(storedImagePath, new byte[]{1});
+        return image;
     }
 }
