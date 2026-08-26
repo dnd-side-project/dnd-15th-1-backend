@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.place.application.exception.PublicContentImageUna
 import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentImage;
+import kr.omong.dulpick.domain.place.domain.ContentImageEnrichmentBacklogRepository;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
@@ -35,6 +36,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import tools.jackson.databind.ObjectMapper;
+
 import java.util.concurrent.RejectedExecutionException;
 
 @Service
@@ -51,6 +54,8 @@ public class ContentImageStorageService {
     private final Clock clock;
     private final Path storageDirectory;
     private final Executor refreshExecutor;
+    private final ContentImageEnrichmentBacklogRepository backlogRepository;
+    private final ObjectMapper objectMapper;
     private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
 
     @Autowired
@@ -61,7 +66,9 @@ public class ContentImageStorageService {
             PublicInstagramMetadataProvider metadataProvider,
             ContentThumbnailProperties properties,
             Clock clock,
-            @Qualifier("contentImageExecutor") Executor refreshExecutor
+            @Qualifier("contentImageExecutor") Executor refreshExecutor,
+            ContentImageEnrichmentBacklogRepository backlogRepository,
+            ObjectMapper objectMapper
     ) {
         this(
                 imageRepository,
@@ -71,6 +78,8 @@ public class ContentImageStorageService {
                 properties,
                 clock,
                 refreshExecutor,
+                backlogRepository,
+                objectMapper,
                 true
         );
     }
@@ -91,6 +100,8 @@ public class ContentImageStorageService {
                 properties,
                 clock,
                 null,
+                null,
+                null,
                 true
         );
     }
@@ -103,6 +114,8 @@ public class ContentImageStorageService {
             ContentThumbnailProperties properties,
             Clock clock,
             Executor refreshExecutor,
+            ContentImageEnrichmentBacklogRepository backlogRepository,
+            ObjectMapper objectMapper,
             boolean ignored
     ) {
         this.imageRepository = imageRepository;
@@ -113,6 +126,8 @@ public class ContentImageStorageService {
         this.clock = clock;
         this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
         this.refreshExecutor = refreshExecutor;
+        this.backlogRepository = backlogRepository;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -214,13 +229,13 @@ public class ContentImageStorageService {
                 )
                 .orElseThrow(PublicContentImageUnavailableException::new);
         if (!hasStoredFile(image)) {
-            dispatchRefresh(image.getImageKey());
+            dispatchRefresh(image);
             throw new PublicContentImageUnavailableException();
         }
         try {
             return read(image);
         } catch (IOException exception) {
-            dispatchRefresh(image.getImageKey());
+            dispatchRefresh(image);
             throw new PublicContentImageUnavailableException(exception);
         }
     }
@@ -496,8 +511,10 @@ public class ContentImageStorageService {
         return new StoredImage(downloaded.bytes(), downloaded.contentType());
     }
 
-    private void dispatchRefresh(String imageKey) {
+    private void dispatchRefresh(ContentImage image) {
+        String imageKey = image.getImageKey();
         if (refreshExecutor == null) {
+            enqueueBacklog(image);
             return;
         }
         if (!refreshInFlight.add(imageKey)) {
@@ -513,6 +530,7 @@ public class ContentImageStorageService {
                             imageKey,
                             exception.getClass().getSimpleName()
                     );
+                    enqueueBacklog(image);
                 } finally {
                     refreshInFlight.remove(imageKey);
                 }
@@ -522,6 +540,28 @@ public class ContentImageStorageService {
             logger.warn(
                     "Content image background refresh rejected: imageKey={}, cause={}",
                     imageKey,
+                    exception.getClass().getSimpleName()
+            );
+            enqueueBacklog(image);
+        }
+    }
+
+    private void enqueueBacklog(ContentImage image) {
+        if (backlogRepository == null || objectMapper == null || image.getContentId() == null) {
+            return;
+        }
+        try {
+            Instant now = clock.instant();
+            backlogRepository.enqueue(
+                    image.getContentId(),
+                    objectMapper.writeValueAsString(List.of(image.getSourceUrl())),
+                    now.plusSeconds(60),
+                    now
+            );
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Content image backlog registration failed: imageKey={}, cause={}",
+                    image.getImageKey(),
                     exception.getClass().getSimpleName()
             );
         }

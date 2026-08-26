@@ -434,7 +434,9 @@ class ContentImageStorageServiceTest {
                         10
                 ),
                 Clock.fixed(NOW, ZoneOffset.UTC),
-                refreshExecutor
+                refreshExecutor,
+                null,
+                null
         );
     }
 
