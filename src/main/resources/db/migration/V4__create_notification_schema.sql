@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V4: 알림·푸시.
+
 CREATE TABLE member_notification_settings
 (
     member_id                 BIGINT      NOT NULL,
