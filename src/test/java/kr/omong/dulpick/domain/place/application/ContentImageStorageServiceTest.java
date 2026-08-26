@@ -163,7 +163,7 @@ class ContentImageStorageServiceTest {
 
         service.refreshExistingIfAvailable(content, List.of("https://scontent.cdninstagram.com/fresh.jpg"));
 
-        verify(imageRepository).saveAllAndFlush(List.of(image));
+        verify(imageRepository).saveAll(List.of(image));
         assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
@@ -410,7 +410,8 @@ class ContentImageStorageServiceTest {
                         5_000_000L,
                         10
                 ),
-                Clock.fixed(NOW, ZoneOffset.UTC)
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                transactionManager()
         );
     }
 
@@ -434,10 +435,19 @@ class ContentImageStorageServiceTest {
                         10
                 ),
                 Clock.fixed(NOW, ZoneOffset.UTC),
+                transactionManager(),
                 refreshExecutor,
                 null,
                 null
         );
+    }
+
+    private org.springframework.transaction.PlatformTransactionManager transactionManager() {
+        org.springframework.transaction.PlatformTransactionManager manager =
+                mock(org.springframework.transaction.PlatformTransactionManager.class);
+        when(manager.getTransaction(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.transaction.support.SimpleTransactionStatus());
+        return manager;
     }
 
     private ContentThumbnailDownloader.DownloadedThumbnail downloaded(String value) {

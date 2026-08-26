@@ -24,12 +24,22 @@ class PlaceImageWriterTest {
     private final PlaceImageRepository imageRepository = mock(PlaceImageRepository.class);
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceImageStorageService storageService = mock(PlaceImageStorageService.class);
+
     private final PlaceImageWriter writer = new PlaceImageWriter(
             imageRepository,
             placeRepository,
             storageService,
+            transactionManager(),
             Clock.fixed(NOW, ZoneOffset.UTC)
     );
+
+    private org.springframework.transaction.PlatformTransactionManager transactionManager() {
+        org.springframework.transaction.PlatformTransactionManager manager =
+                mock(org.springframework.transaction.PlatformTransactionManager.class);
+        when(manager.getTransaction(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.transaction.support.SimpleTransactionStatus());
+        return manager;
+    }
 
     @Test
     @SuppressWarnings("unchecked")

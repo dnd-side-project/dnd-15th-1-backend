@@ -19,7 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -56,6 +58,7 @@ public class ContentImageStorageService {
     private final Executor refreshExecutor;
     private final ContentImageEnrichmentBacklogRepository backlogRepository;
     private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
     private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
 
     @Autowired
@@ -66,57 +69,10 @@ public class ContentImageStorageService {
             PublicInstagramMetadataProvider metadataProvider,
             ContentThumbnailProperties properties,
             Clock clock,
-            @Qualifier("contentImageExecutor") Executor refreshExecutor,
-            ContentImageEnrichmentBacklogRepository backlogRepository,
-            ObjectMapper objectMapper
-    ) {
-        this(
-                imageRepository,
-                contentRepository,
-                downloader,
-                metadataProvider,
-                properties,
-                clock,
-                refreshExecutor,
-                backlogRepository,
-                objectMapper,
-                true
-        );
-    }
-
-    public ContentImageStorageService(
-            ContentImageRepository imageRepository,
-            ContentRepository contentRepository,
-            @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
-            PublicInstagramMetadataProvider metadataProvider,
-            ContentThumbnailProperties properties,
-            Clock clock
-    ) {
-        this(
-                imageRepository,
-                contentRepository,
-                downloader,
-                metadataProvider,
-                properties,
-                clock,
-                null,
-                null,
-                null,
-                true
-        );
-    }
-
-    private ContentImageStorageService(
-            ContentImageRepository imageRepository,
-            ContentRepository contentRepository,
-            ContentThumbnailDownloader downloader,
-            PublicInstagramMetadataProvider metadataProvider,
-            ContentThumbnailProperties properties,
-            Clock clock,
+            PlatformTransactionManager transactionManager,
             Executor refreshExecutor,
             ContentImageEnrichmentBacklogRepository backlogRepository,
-            ObjectMapper objectMapper,
-            boolean ignored
+            ObjectMapper objectMapper
     ) {
         this.imageRepository = imageRepository;
         this.contentRepository = contentRepository;
@@ -125,12 +81,34 @@ public class ContentImageStorageService {
         this.properties = properties;
         this.clock = clock;
         this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.refreshExecutor = refreshExecutor;
         this.backlogRepository = backlogRepository;
         this.objectMapper = objectMapper;
     }
 
-    @Transactional
+    public ContentImageStorageService(
+            ContentImageRepository imageRepository,
+            ContentRepository contentRepository,
+            @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
+            PublicInstagramMetadataProvider metadataProvider,
+            ContentThumbnailProperties properties,
+            Clock clock,
+            PlatformTransactionManager transactionManager
+    ) {
+        this.imageRepository = imageRepository;
+        this.contentRepository = contentRepository;
+        this.downloader = downloader;
+        this.metadataProvider = metadataProvider;
+        this.properties = properties;
+        this.clock = clock;
+        this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.refreshExecutor = null;
+        this.backlogRepository = null;
+        this.objectMapper = null;
+    }
+
     public void storeIfAvailable(Long contentId, List<String> sourceUrls) {
         if (contentId == null) {
             return;
@@ -139,7 +117,6 @@ public class ContentImageStorageService {
                 .ifPresent(content -> storeIfAvailable(content, sourceUrls));
     }
 
-    @Transactional
     public void storeIfAvailable(Content content, List<String> sourceUrls) {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
@@ -177,10 +154,10 @@ public class ContentImageStorageService {
             }
         }
         retryNewImagesFromOriginalContent(content, failedImages, occupiedHashes, images);
-        imageRepository.saveAll(removeDuplicateStoredImages(images, existingImageKeys));
+        DuplicateRemoval removal = deduplicateStoredImages(images, existingImageKeys);
+        transactionTemplate.executeWithoutResult(status -> persistImages(removal));
     }
 
-    @Transactional
     public void refreshExistingIfAvailable(Content content, List<String> sourceUrls) {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
@@ -217,10 +194,10 @@ public class ContentImageStorageService {
             }
         }
         retryFailedImages(content, failedImages, occupiedHashes);
-        imageRepository.saveAllAndFlush(removeDuplicateStoredImages(existingImages, existingImageKeys));
+        DuplicateRemoval removal = deduplicateStoredImages(existingImages, existingImageKeys);
+        transactionTemplate.executeWithoutResult(status -> persistImages(removal));
     }
 
-    @Transactional
     public StoredImage load(String imageKey) {
         ContentImage image = imageRepository.findById(imageKey)
                 .orElseThrow(PublicContentImageUnavailableException::new);
@@ -592,7 +569,7 @@ public class ContentImageStorageService {
         imageRepository.saveAndFlush(image);
     }
 
-    private List<ContentImage> removeDuplicateStoredImages(
+    private DuplicateRemoval deduplicateStoredImages(
             List<ContentImage> images,
             Set<String> existingImageKeys
     ) {
@@ -613,12 +590,17 @@ public class ContentImageStorageService {
                 .map(ContentImage::getImageKey)
                 .filter(existingImageKeys::contains)
                 .toList();
-        if (!persistedDuplicateKeys.isEmpty()) {
-            imageRepository.deleteAllById(persistedDuplicateKeys);
-        }
-        return images.stream()
+        List<ContentImage> survivors = images.stream()
                 .filter(image -> !duplicates.contains(image))
                 .toList();
+        return new DuplicateRemoval(survivors, persistedDuplicateKeys);
+    }
+
+    private void persistImages(DuplicateRemoval removal) {
+        if (!removal.removedKeys().isEmpty()) {
+            imageRepository.deleteAllById(removal.removedKeys());
+        }
+        imageRepository.saveAll(removal.survivors());
     }
 
     private String storedContentHash(ContentImage image) {
@@ -767,6 +749,12 @@ public class ContentImageStorageService {
     public record StoredImage(
             byte[] bytes,
             MediaType contentType
+    ) {
+    }
+
+    private record DuplicateRemoval(
+            List<ContentImage> survivors,
+            List<String> removedKeys
     ) {
     }
 
