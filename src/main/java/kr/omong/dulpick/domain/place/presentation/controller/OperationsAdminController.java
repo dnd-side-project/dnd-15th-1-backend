@@ -8,19 +8,33 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.place.application.OperationsAdminService;
 import kr.omong.dulpick.domain.place.application.OperationsAdminView;
+import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReorderContentImagesRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReorderPlaceImagesRequest;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
+import org.springframework.http.CacheControl;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.time.Instant;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -91,6 +105,174 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.updatePublicationStatus(contentId, request));
     }
 
+    @Operation(summary = "게시글 운영자 상세 조회")
+    @GetMapping("/contents/{contentId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> contentDetail(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId
+    ) {
+        return ResponseEntity.ok(adminService.contentDetail(contentId));
+    }
+
+    @Operation(summary = "게시글 제목·내용 수정")
+    @PatchMapping("/contents/{contentId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> updateContent(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Valid @RequestBody UpdateContentAdminRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateContent(contentId, request));
+    }
+
+    @Operation(summary = "게시글 연결 장소 수정")
+    @PatchMapping("/contents/{contentId:[0-9]+}/places")
+    public ResponseEntity<OperationsAdminView.ContentDetail> updateContentPlaces(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Valid @RequestBody UpdateContentPlacesRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updateContentPlaces(contentId, request));
+    }
+
+    @Operation(summary = "게시글 이미지 운영자 업로드")
+    @PostMapping(value = "/contents/{contentId:[0-9]+}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OperationsAdminView.ContentDetail> uploadContentImage(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @RequestPart("file") MultipartFile file,
+            @Parameter(example = "true") @RequestParam(defaultValue = "false") @Schema(example = "true") boolean thumbnail,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) throws java.io.IOException {
+        return ResponseEntity.ok(adminService.uploadContentImage(
+                contentId,
+                file.getBytes(),
+                parseContentType(file),
+                thumbnail,
+                expectedUpdatedAt
+        ));
+    }
+
+    @Operation(summary = "게시글 이미지 삭제")
+    @DeleteMapping("/contents/{contentId:[0-9]+}/images/{imageKey}")
+    public ResponseEntity<OperationsAdminView.ContentDetail> deleteContentImage(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Parameter(example = "550e8400-e29b-41d4-a716-446655440000") @PathVariable @Schema(example = "550e8400-e29b-41d4-a716-446655440000") String imageKey,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) {
+        return ResponseEntity.ok(adminService.deleteContentImage(contentId, imageKey, expectedUpdatedAt));
+    }
+
+    @Operation(summary = "게시글 이미지 순서 변경")
+    @PatchMapping("/contents/{contentId:[0-9]+}/images/order")
+    public ResponseEntity<OperationsAdminView.ContentDetail> reorderContentImages(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Valid @RequestBody ReorderContentImagesRequest request
+    ) {
+        return ResponseEntity.ok(adminService.reorderContentImages(contentId, request));
+    }
+
+    @Operation(summary = "게시글 대표 이미지 지정")
+    @PatchMapping("/contents/{contentId:[0-9]+}/images/{imageKey}/thumbnail")
+    public ResponseEntity<OperationsAdminView.ContentDetail> setContentThumbnail(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Parameter(example = "550e8400-e29b-41d4-a716-446655440000") @PathVariable @Schema(example = "550e8400-e29b-41d4-a716-446655440000") String imageKey,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) {
+        return ResponseEntity.ok(adminService.setContentThumbnail(contentId, imageKey, expectedUpdatedAt));
+    }
+
+    @Operation(summary = "운영자용 게시글 이미지 조회")
+    @GetMapping("/contents/{contentId:[0-9]+}/images/{imageKey}/file")
+    public ResponseEntity<byte[]> findContentImage(
+            @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
+            @Parameter(example = "550e8400-e29b-41d4-a716-446655440000") @PathVariable @Schema(example = "550e8400-e29b-41d4-a716-446655440000") String imageKey
+    ) {
+        ContentImageStorageService.StoredImage image = adminService.contentImage(imageKey, contentId);
+        return ResponseEntity.ok()
+                .contentType(image.contentType())
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .body(image.bytes());
+    }
+
+    @Operation(summary = "장소 운영자 상세 조회")
+    @GetMapping("/places/{placeId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> placeDetail(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId
+    ) {
+        return ResponseEntity.ok(adminService.placeDetail(placeId));
+    }
+
+    @Operation(summary = "장소 세부사항 수정")
+    @PatchMapping("/places/{placeId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> updatePlace(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId,
+            @Valid @RequestBody UpdatePlaceAdminRequest request
+    ) {
+        return ResponseEntity.ok(adminService.updatePlace(placeId, request));
+    }
+
+    @Operation(summary = "장소 이미지 운영자 업로드")
+    @PostMapping(value = "/places/{placeId:[0-9]+}/images", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<OperationsAdminView.PlaceDetail> uploadPlaceImage(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId,
+            @RequestPart("file") MultipartFile file,
+            @Parameter(example = "true") @RequestParam(defaultValue = "false") @Schema(example = "true") boolean thumbnail,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) throws java.io.IOException {
+        return ResponseEntity.ok(adminService.uploadPlaceImage(
+                placeId,
+                file.getBytes(),
+                parseContentType(file),
+                thumbnail,
+                expectedUpdatedAt
+        ));
+    }
+
+    @Operation(summary = "장소 이미지 삭제")
+    @DeleteMapping("/places/{placeId:[0-9]+}/images/{imageId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> deletePlaceImage(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId,
+            @Parameter(example = "501") @PathVariable @Schema(example = "501") Long imageId,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) {
+        return ResponseEntity.ok(adminService.deletePlaceImage(placeId, imageId, expectedUpdatedAt));
+    }
+
+    @Operation(summary = "장소 이미지 순서 변경")
+    @PatchMapping("/places/{placeId:[0-9]+}/images/order")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> reorderPlaceImages(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId,
+            @Valid @RequestBody ReorderPlaceImagesRequest request
+    ) {
+        return ResponseEntity.ok(adminService.reorderPlaceImages(placeId, request));
+    }
+
+    @Operation(summary = "장소 대표 이미지 지정")
+    @PatchMapping("/places/{placeId:[0-9]+}/images/{imageId:[0-9]+}/thumbnail")
+    public ResponseEntity<OperationsAdminView.PlaceDetail> setPlaceThumbnail(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId,
+            @Parameter(example = "501") @PathVariable @Schema(example = "501") Long imageId,
+            @Parameter(example = "2026-08-24T10:00:05Z") @RequestParam @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+    ) {
+        return ResponseEntity.ok(adminService.setPlaceThumbnail(placeId, imageId, expectedUpdatedAt));
+    }
+
+    @Operation(summary = "장소 검색")
+    @GetMapping("/places/search")
+    public ResponseEntity<OperationsAdminView.PlaceSearchPage> searchPlaces(
+            @Parameter(example = "카페") @RequestParam(defaultValue = "") @Schema(example = "카페") String query,
+            @Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
+            @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
+    ) {
+        return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+    }
+
+    @Operation(summary = "실패한 장소 추출에 장소를 수동 연결하고 공개 처리")
+    @PostMapping("/place-imports/{importId:[0-9]+}/manual-place")
+    public ResponseEntity<OperationsAdminView.ContentDetail> manuallyLinkPlace(
+            @Parameter(example = "1001") @PathVariable @Schema(example = "1001") Long importId,
+            @Valid @RequestBody ManualPlaceLinkRequest request
+    ) {
+        return ResponseEntity.ok(adminService.manuallyLinkPlace(importId, request));
+    }
+
     @Operation(summary = "이미지 보강 백로그 조회")
     @GetMapping("/image-backlogs")
     public ResponseEntity<OperationsAdminView.ImageBacklogPage> imageBacklogs(
@@ -117,5 +299,15 @@ public class OperationsAdminController {
     ) {
         adminService.retryPlaceImages(placeId);
         return ResponseEntity.accepted().build();
+    }
+
+    private MediaType parseContentType(MultipartFile file) {
+        try {
+            return file.getContentType() == null
+                    ? null
+                    : MediaType.parseMediaType(file.getContentType());
+        } catch (IllegalArgumentException exception) {
+            return null;
+        }
     }
 }

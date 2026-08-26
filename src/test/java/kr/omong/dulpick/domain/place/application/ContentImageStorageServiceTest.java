@@ -349,6 +349,47 @@ class ContentImageStorageServiceTest {
         verifyNoInteractions(metadataProvider);
     }
 
+    @Test
+    void reportsContentImageAsMissingWhenDatabaseMetadataExistsButFileDoesNot() {
+        ContentImage image = ContentImage.create(
+                20L,
+                "https://scontent.cdninstagram.com/missing.jpg",
+                "missing-hash",
+                0,
+                NOW
+        );
+        image.markStored(MediaType.IMAGE_JPEG.toString(), NOW);
+        ContentImageStorageService service = service(
+                mock(ContentImageRepository.class),
+                mock(ContentRepository.class),
+                mock(ContentThumbnailDownloader.class),
+                mock(PublicInstagramMetadataProvider.class)
+        );
+
+        assertThat(service.hasStoredFile(image)).isFalse();
+    }
+
+    @Test
+    void reportsContentImageAsStoredOnlyWhenFileExists() throws Exception {
+        ContentImage image = ContentImage.create(
+                21L,
+                "https://scontent.cdninstagram.com/stored.jpg",
+                "stored-hash",
+                0,
+                NOW
+        );
+        image.markStored(MediaType.IMAGE_JPEG.toString(), NOW);
+        Files.write(temporaryDirectory.resolve(image.getStorageKey()), "image".getBytes());
+        ContentImageStorageService service = service(
+                mock(ContentImageRepository.class),
+                mock(ContentRepository.class),
+                mock(ContentThumbnailDownloader.class),
+                mock(PublicInstagramMetadataProvider.class)
+        );
+
+        assertThat(service.hasStoredFile(image)).isTrue();
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,

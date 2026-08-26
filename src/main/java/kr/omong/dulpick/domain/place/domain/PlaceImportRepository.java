@@ -6,7 +6,6 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-
 import jakarta.persistence.LockModeType;
 
 import java.time.Instant;
@@ -14,6 +13,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> {
+
+    @Lock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT placeImport FROM PlaceImport placeImport WHERE placeImport.id = :importId")
+    java.util.Optional<PlaceImport> findByIdForUpdate(@Param("importId") Long importId);
 
     Optional<PlaceImport> findByMemberIdAndCanonicalUrlHash(
             Long memberId,

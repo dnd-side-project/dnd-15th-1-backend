@@ -5,6 +5,10 @@ spring:
     default: local
   jackson:
     time-zone: Asia/Seoul
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   flyway:
     baseline-on-migrate: true
     baseline-version: 0

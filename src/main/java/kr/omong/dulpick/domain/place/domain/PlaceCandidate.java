@@ -134,6 +134,11 @@ public class PlaceCandidate {
         );
     }
 
+    public void adminVerify(Long placeId) {
+        this.placeId = placeId;
+        this.verificationStatus = PlaceVerificationStatus.VERIFIED;
+    }
+
     public Long getId() {
         return id;
     }

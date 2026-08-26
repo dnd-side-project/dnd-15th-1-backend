@@ -34,7 +34,7 @@ public class PlaceImageController {
         PlaceImageStorageService.StoredImage image = storageService.load(storageKey);
         return ResponseEntity.ok()
                 .contentType(image.contentType())
-                .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
+                .cacheControl(CacheControl.maxAge(Duration.ofDays(365)).cachePublic().immutable())
                 .body(image.bytes());
     }
 }

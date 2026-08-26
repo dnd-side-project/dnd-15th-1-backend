@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.Optional;
+import java.util.List;
 
 public interface PlaceImageRepository extends JpaRepository<PlaceImage, Long> {
 
@@ -14,4 +15,6 @@ public interface PlaceImageRepository extends JpaRepository<PlaceImage, Long> {
     void deleteAllByPlaceId(@Param("placeId") Long placeId);
 
     Optional<PlaceImage> findByStorageKey(String storageKey);
+
+    List<PlaceImage> findAllByPlaceIdOrderByDisplayOrderAsc(Long placeId);
 }

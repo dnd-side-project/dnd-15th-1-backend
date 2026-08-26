@@ -162,6 +162,11 @@ public class Content {
         this.updatedAt = now;
     }
 
+    public void updateThumbnail(String thumbnailUrl, Instant now) {
+        this.thumbnailUrl = thumbnailUrl;
+        this.updatedAt = now;
+    }
+
     public String getContentHash() {
         return contentHash;
     }
@@ -178,6 +183,11 @@ public class Content {
 
     public void updatePlaceCount(int placeCount) {
         this.placeCount = Math.max(placeCount, 0);
+    }
+
+    public void updatePlaceCount(int placeCount, Instant now) {
+        this.placeCount = Math.max(placeCount, 0);
+        this.updatedAt = now;
     }
 
     public void updateSourceMetadata(

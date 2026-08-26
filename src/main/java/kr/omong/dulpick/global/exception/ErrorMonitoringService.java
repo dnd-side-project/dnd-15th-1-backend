@@ -26,6 +26,10 @@ public class ErrorMonitoringService {
             Exception exception,
             HttpServletRequest request
     ) {
+        if (level == ErrorLevel.CRITICAL && isClientDisconnect(exception)) {
+            log.info("Ignoring client disconnect during response write: {}", safe(exception.getMessage()));
+            return;
+        }
         String method = request != null ? request.getMethod() : "N/A";
         String path = request != null ? request.getRequestURI() : "N/A";
         String clientIp = request != null ? clientIp(request) : "N/A";
@@ -69,6 +73,29 @@ public class ErrorMonitoringService {
         }
 
         log.info(baseMessage);
+    }
+
+    private boolean isClientDisconnect(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            String type = current.getClass().getSimpleName();
+            String message = current.getMessage();
+            if ("ClientAbortException".equals(type) || containsClientDisconnectMessage(message)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsClientDisconnectMessage(String message) {
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("broken pipe")
+                || normalized.contains("connection reset by peer")
+                || normalized.contains("clientabortexception");
     }
 
     private void notifyCritical(

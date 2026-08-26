@@ -4,6 +4,8 @@ import kr.omong.dulpick.domain.place.application.exception.PublicContentImageUna
 import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceImage;
 import kr.omong.dulpick.domain.place.domain.PlaceImageRepository;
+import kr.omong.dulpick.global.exception.BusinessException;
+import kr.omong.dulpick.global.exception.ErrorCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 
@@ -12,6 +14,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.UUID;
+import java.time.Clock;
+import java.time.Instant;
+import kr.omong.dulpick.global.security.crypto.Sha256;
 
 @Service
 public class PlaceImageStorageService {
@@ -20,16 +25,19 @@ public class PlaceImageStorageService {
     private final ContentThumbnailDownloader downloader;
     private final ContentThumbnailProperties properties;
     private final Path storageDirectory;
+    private final Clock clock;
 
     public PlaceImageStorageService(
             PlaceImageRepository imageRepository,
             kr.omong.dulpick.domain.place.infrastructure.KakaoMapImageDownloader downloader,
-            ContentThumbnailProperties properties
+            ContentThumbnailProperties properties,
+            Clock clock
     ) {
         this.imageRepository = imageRepository;
         this.downloader = downloader;
         this.properties = properties;
         this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
+        this.clock = clock;
     }
 
     public StoredImage store(String sourceUrl) {
@@ -60,7 +68,50 @@ public class PlaceImageStorageService {
         return properties.baseUrl() + "/api/v1/place-images/" + storageKey;
     }
 
+    public boolean isStored(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            return false;
+        }
+        try {
+            Path path = resolve(storageKey);
+            long size = Files.size(path);
+            return Files.isRegularFile(path) && size > 0 && size <= properties.maxBytes();
+        } catch (IOException | RuntimeException exception) {
+            return false;
+        }
+    }
+
+    public PlaceImage storeManual(
+            Long placeId,
+            byte[] bytes,
+            MediaType contentType,
+            int displayOrder
+    ) {
+        validateManualImage(bytes, contentType);
+        String storageKey = UUID.randomUUID().toString();
+        Instant now = clock.instant();
+        String sourceUrl = "manual://ops/" + storageKey;
+        try {
+            write(storageKey, bytes);
+            return PlaceImage.createManualStored(
+                    placeId,
+                    publicUrl(storageKey),
+                    Sha256.hex(sourceUrl),
+                    storageKey,
+                    contentType.toString(),
+                    displayOrder,
+                    now
+            );
+        } catch (RuntimeException exception) {
+            delete(storageKey);
+            throw exception;
+        }
+    }
+
     public void delete(String storageKey) {
+        if (storageKey == null || storageKey.isBlank()) {
+            return;
+        }
         try {
             Files.deleteIfExists(resolve(storageKey));
         } catch (IOException exception) {
@@ -70,6 +121,15 @@ public class PlaceImageStorageService {
 
     public boolean isPublicUrl(String imageUrl) {
         return imageUrl != null && imageUrl.startsWith(properties.baseUrl() + "/api/v1/place-images/");
+    }
+
+    private void validateManualImage(byte[] bytes, MediaType contentType) {
+        if (bytes == null || bytes.length == 0 || bytes.length > properties.maxBytes()
+                || contentType == null || !"image".equalsIgnoreCase(contentType.getType())
+                || !java.util.List.of("jpeg", "png", "webp", "gif")
+                .contains(contentType.getSubtype().toLowerCase())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
     }
 
     private void write(String storageKey, byte[] bytes) {

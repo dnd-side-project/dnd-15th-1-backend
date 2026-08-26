@@ -194,4 +194,15 @@ class PlaceClassificationAdminIntegrationTest {
                 .andExpect(content().string(containsString("분류 완료")))
                 .andExpect(content().string(containsString("textContent")));
     }
+
+    @Test
+    void servesOperationsDashboardWithContentAndImageManagement() throws Exception {
+        mockMvc.perform(get("/ops")
+                        .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
+                        .accept(MediaType.TEXT_HTML))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("게시글 관리")))
+                .andExpect(content().string(containsString("이미지 백로그")))
+                .andExpect(content().string(containsString("/api/v1/admin/contents/")));
+    }
 }

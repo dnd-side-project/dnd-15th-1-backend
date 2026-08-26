@@ -80,6 +80,10 @@ public enum ErrorCode {
             HttpStatus.BAD_GATEWAY,
             "게시물 이미지를 불러올 수 없습니다"
     ),
+    ADMIN_RESOURCE_MODIFIED(
+            HttpStatus.CONFLICT,
+            "다른 운영자에 의해 데이터가 변경되었습니다. 최신 정보를 확인해 주세요"
+    ),
 
     // 검색
     RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),

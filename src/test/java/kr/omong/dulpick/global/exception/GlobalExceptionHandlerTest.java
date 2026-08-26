@@ -8,9 +8,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpMethod;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 @ExtendWith(MockitoExtension.class)
 class GlobalExceptionHandlerTest {
@@ -68,5 +70,31 @@ class GlobalExceptionHandlerTest {
                 exception,
                 request
         );
+    }
+
+    @Test
+    void ignoresClientDisconnectInsteadOfRecordingCriticalError() {
+        AsyncRequestNotUsableException exception = new AsyncRequestNotUsableException(
+                "ServletOutputStream failed to write: java.io.IOException: Broken pipe"
+        );
+
+        globalExceptionHandler.handleClientDisconnect(exception);
+
+        verifyNoInteractions(errorMonitoringService);
+    }
+
+    @Test
+    void ignoresBrokenPipeWrappedInAnUnexpectedException() {
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                HttpMethod.GET.name(), "/api/v1/place-images/key"
+        );
+        RuntimeException exception = new RuntimeException(
+                "ServletOutputStream failed to write",
+                new java.io.IOException("Broken pipe")
+        );
+
+        globalExceptionHandler.handleUnexpected(exception, request);
+
+        verifyNoInteractions(errorMonitoringService);
     }
 }
