@@ -23,6 +23,7 @@ import kr.omong.dulpick.domain.place.application.PlaceSearchService;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.PublicContentQueryService;
+import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceSaveRequest;
@@ -68,6 +69,7 @@ public class PlaceController {
     private final PlaceCommandService placeCommandService;
     private final PlaceWalkingRouteService placeWalkingRouteService;
     private final PublicContentQueryService publicContentQueryService;
+    private final ContentThumbnailProperties thumbnailProperties;
 
     public PlaceController(
             PlaceQueryService placeQueryService,
@@ -75,7 +77,8 @@ public class PlaceController {
             PlaceDetailQueryService placeDetailQueryService,
             PlaceCommandService placeCommandService,
             PlaceWalkingRouteService placeWalkingRouteService,
-            PublicContentQueryService publicContentQueryService
+            PublicContentQueryService publicContentQueryService,
+            ContentThumbnailProperties thumbnailProperties
     ) {
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
@@ -83,6 +86,7 @@ public class PlaceController {
         this.placeCommandService = placeCommandService;
         this.placeWalkingRouteService = placeWalkingRouteService;
         this.publicContentQueryService = publicContentQueryService;
+        this.thumbnailProperties = thumbnailProperties;
     }
 
     @Operation(
@@ -356,7 +360,8 @@ public class PlaceController {
                         memberId(jwt),
                         placeId,
                         PageRequest.of(page, size)
-                )
+                ),
+                thumbnailProperties.baseUrl()
         ));
     }
 
