@@ -10,6 +10,8 @@ import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
+import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
@@ -29,6 +31,7 @@ import java.util.UUID;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -57,6 +60,9 @@ class OperationsAdminIntegrationTest {
 
     @Autowired
     private PlaceImportRepository placeImportRepository;
+
+    @Autowired
+    private PlaceCandidateRepository placeCandidateRepository;
 
     @Autowired
     private SocialAccountService socialAccountService;
@@ -203,6 +209,80 @@ class OperationsAdminIntegrationTest {
                 null,
                 now
         ));
+    }
+
+    @Test
+    void createsAdminPlaceIdempotently() throws Exception {
+        String kakaoPlaceId = "ops-create-" + UUID.randomUUID();
+        String body = """
+                {
+                  "kakaoPlaceId": "%s",
+                  "name": "운영자 신규 장소",
+                  "address": "서울특별시 강남구"
+                }
+                """.formatted(kakaoPlaceId);
+
+        mockMvc.perform(post("/api/v1/admin/places")
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.kakaoPlaceId").value(kakaoPlaceId))
+                .andExpect(jsonPath("$.placeId").isNumber());
+
+        mockMvc.perform(post("/api/v1/admin/places")
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isOk());
+
+        assertThat(placeRepository.findByKakaoPlaceId(kakaoPlaceId)).isPresent();
+    }
+
+    @Test
+    void filtersImportsWithUnverifiedCandidates() throws Exception {
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-unverified-" + UUID.randomUUID(),
+                "ops-unverified@example.com",
+                ProviderAuthorization.none()
+        ).member();
+
+        Content partialContent = createContent();
+        PlaceImport partialImport = PlaceImport.receive(
+                member.getId(),
+                partialContent.getCanonicalUrl(),
+                Sha256.hex(partialContent.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                Instant.now()
+        );
+        partialImport.attachContent(partialContent.getId());
+        partialImport = placeImportRepository.save(partialImport);
+        placeCandidateRepository.save(PlaceCandidate.extracted(
+                partialImport.getId(), "미검증 후보", null, null, "EXPLICIT_VENUE", Instant.now()
+        ));
+
+        Content cleanContent = createContent();
+        PlaceImport cleanImport = PlaceImport.receive(
+                member.getId(),
+                cleanContent.getCanonicalUrl(),
+                Sha256.hex(cleanContent.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                Instant.now()
+        );
+        cleanImport.attachContent(cleanContent.getId());
+        placeImportRepository.save(cleanImport);
+
+        String response = mockMvc.perform(get("/api/v1/admin/place-imports")
+                        .param("hasUnverified", "true")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(response).contains("\"importId\":" + partialImport.getId());
+        assertThat(response).doesNotContain("\"importId\":" + cleanImport.getId());
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {

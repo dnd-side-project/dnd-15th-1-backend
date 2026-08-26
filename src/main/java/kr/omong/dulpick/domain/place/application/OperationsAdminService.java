@@ -17,6 +17,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImage;
 import kr.omong.dulpick.domain.place.domain.PlaceImageRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
@@ -139,11 +140,12 @@ public class OperationsAdminService {
             PlaceImportStatus status,
             String failureCode,
             String query,
+            boolean hasUnverified,
             int page,
             int size
     ) {
         PageBounds bounds = bounds(page, size);
-        QueryParts parts = importQuery(status, failureCode, query);
+        QueryParts parts = importQuery(status, failureCode, query, hasUnverified);
         long total = count(parts.countSql(), parts.parameters().toArray());
         List<OperationsAdminView.ImportSummary> imports = jdbcTemplate.query(
                 parts.sql() + " ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?",
@@ -586,6 +588,28 @@ public class OperationsAdminService {
     }
 
     @Transactional
+    public OperationsAdminView.PlaceSummary createPlace(CreateAdminPlaceRequest request) {
+        Instant now = clock.instant();
+        placeRepository.insertIfAbsent(
+                request.kakaoPlaceId(),
+                request.name(),
+                request.address(),
+                request.roadAddress(),
+                request.latitude(),
+                request.longitude(),
+                request.category(),
+                request.categoryGroupCode(),
+                request.phone(),
+                request.kakaoPlaceUrl(),
+                null,
+                now
+        );
+        Place place = placeRepository.findByKakaoPlaceId(request.kakaoPlaceId())
+                .orElseThrow(IllegalStateException::new);
+        return placeSummary(place);
+    }
+
+    @Transactional
     public OperationsAdminView.ContentDetail manuallyLinkPlace(
             Long importId,
             ManualPlaceLinkRequest request
@@ -759,7 +783,12 @@ public class OperationsAdminService {
         placeImageEnrichmentDispatcher.dispatchPlace(placeId);
     }
 
-    private QueryParts importQuery(PlaceImportStatus status, String failureCode, String query) {
+    private QueryParts importQuery(
+            PlaceImportStatus status,
+            String failureCode,
+            String query,
+            boolean hasUnverified
+    ) {
         List<Object> parameters = new ArrayList<>();
         StringBuilder where = new StringBuilder(" WHERE 1 = 1");
         if (status != null) {
@@ -774,6 +803,11 @@ public class OperationsAdminService {
             where.append(" AND (canonical_url LIKE ? OR title LIKE ?)");
             parameters.add("%" + query.strip() + "%");
             parameters.add("%" + query.strip() + "%");
+        }
+        if (hasUnverified) {
+            where.append(" AND EXISTS (SELECT 1 FROM place_candidates unverified "
+                    + "WHERE unverified.import_id = place_imports.id "
+                    + "AND unverified.verification_status = 'EXTRACTED')");
         }
         String columns = " FROM place_imports" + where;
         return new QueryParts(

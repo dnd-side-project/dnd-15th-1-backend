@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
@@ -54,16 +55,22 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.dashboard());
     }
 
-    @Operation(summary = "장소 추출 작업 목록 조회")
+    @Operation(
+            summary = "장소 추출 작업 목록 조회",
+            description = "hasUnverified=true이면 검증되지 않은 후보(EXTRACTED)가 남아 있는 작업만 조회합니다."
+    )
     @GetMapping("/place-imports")
     public ResponseEntity<OperationsAdminView.ImportPage> imports(
             @Parameter(example = "FAILED") @RequestParam(required = false) @Schema(example = "FAILED") PlaceImportStatus status,
             @Parameter(example = "PLACE_NOT_VERIFIED") @RequestParam(required = false) @Schema(example = "PLACE_NOT_VERIFIED") String failureCode,
             @Parameter(example = "instagram.com") @RequestParam(required = false) @Schema(example = "instagram.com") String query,
+            @Parameter(description = "미검증 후보가 남은 작업만 조회") @RequestParam(required = false) @Schema(example = "true") Boolean hasUnverified,
             @Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
-        return ResponseEntity.ok(adminService.imports(status, failureCode, query, page, size));
+        return ResponseEntity.ok(adminService.imports(
+                status, failureCode, query, Boolean.TRUE.equals(hasUnverified), page, size
+        ));
     }
 
     @Operation(summary = "장소 추출 작업 상세 조회")
@@ -262,6 +269,18 @@ public class OperationsAdminController {
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+    }
+
+    @Operation(
+            summary = "신규 장소 등록",
+            description = "카카오 장소 ID 기준으로 장소를 등록합니다. 이미 존재하면 기존 장소를 반환합니다. "
+                    + "반환된 placeId로 수동 연결 API를 호출해 게시글에 추가할 수 있습니다."
+    )
+    @PostMapping("/places")
+    public ResponseEntity<OperationsAdminView.PlaceSummary> createPlace(
+            @Valid @RequestBody CreateAdminPlaceRequest request
+    ) {
+        return ResponseEntity.ok(adminService.createPlace(request));
     }
 
     @Operation(summary = "실패한 장소 추출에 장소를 수동 연결하고 공개 처리")
