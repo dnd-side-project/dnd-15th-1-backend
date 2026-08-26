@@ -143,7 +143,7 @@ public class PlaceImportViewMapper {
     private Long retryAfterSeconds(PlaceImport placeImport) {
         if (placeImport.getStatus() == PlaceImportStatus.RECEIVED
                 || placeImport.getStatus() == PlaceImportStatus.PROCESSING) {
-            return Math.max(properties.recoveryDelay().toSeconds(), 1L);
+            return 1L;
         }
         if (placeImport.getStatus() == PlaceImportStatus.FAILED
                 && isRetryableFailure(placeImport)) {

@@ -99,6 +99,7 @@ tasks.named('test', Test) {
         'PlaceClassificationAdminIntegrationTest',
         'PlaceMapIntegrationTest',
         'PlaceAnalysisPropertiesTest',
+        'PlaceImportViewMapperRetryAfterTest',
         'PushDeviceIntegrationTest',
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
