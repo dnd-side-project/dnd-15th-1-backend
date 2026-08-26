@@ -70,7 +70,7 @@ final class PublicContentDeduplicator {
         return mediaKey == null ? "CONTENT:" + content.getId() : "INSTAGRAM:" + mediaKey;
     }
 
-    private static String instagramMediaKey(String canonicalUrl) {
+    static String instagramMediaKey(String canonicalUrl) {
         try {
             URI uri = new URI(canonicalUrl);
             if (!isInstagramHost(uri.getHost())) {

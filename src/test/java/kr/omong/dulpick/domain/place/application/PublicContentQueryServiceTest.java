@@ -70,6 +70,13 @@ class PublicContentQueryServiceTest {
                 10L,
                 ContentPublicationStatus.PUBLIC
         )).thenReturn(Optional.of(content));
+        when(contentRepository.findPublicContentsByInstagramMediaKey(
+                eq(ContentPublicationStatus.PUBLIC),
+                anyList(),
+                eq("%instagram.com/reel/example"),
+                eq("%instagram.com/p/example"),
+                eq("%instagram.com/posts/example")
+        )).thenReturn(List.of(content));
         stubPlaces(List.of(relation), List.of(place));
         when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
         MemberPlace mine = mock(MemberPlace.class);
@@ -90,6 +97,62 @@ class PublicContentQueryServiceTest {
             assertThat(publicPlace.dateTraits().status())
                     .isEqualTo(PlaceClassificationStatus.UNCLASSIFIED);
         });
+    }
+
+    @Test
+    void selectsRepresentativeOnlyAmongPublicInstagramDuplicates() {
+        Content requested = content(10L);
+        when(requested.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_REEL);
+        Content richer = content(11L);
+        when(richer.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_POST);
+        when(richer.getCanonicalUrl()).thenReturn("https://www.instagram.com/p/example");
+        when(richer.getPlaceCount()).thenReturn(3);
+        when(contentRepository.findByIdAndPublicationStatus(
+                10L,
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(Optional.of(requested));
+        when(contentRepository.findPublicContentsByInstagramMediaKey(
+                eq(ContentPublicationStatus.PUBLIC),
+                anyList(),
+                eq("%instagram.com/reel/example"),
+                eq("%instagram.com/p/example"),
+                eq("%instagram.com/posts/example")
+        )).thenReturn(List.of(requested, richer));
+        stubPlaces(
+                List.of(contentPlace(11L, 20L)),
+                List.of(place(20L))
+        );
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+
+        PublicContentView result = service.findPublicContent(1L, 10L);
+
+        verify(contentRepository, org.mockito.Mockito.never())
+                .findAllBySourceTypeInOrderByIdAsc(anyList());
+        assertThat(result.contentId()).isEqualTo(11L);
+    }
+
+    @Test
+    void fallsBackToRequestedContentWhenMediaKeyCannotBeParsed() {
+        Content content = content(30L);
+        when(content.getCanonicalUrl()).thenReturn("https://www.instagram.com/reel");
+        when(content.getSourceType()).thenReturn(ContentSourceType.INSTAGRAM_REEL);
+        when(contentRepository.findByIdAndPublicationStatus(
+                30L,
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(Optional.of(content));
+        when(contentPlaceRepository.findAllByContentIdIn(List.of(30L))).thenReturn(List.of());
+        when(placeRepository.findAllById(List.of())).thenReturn(List.of());
+
+        service.findPublicContent(1L, 30L);
+
+        verify(contentRepository, org.mockito.Mockito.never())
+                .findPublicContentsByInstagramMediaKey(
+                        any(), anyList(), any(), any(), any()
+                );
     }
 
     @Test
