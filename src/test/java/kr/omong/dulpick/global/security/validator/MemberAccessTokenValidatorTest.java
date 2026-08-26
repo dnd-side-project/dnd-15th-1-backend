@@ -42,15 +42,13 @@ class MemberAccessTokenValidatorTest {
     }
 
     @Test
-    void rejectsStaleTokenVersionForActiveRejoinedMember() {
+    void rejectsTokenForWithdrawnMemberEvenWithCurrentTokenVersion() {
         Member member = Member.create(Instant.EPOCH);
         member.withdraw(Instant.parse("2026-07-27T00:00:00Z"));
-        member.rejoin(Instant.parse("2026-07-28T00:00:00Z"));
         when(memberRepository.findById(1L)).thenReturn(Optional.of(member));
 
-        OAuth2TokenValidatorResult result = validator.validate(jwt(1L, 0));
+        OAuth2TokenValidatorResult result = validator.validate(jwt(1L, 1));
 
-        assertThat(member.isActive()).isTrue();
         assertThat(result.hasErrors()).isTrue();
     }
 

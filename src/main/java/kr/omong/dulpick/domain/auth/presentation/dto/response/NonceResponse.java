@@ -9,12 +9,15 @@ import java.time.LocalDateTime;
 public record NonceResponse(
         @Schema(
                 description = "provider 인증 요청에 사용할 일회성 nonce 원문",
-                example = "l7JcLxgJx7c0nS0wqgWQeQ"
+                example = "l7JcLxgJx7c0nS0wqgWQeQ",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         String nonce,
         @Schema(
                 description = "nonce 만료 시각(Asia/Seoul)",
-                example = "2026-07-31T16:10:00"
+                example = "2026-07-31T16:10:00",
+                format = "date-time",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         LocalDateTime expiresAt
 ) {

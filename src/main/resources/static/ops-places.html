@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>둘픽 운영 · 콘텐츠 장소 분류</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <style>
+    :root {
+      --pink: #ff5a6f;
+      --pink-dark: #e6465c;
+      --bg: #f4f2f0;
+      --line: #e6dedf;
+      --text: #1f1a1c;
+      --muted: #6f6468;
+      --ok: #1f8a5b;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Apple SD Gothic Neo", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 16px 20px;
+    }
+    h1 { margin: 0 0 4px; font-size: 18px; }
+    .header-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+    .logout {
+      font: inherit;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--muted);
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .sub { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .toolbar input,
+    .toolbar > button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      background: #fff;
+      color: var(--text);
+      cursor: pointer;
+    }
+    .toolbar > button.active,
+    .toolbar > button.primary {
+      background: var(--pink);
+      color: #fff;
+      border-color: var(--pink);
+    }
+    .status { margin: 10px 0 0; font-size: 13px; color: var(--muted); min-height: 18px; }
+    .status.error { color: #c0392b; }
+    .status.ok { color: var(--ok); }
+    table { width: 100%; border-collapse: collapse; background: #fff; }
+    th, td { padding: 14px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { font-size: 12px; color: var(--muted); font-weight: 600; background: #faf8f8; }
+    .name { font-weight: 700; }
+    .addr { margin-top: 4px; color: var(--muted); font-size: 13px; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    button.chip {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 999px;
+      padding: 8px 14px;
+      border: 1px solid #d9d0d2;
+      background: #fff;
+      color: var(--text);
+    }
+    button.chip.is-on {
+      background: var(--pink);
+      color: #fff;
+      border-color: var(--pink);
+      font-weight: 700;
+    }
+    button.save {
+      font: inherit;
+      cursor: pointer;
+      border-radius: 10px;
+      padding: 10px 14px;
+      border: 0;
+      background: var(--pink);
+      color: #fff;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    button.save:hover { background: var(--pink-dark); }
+    button.save:disabled {
+      background: #eadfe2;
+      color: #9a9094;
+      cursor: not-allowed;
+    }
+    .hint { margin-top: 6px; font-size: 12px; color: var(--muted); }
+    .done { color: var(--ok); font-weight: 700; font-size: 13px; }
+    .pager { display: flex; justify-content: center; gap: 8px; padding: 16px; }
+    .pager button {
+      font: inherit;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 8px 10px;
+      background: #fff;
+      cursor: pointer;
+    }
+    .empty { text-align: center; color: var(--muted); padding: 48px 0; }
+    @media (max-width: 900px) {
+      table, thead, tbody, th, td, tr { display: block; }
+      thead { display: none; }
+      tr { padding: 12px 16px; border-bottom: 8px solid var(--bg); background: #fff; }
+      td { border: 0; padding: 8px 0; }
+      td::before { content: attr(data-label); display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-row">
+      <div>
+        <h1>콘텐츠 장소 분류</h1>
+        <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <a class="logout" href="/ops" style="text-decoration:none;">대시보드</a>
+        <form method="post" action="/ops/logout">
+          <input type="hidden" name="_csrf">
+          <button class="logout" type="submit">로그아웃</button>
+        </form>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button type="button" data-status="UNCLASSIFIED" class="active">미분류</button>
+      <button type="button" data-status="PARTIALLY_CLASSIFIED">일부</button>
+      <button type="button" data-status="CLASSIFIED">완료</button>
+      <button type="button" data-status="">전체</button>
+      <input id="query" type="search" placeholder="장소명·주소">
+      <button id="search" class="primary" type="button">찾기</button>
+    </div>
+    <p id="status" class="status"></p>
+  </header>
+  <table>
+    <thead>
+      <tr>
+        <th>장소</th>
+        <th>실내 / 실외</th>
+        <th>액티비티 / 정적</th>
+        <th>낮 / 밤</th>
+        <th>식사 / 볼거리</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="list"></tbody>
+  </table>
+  <div class="pager">
+    <button id="prev" type="button">이전</button>
+    <span id="page-label">1 / 1</span>
+    <button id="next" type="button">다음</button>
+  </div>
+
+  <script>
+    const AXES = [
+      { key: "environment", label: "실내 / 실외", options: [["INDOOR", "실내"], ["OUTDOOR", "실외"]] },
+      { key: "activity", label: "액티비티 / 정적", options: [["ACTIVE", "액티비티"], ["STATIC", "정적"]] },
+      { key: "time", label: "낮 / 밤", options: [["DAY", "낮"], ["NIGHT", "밤"]] },
+      { key: "focus", label: "식사 / 볼거리", options: [["FOOD", "식사"], ["SIGHTSEEING", "볼거리"]] }
+    ];
+    const TAB_LABEL = {
+      "": "전체",
+      UNCLASSIFIED: "미분류",
+      PARTIALLY_CLASSIFIED: "일부",
+      CLASSIFIED: "완료"
+    };
+    const state = { page: 0, status: "UNCLASSIFIED", query: "", hasNext: false };
+
+    const listEl = document.getElementById("list");
+    const statusEl = document.getElementById("status");
+
+    function setStatus(message, kind) {
+      statusEl.textContent = message;
+      statusEl.className = "status" + (kind ? " " + kind : "");
+    }
+
+    async function api(path, options) {
+      const headers = Object.assign({ Accept: "application/json" }, (options && options.headers) || {});
+      const method = (options && options.method || "GET").toUpperCase();
+      if (!["GET", "HEAD", "OPTIONS"].includes(method)) headers["X-XSRF-TOKEN"] = csrfToken();
+      const response = await fetch(path, Object.assign({ credentials: "same-origin" }, options, { headers: headers }));
+      const text = await response.text();
+      let body = null;
+      if (text) {
+        try { body = JSON.parse(text); } catch (e) { body = text; }
+      }
+      if (!response.ok) {
+        throw new Error(body && body.message ? body.message : "요청에 실패했습니다.");
+      }
+      return body;
+    }
+    function csrfToken() { const value=document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || ""; return decodeURIComponent(value); }
+    document.querySelectorAll('form[action="/ops/logout"] input[name="_csrf"]').forEach(input => input.value = csrfToken());
+
+    function renderPager(data) {
+      const page = Number.isFinite(data && data.page) ? data.page : state.page;
+      const totalPages = Number.isFinite(data && data.totalPages)
+        ? Math.max(data.totalPages, 1)
+        : 1;
+      state.page = page;
+      state.hasNext = Boolean(data && data.hasNext);
+      document.getElementById("page-label").textContent = (page + 1) + " / " + totalPages;
+      document.getElementById("prev").disabled = page <= 0;
+      document.getElementById("next").disabled = !state.hasNext;
+    }
+
+    function updateTabCounts(counts) {
+      if (!counts) {
+        return;
+      }
+      document.querySelectorAll(".toolbar button[data-status]").forEach((button) => {
+        const key = button.getAttribute("data-status");
+        const n = key === "" ? counts.all
+          : key === "UNCLASSIFIED" ? counts.unclassified
+          : key === "PARTIALLY_CLASSIFIED" ? counts.partiallyClassified
+          : counts.classified;
+        button.textContent = TAB_LABEL[key] + (n == null ? "" : " " + n);
+      });
+    }
+
+    function showEmpty(message) {
+      listEl.replaceChildren();
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.className = "empty";
+      td.textContent = message;
+      tr.appendChild(td);
+      listEl.appendChild(tr);
+    }
+
+    function axisValue(place, key) {
+      const axis = place[key];
+      return axis && axis.value ? axis.value : "";
+    }
+
+    function selectedCount(row) {
+      return AXES.filter((axis) => row.dataset[axis.key]).length;
+    }
+
+    function updateRowControls(row) {
+      const count = selectedCount(row);
+      const save = row.querySelector("button.save");
+      const hint = row.querySelector(".hint");
+      const done = row.querySelector(".done");
+      save.disabled = count !== 4;
+      save.textContent = row.dataset.savedStatus === "CLASSIFIED" ? "다시 저장" : "분류 완료";
+      if (count === 4) {
+        hint.textContent = "네 가지가 모두 선택되었습니다. 분류 완료를 누르세요.";
+      } else {
+        hint.textContent = "남은 선택 " + (4 - count) + "개";
+      }
+      if (row.dataset.savedStatus === "CLASSIFIED" && count === 4) {
+        done.hidden = false;
+      } else {
+        done.hidden = true;
+      }
+    }
+
+    function selectChip(row, axisKey, value) {
+      row.dataset[axisKey] = value;
+      row.querySelectorAll('button.chip[data-axis="' + axisKey + '"]').forEach((chip) => {
+        const on = chip.getAttribute("data-value") === value;
+        chip.classList.toggle("is-on", on);
+        chip.setAttribute("aria-pressed", on ? "true" : "false");
+      });
+      updateRowControls(row);
+    }
+
+    function axisCell(place, axis) {
+      const td = document.createElement("td");
+      td.dataset.label = axis.label;
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
+      const current = axisValue(place, axis.key);
+      axis.options.forEach((option) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "chip" + (current === option[0] ? " is-on" : "");
+        button.setAttribute("data-axis", axis.key);
+        button.setAttribute("data-value", option[0]);
+        button.setAttribute("aria-pressed", current === option[0] ? "true" : "false");
+        button.textContent = option[1];
+        button.addEventListener("click", () => {
+          const row = button.closest("tr");
+          selectChip(row, axis.key, option[0]);
+        });
+        wrap.appendChild(button);
+      });
+      td.appendChild(wrap);
+      return td;
+    }
+
+    function renderPlace(place) {
+      const tr = document.createElement("tr");
+      tr.dataset.placeId = String(place.placeId);
+      tr.dataset.savedStatus = place.status || "UNCLASSIFIED";
+      AXES.forEach((axis) => {
+        tr.dataset[axis.key] = axisValue(place, axis.key);
+      });
+
+      const info = document.createElement("td");
+      info.dataset.label = "장소";
+      const name = document.createElement("div");
+      name.className = "name";
+      name.textContent = place.name || "";
+      const addr = document.createElement("div");
+      addr.className = "addr";
+      addr.textContent = place.roadAddress || place.address || "";
+      info.appendChild(name);
+      info.appendChild(addr);
+      const requesters = document.createElement("div");
+      requesters.className = "addr";
+      requesters.textContent = "추출 요청자: " + ((place.requesterNicknames || []).join(", ") || "없음");
+      info.appendChild(requesters);
+      const savers = document.createElement("div");
+      savers.className = "addr";
+      savers.textContent = "저장 사용자: " + ((place.saverNicknames || []).join(", ") || "없음");
+      info.appendChild(savers);
+      tr.appendChild(info);
+      AXES.forEach((axis) => tr.appendChild(axisCell(place, axis)));
+
+      const action = document.createElement("td");
+      action.dataset.label = "저장";
+      const save = document.createElement("button");
+      save.type = "button";
+      save.className = "save";
+      save.addEventListener("click", () => complete(tr));
+      const hint = document.createElement("div");
+      hint.className = "hint";
+      const done = document.createElement("div");
+      done.className = "done";
+      done.textContent = "저장됨";
+      action.appendChild(save);
+      action.appendChild(hint);
+      action.appendChild(done);
+      tr.appendChild(action);
+      updateRowControls(tr);
+      return tr;
+    }
+
+    async function complete(row) {
+      if (selectedCount(row) !== 4) {
+        setStatus("네 가지를 모두 고른 뒤 분류 완료를 누르세요.", "error");
+        return;
+      }
+      const save = row.querySelector("button.save");
+      const name = row.querySelector(".name").textContent || "장소";
+      save.disabled = true;
+      save.textContent = "저장 중...";
+      try {
+        const body = {};
+        AXES.forEach((axis) => {
+          body[axis.key] = row.dataset[axis.key];
+        });
+        const updated = await api("/api/v1/admin/place-classifications/" + row.dataset.placeId, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body)
+        });
+        setStatus(name + " 분류를 저장했습니다.", "ok");
+        if (state.status === "UNCLASSIFIED" || state.status === "PARTIALLY_CLASSIFIED") {
+          row.remove();
+          if (!listEl.querySelector("tr[data-place-id]")) {
+            showEmpty("방금 저장했습니다. 남은 장소가 없으면 완료 탭에서 확인하세요.");
+          }
+        } else {
+          row.replaceWith(renderPlace(updated));
+        }
+        refreshCounts();
+      } catch (error) {
+        setStatus(error.message, "error");
+        updateRowControls(row);
+      }
+    }
+
+    async function refreshCounts() {
+      try {
+        const params = new URLSearchParams();
+        params.set("page", "0");
+        params.set("size", "1");
+        if (state.query) params.set("query", state.query);
+        const data = await api("/api/v1/admin/place-classifications?" + params.toString());
+        if (data && data.counts) {
+          updateTabCounts(data.counts);
+        }
+      } catch (e) {
+      }
+    }
+
+    async function load() {
+      try {
+        const params = new URLSearchParams();
+        params.set("page", String(state.page || 0));
+        params.set("size", "30");
+        if (state.status) params.set("status", state.status);
+        if (state.query) params.set("query", state.query);
+        const data = await api("/api/v1/admin/place-classifications?" + params.toString());
+        if (!data || !Array.isArray(data.places)) {
+          setStatus("목록을 불러오지 못했습니다. 새로고침 후 다시 시도하세요.", "error");
+          return;
+        }
+        if (data.places.length === 0) {
+          showEmpty("이 목록에 장소가 없습니다.");
+        } else {
+          listEl.replaceChildren();
+          data.places.forEach((place) => listEl.appendChild(renderPlace(place)));
+        }
+        renderPager(data);
+        updateTabCounts(data.counts);
+        if (!statusEl.classList.contains("ok") && !statusEl.classList.contains("error")) {
+          setStatus((data.counts && data.counts.all ? data.counts.all : 0) + "곳 · 콘텐츠에 연결된 장소만 표시");
+        }
+      } catch (error) {
+        setStatus(error.message, "error");
+      }
+    }
+
+    document.querySelectorAll(".toolbar button[data-status]").forEach((button) => {
+      button.addEventListener("click", () => {
+        document.querySelectorAll(".toolbar button[data-status]").forEach((item) => item.classList.remove("active"));
+        button.classList.add("active");
+        state.status = button.getAttribute("data-status") || "";
+        state.page = 0;
+        statusEl.className = "status";
+        load();
+      });
+    });
+    document.getElementById("search").addEventListener("click", () => {
+      state.query = document.getElementById("query").value.trim();
+      state.page = 0;
+      statusEl.className = "status";
+      load();
+    });
+    document.getElementById("query").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") document.getElementById("search").click();
+    });
+    document.getElementById("prev").addEventListener("click", () => {
+      if (state.page > 0) { state.page -= 1; load(); }
+    });
+    document.getElementById("next").addEventListener("click", () => {
+      if (state.hasNext) { state.page += 1; load(); }
+    });
+
+    load();
+  </script>
+</body>
+</html>

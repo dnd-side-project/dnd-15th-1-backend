@@ -16,10 +16,18 @@ public final class Sha256 {
         return HEX_FORMAT.formatHex(digest(value));
     }
 
+    public static String hex(byte[] value) {
+        return HEX_FORMAT.formatHex(digest(value));
+    }
+
     private static byte[] digest(String value) {
+        return digest(value.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static byte[] digest(byte[] value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return digest.digest(value.getBytes(StandardCharsets.UTF_8));
+            return digest.digest(value);
         } catch (NoSuchAlgorithmException exception) {
             throw new IllegalStateException("SHA-256 is not available", exception);
         }

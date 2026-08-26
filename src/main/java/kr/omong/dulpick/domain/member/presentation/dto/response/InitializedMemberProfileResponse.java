@@ -5,26 +5,32 @@ import kr.omong.dulpick.domain.couple.domain.ConnectionCodeFormat;
 import kr.omong.dulpick.domain.member.application.command.InitializedMemberProfile;
 
 public record InitializedMemberProfileResponse(
-        @Schema(description = "앞뒤 공백이 제거되어 저장된 닉네임", example = "둘픽이")
+        @Schema(description = "앞뒤 공백이 제거되어 저장된 닉네임", example = "둘픽이", requiredMode = Schema.RequiredMode.REQUIRED)
         String nickname,
         @Schema(
                 description = "iOS 프로필 에셋 번호(1~5)",
                 minimum = "1",
                 maximum = "5",
-                example = "1"
+                example = "1",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         int profileIcon,
-        @Schema(description = "저장된 4가지 데이트 성향")
+        @Schema(
+                description = "저장된 4가지 데이트 성향. 온보딩에서 생략했으면 null입니다.",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
         MemberDatePreferencesResponse datePreferences,
         @Schema(
                 description = "상대방에게 전달할 영문 대문자 5자리 연결 코드",
                 pattern = ConnectionCodeFormat.NORMALIZED_PATTERN,
                 minLength = ConnectionCodeFormat.LENGTH,
                 maxLength = ConnectionCodeFormat.LENGTH,
-                example = "ABCDE"
+                example = "ABCDE",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         String connectionCode,
-        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL")
+        @Schema(description = "iOS 공유 및 딥링크 진입에 사용할 연결 URL", example = "https://dulpick.omong.kr/connect?code=ABCDE", requiredMode = Schema.RequiredMode.REQUIRED)
         String shareUrl
 ) {
 

@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.notification.application.event;
 
 import kr.omong.dulpick.domain.notification.application.command.NotificationCreationService;
 import kr.omong.dulpick.domain.notification.application.command.NotificationRequest;
+import kr.omong.dulpick.domain.notification.application.support.DateCourseFcmPushService;
 import kr.omong.dulpick.domain.notification.domain.ContentSaveCounter;
 import kr.omong.dulpick.domain.notification.domain.ContentSaveCounterRepository;
 import kr.omong.dulpick.domain.notification.domain.MemberNotificationSettings;
@@ -18,15 +19,18 @@ public class SelectiveNotificationEventListener {
     private final ContentSaveCounterRepository counterRepository;
     private final MemberNotificationSettingsRepository settingsRepository;
     private final NotificationCreationService notificationCreationService;
+    private final DateCourseFcmPushService dateCourseFcmPushService;
 
     public SelectiveNotificationEventListener(
             ContentSaveCounterRepository counterRepository,
             MemberNotificationSettingsRepository settingsRepository,
-            NotificationCreationService notificationCreationService
+            NotificationCreationService notificationCreationService,
+            DateCourseFcmPushService dateCourseFcmPushService
     ) {
         this.counterRepository = counterRepository;
         this.settingsRepository = settingsRepository;
         this.notificationCreationService = notificationCreationService;
+        this.dateCourseFcmPushService = dateCourseFcmPushService;
     }
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
@@ -57,6 +61,11 @@ public class SelectiveNotificationEventListener {
                 event,
                 memberId
         ));
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onDateCoursePlanned(DateCoursePlannedEvent event) {
+        dateCourseFcmPushService.send(event);
     }
 
     private void createContentMilestone(ContentSavedEvent event, long milestone) {

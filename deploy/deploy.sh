@@ -9,8 +9,10 @@ readonly PUBLIC_WEB_BASE_URL="${3:?${USAGE}}"
 readonly FULL_IMAGE="${IMAGE_NAME}:${IMAGE_TAG}"
 readonly APP_DIR="${APP_DIR:-/home/ubuntu/dulpick}"
 readonly ENV_FILE="${ENV_FILE:-${APP_DIR}/.env}"
-readonly APPLE_PRIVATE_KEY_FILE="${APP_DIR}/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
-readonly FIREBASE_CREDENTIALS_FILE="${APP_DIR}/secrets/firebase-service-account.json"
+readonly SECRETS_DIR="${APP_DIR}/secrets"
+readonly CONTENT_IMAGE_DIR="${APP_DIR}/content-images"
+readonly APPLE_PRIVATE_KEY_FILE="${SECRETS_DIR}/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
 readonly CONTAINER_NAME="${CONTAINER_NAME:-dulpick-backend}"
 readonly DOCKER_NETWORK="${DOCKER_NETWORK:-short-net}"
 readonly HOST_PORT="${HOST_PORT:-8083}"
@@ -45,11 +47,52 @@ if [[ "${DEPLOY_PULL:-true}" == "true" ]]; then
     docker pull "${FULL_IMAGE}"
 fi
 
+prepare_secret_permissions() {
+    local image="$1"
+    local -a secret_paths=(
+        "/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8"
+    )
+
+    ensure_secret_permissions "${APPLE_PRIVATE_KEY_FILE}"
+    mkdir -p "${CONTENT_IMAGE_DIR}"
+    docker run --rm \
+        --user root \
+        --volume "${CONTENT_IMAGE_DIR}:/var/lib/dulpick/content-images" \
+        --entrypoint chown \
+        "${image}" \
+        spring:spring \
+        /var/lib/dulpick/content-images
+    if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
+        ensure_secret_permissions "${FIREBASE_CREDENTIALS_FILE}"
+        secret_paths+=("/run/secrets/firebase-service-account.json")
+    fi
+
+    docker run --rm \
+        --user root \
+        --volume "${SECRETS_DIR}:/run/secrets" \
+        --entrypoint chown \
+        "${image}" \
+        spring:spring \
+        "${secret_paths[@]}"
+}
+
+ensure_secret_permissions() {
+    local secret_path="$1"
+    local mode
+
+    mode="$(stat -c '%a' "${secret_path}")"
+    if [[ "${mode}" != "400" ]]; then
+        chmod 400 "${secret_path}"
+    fi
+}
+
 run_container() {
     local image="$1"
     local -a secret_volumes=(
         --volume
         "${APPLE_PRIVATE_KEY_FILE}:/run/secrets/Dulpick_SIWA_AuthKey_6F3A6ZCY7J.p8:ro"
+        --volume
+        "${CONTENT_IMAGE_DIR}:/var/lib/dulpick/content-images"
     )
 
     if [[ "${FCM_ENABLED:-false}" == "true" ]]; then
@@ -75,10 +118,10 @@ run_container() {
 }
 
 wait_until_healthy() {
-    local attempts=30
+    local attempts=150
 
     for ((attempt = 1; attempt <= attempts; attempt++)); do
-        if curl --fail --silent --show-error "${HEALTH_URL}" >/dev/null; then
+        if curl --fail --silent "${HEALTH_URL}" >/dev/null; then
             return 0
         fi
         sleep 2
@@ -118,6 +161,7 @@ verify_universal_link_routes() {
 }
 
 docker container rm --force "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+prepare_secret_permissions "${FULL_IMAGE}"
 run_container "${FULL_IMAGE}"
 
 if wait_until_healthy && verify_universal_link_routes; then
@@ -131,6 +175,7 @@ docker container rm --force "${CONTAINER_NAME}" >/dev/null 2>&1 || true
 
 if [[ -n "${previous_image}" && "${previous_image}" != "${FULL_IMAGE}" ]]; then
     echo "Rolling back to: ${previous_image}" >&2
+    prepare_secret_permissions "${previous_image}"
     run_container "${previous_image}"
 
     if wait_until_healthy; then

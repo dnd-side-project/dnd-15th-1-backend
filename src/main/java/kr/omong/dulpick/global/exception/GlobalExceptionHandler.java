@@ -1,12 +1,14 @@
 package kr.omong.dulpick.global.exception;
 
 import jakarta.validation.ConstraintViolationException;
-import lombok.extern.slf4j.Slf4j;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -14,14 +16,23 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import java.util.Comparator;
 import java.util.List;
 
-@Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final ErrorMonitoringService errorMonitoringService;
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(
-            MethodArgumentNotValidException exception
+            MethodArgumentNotValidException exception,
+            HttpServletRequest request
     ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.INVALID_INPUT,
+                exception,
+                request
+        );
         List<FieldErrorResponse> fieldErrors = exception.getBindingResult()
                 .getFieldErrors()
                 .stream()
@@ -37,8 +48,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(
-            MethodArgumentTypeMismatchException exception
+            MethodArgumentTypeMismatchException exception,
+            HttpServletRequest request
     ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.INVALID_INPUT,
+                exception,
+                request
+        );
         FieldErrorResponse fieldError = new FieldErrorResponse(
                 exception.getName(),
                 "TYPE_MISMATCH",
@@ -49,8 +67,15 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConstraintViolationException.class)
     public ResponseEntity<ErrorResponse> handleConstraintViolation(
-            ConstraintViolationException exception
+            ConstraintViolationException exception,
+            HttpServletRequest request
     ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.INVALID_INPUT,
+                exception,
+                request
+        );
         List<FieldErrorResponse> fieldErrors = exception.getConstraintViolations()
                 .stream()
                 .map(violation -> new FieldErrorResponse(
@@ -67,22 +92,54 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ResponseEntity<ErrorResponse> handleUnreadableMessage() {
+    public ResponseEntity<ErrorResponse> handleUnreadableMessage(
+            HttpMessageNotReadableException exception,
+            HttpServletRequest request
+    ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.INVALID_INPUT,
+                exception,
+                request
+        );
         return response(ErrorCode.INVALID_INPUT);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
-    public ResponseEntity<ErrorResponse> handleMethodNotAllowed() {
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(
+            HttpRequestMethodNotSupportedException exception,
+            HttpServletRequest request
+    ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.METHOD_NOT_ALLOWED,
+                exception,
+                request
+        );
         return response(ErrorCode.METHOD_NOT_ALLOWED);
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound() {
+    public ResponseEntity<ErrorResponse> handleNotFound(
+            NoResourceFoundException exception,
+            HttpServletRequest request
+    ) {
+        errorMonitoringService.record(
+                ErrorLevel.INFO,
+                ErrorCode.NOT_FOUND,
+                exception,
+                request
+        );
         return response(ErrorCode.NOT_FOUND);
     }
 
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ErrorResponse> handleBusiness(BusinessException exception) {
+    public ResponseEntity<ErrorResponse> handleBusiness(
+            BusinessException exception,
+            HttpServletRequest request
+    ) {
+        ErrorLevel level = resolveBusinessLevel(exception.getErrorCode());
+        errorMonitoringService.record(level, exception.getErrorCode(), exception, request);
         if (exception instanceof FieldValidationException validationException) {
             return response(exception.getErrorCode(), validationException.getFieldErrors());
         }
@@ -90,9 +147,57 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
-        log.error("Unhandled exception", exception);
+    public ResponseEntity<?> handleUnexpected(
+            Exception exception,
+            HttpServletRequest request
+    ) {
+        if (isClientDisconnect(exception)) {
+            return ResponseEntity.noContent().build();
+        }
+        errorMonitoringService.record(ErrorLevel.CRITICAL, ErrorCode.INTERNAL_ERROR, exception, request);
         return response(ErrorCode.INTERNAL_ERROR);
+    }
+
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleClientDisconnect(AsyncRequestNotUsableException exception) {
+        return ResponseEntity.noContent().build();
+    }
+
+    private boolean isClientDisconnect(Throwable exception) {
+        Throwable current = exception;
+        while (current != null) {
+            String type = current.getClass().getSimpleName();
+            String message = current.getMessage();
+            if (current instanceof AsyncRequestNotUsableException
+                    || "ClientAbortException".equals(type)
+                    || containsClientDisconnectMessage(message)) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private boolean containsClientDisconnectMessage(String message) {
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase(java.util.Locale.ROOT);
+        return normalized.contains("broken pipe")
+                || normalized.contains("connection reset by peer")
+                || normalized.contains("clientabortexception");
+    }
+
+    private ErrorLevel resolveBusinessLevel(ErrorCode errorCode) {
+        if (errorCode.getHttpStatus().is5xxServerError()) {
+            return ErrorLevel.CRITICAL;
+        }
+        if (errorCode == ErrorCode.INVALID_INPUT
+                || errorCode == ErrorCode.NOT_FOUND
+                || errorCode == ErrorCode.METHOD_NOT_ALLOWED) {
+            return ErrorLevel.INFO;
+        }
+        return ErrorLevel.WARNING;
     }
 
     private ResponseEntity<ErrorResponse> response(ErrorCode errorCode) {

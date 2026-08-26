@@ -4,29 +4,34 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 
+@Schema(description = "네 가지 데이트 성향. 네 필드는 항상 함께 설정되며, 성향 미설정 상태에서는 객체 전체가 null입니다.")
 public record MemberDatePreferencesResponse(
         @Schema(
                 description = "실내·실외 선호: INDOOR(실내), OUTDOOR(실외)",
                 allowableValues = {"INDOOR", "OUTDOOR"},
-                example = "INDOOR"
+                example = "INDOOR",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         DatePreferenceOption indoorOutdoor,
         @Schema(
                 description = "활동 강도 선호: ACTIVE(액티비티), STATIC(정적 활동)",
                 allowableValues = {"ACTIVE", "STATIC"},
-                example = "ACTIVE"
+                example = "ACTIVE",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         DatePreferenceOption activityLevel,
         @Schema(
                 description = "데이트 시간대 선호: DAY(낮), NIGHT(밤)",
                 allowableValues = {"DAY", "NIGHT"},
-                example = "NIGHT"
+                example = "NIGHT",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         DatePreferenceOption dateTime,
         @Schema(
                 description = "데이트 중심 요소: FOOD(식사), SIGHTSEEING(볼거리)",
                 allowableValues = {"FOOD", "SIGHTSEEING"},
-                example = "FOOD"
+                example = "FOOD",
+                requiredMode = Schema.RequiredMode.REQUIRED
         )
         DatePreferenceOption dateFocus
 ) {

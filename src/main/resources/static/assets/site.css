@@ -97,8 +97,8 @@ a {
   width: 24px;
   height: 24px;
   content: "";
-  background: var(--coral);
-  border-radius: 9px 9px 9px 3px;
+  background: url("/assets/logo_app.png") center / cover no-repeat;
+  border-radius: 7px;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
 }
 
@@ -133,9 +133,7 @@ a {
   width: 156px;
   height: 156px;
   content: "";
-  background:
-    linear-gradient(135deg, var(--coral) 0 49%, transparent 49% 100%),
-    var(--coral-light);
+  background: url("/assets/logo_app.png") center / cover no-repeat;
   border: 1px solid var(--coral-border);
   border-radius: 44px;
   opacity: 0.9;
@@ -148,16 +146,20 @@ a {
 }
 
 .home-page .hero-badge {
-  display: inline-block;
+  display: inline-flex;
+  width: 88px;
+  height: 88px;
   margin-bottom: 22px;
-  padding: 7px 12px;
-  color: var(--coral-dark);
-  background: var(--coral-light);
-  border: 1px solid var(--coral-border);
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+  padding: 0;
+  border-radius: 22px;
+  box-shadow: 0 14px 28px rgba(255, 90, 111, 0.2);
+}
+
+.home-page .hero-badge img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
 }
 
 .home-page .hero h1 {
@@ -302,7 +304,7 @@ a {
 .home-page .feature-card p {
   max-width: 340px;
   color: var(--text-secondary);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.7;
 }
 
@@ -771,8 +773,8 @@ a {
   width: 26px;
   height: 26px;
   content: "";
-  background: var(--coral);
-  border-radius: 9px 9px 9px 3px;
+  background: url("/assets/logo_app.png") center / cover no-repeat;
+  border-radius: 8px;
 }
 
 .invite-page .invite-badge {

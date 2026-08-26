@@ -48,6 +48,58 @@ public enum ErrorCode {
     ),
     NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
 
+    // 장소 import
+    UNSUPPORTED_SOURCE_URL(HttpStatus.BAD_REQUEST, "지원하지 않는 콘텐츠 URL입니다"),
+    INVALID_SOURCE_URL(HttpStatus.BAD_REQUEST, "올바른 콘텐츠 URL을 입력해 주세요"),
+    PLACE_IMPORT_NOT_FOUND(HttpStatus.NOT_FOUND, "장소 분석 작업을 찾을 수 없습니다"),
+    PLACE_IMPORT_ACCESS_DENIED(HttpStatus.FORBIDDEN, "장소 분석 작업에 접근할 수 없습니다"),
+    PLACE_IMPORT_ALREADY_EXISTS(HttpStatus.CONFLICT, "동일한 콘텐츠 분석 작업이 이미 존재합니다"),
+    PLACE_METADATA_UNAVAILABLE(
+            HttpStatus.BAD_GATEWAY,
+            "콘텐츠 메타데이터를 조회할 수 없습니다"
+    ),
+    PLACE_ANALYSIS_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "장소 분석을 일시적으로 처리할 수 없습니다"
+    ),
+    PLACE_VERIFICATION_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "장소 검증을 일시적으로 처리할 수 없습니다"
+    ),
+    PLACE_NOT_VERIFIED(HttpStatus.UNPROCESSABLE_ENTITY, "검증된 장소를 찾을 수 없습니다"),
+    PLACE_ALREADY_SAVED(HttpStatus.CONFLICT, "이미 저장된 장소입니다"),
+    PLACE_CANDIDATE_INVALID(HttpStatus.UNPROCESSABLE_ENTITY, "저장할 장소 후보가 올바르지 않습니다"),
+    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "장소를 찾을 수 없습니다"),
+    PLACE_SAVE_NOT_FOUND(HttpStatus.NOT_FOUND, "저장한 장소를 찾을 수 없습니다"),
+    WALKING_ROUTE_UNAVAILABLE(
+            HttpStatus.SERVICE_UNAVAILABLE,
+            "두 장소 사이 도보 경로를 조회할 수 없습니다"
+    ),
+    PUBLIC_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "공개 게시물을 찾을 수 없습니다"),
+    PUBLIC_CONTENT_IMAGE_UNAVAILABLE(
+            HttpStatus.BAD_GATEWAY,
+            "게시물 이미지를 불러올 수 없습니다"
+    ),
+    ADMIN_RESOURCE_MODIFIED(
+            HttpStatus.CONFLICT,
+            "다른 운영자에 의해 데이터가 변경되었습니다. 최신 정보를 확인해 주세요"
+    ),
+
+    // 검색
+    RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),
+
+    // 데이트 코스
+    DATE_COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "데이트 코스를 찾을 수 없습니다"),
+    DATE_COURSE_CONFLICT(HttpStatus.CONFLICT, "다른 수정 요청으로 데이트 코스가 변경되었습니다"),
+    DATE_COURSE_PLACE_NOT_SAVED(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "커플이 저장한 장소만 데이트 코스에 추가할 수 있습니다"
+    ),
+    DATE_COURSE_PLACE_REQUIRED(
+            HttpStatus.UNPROCESSABLE_ENTITY,
+            "데이트 코스를 확정하려면 최소 한 곳의 장소가 필요합니다"
+    ),
+
     // 커플 연결
     CONNECTION_CODE_NOT_AVAILABLE(HttpStatus.CONFLICT, "사용 가능한 연결 코드가 없습니다"),
     INVALID_CONNECTION_CODE(HttpStatus.BAD_REQUEST, "유효하지 않은 연결 코드입니다"),

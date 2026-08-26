@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
@@ -23,6 +24,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
+@TestPropertySource(properties = "auth.jwt.refresh-token-replay-grace=0s")
 @Transactional
 class AuthTokenCommandIntegrationTest {
 
@@ -89,6 +91,22 @@ class AuthTokenCommandIntegrationTest {
 
         assertThatThrownBy(() -> authCommandService.reissue(rotatedTokens.refreshToken()))
                 .isInstanceOf(InvalidRefreshTokenException.class);
+    }
+
+    @Test
+    void revokesReplacementChainWhenLogoutUsesRotatedToken() {
+        Member member = memberRepository.save(Member.create(Instant.EPOCH));
+        IssuedTokens initialTokens = tokenService.issue(member);
+        IssuedTokens rotatedTokens = authCommandService.reissue(initialTokens.refreshToken());
+        IssuedTokens latestTokens = authCommandService.reissue(rotatedTokens.refreshToken());
+        IssuedTokens otherSessionTokens = tokenService.issue(member);
+
+        authCommandService.logout(initialTokens.refreshToken(), member.getId());
+
+        assertThatThrownBy(() -> authCommandService.reissue(latestTokens.refreshToken()))
+                .isInstanceOf(InvalidRefreshTokenException.class);
+        assertThat(authCommandService.reissue(otherSessionTokens.refreshToken()))
+                .isNotNull();
     }
 
     @Test

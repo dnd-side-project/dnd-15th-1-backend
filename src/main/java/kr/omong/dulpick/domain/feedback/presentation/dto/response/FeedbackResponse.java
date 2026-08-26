@@ -8,11 +8,11 @@ import kr.omong.dulpick.global.time.ServiceTime;
 import java.time.LocalDateTime;
 
 public record FeedbackResponse(
-        @Schema(description = "피드백 접수 ID")
+        @Schema(description = "피드백 접수 ID", example = "501", requiredMode = Schema.RequiredMode.REQUIRED)
         Long feedbackId,
-        @Schema(description = "처리 상태", allowableValues = {"RECEIVED", "IN_REVIEW", "RESOLVED"})
+        @Schema(description = "피드백 처리 상태입니다.", allowableValues = {"RECEIVED", "IN_REVIEW", "RESOLVED"}, example = "RECEIVED", requiredMode = Schema.RequiredMode.REQUIRED)
         FeedbackStatus status,
-        @Schema(description = "접수 시각")
+        @Schema(description = "피드백 접수 시각", example = "2026-08-16T14:30:00", format = "date-time", requiredMode = Schema.RequiredMode.REQUIRED)
         LocalDateTime createdAt
 ) {
 

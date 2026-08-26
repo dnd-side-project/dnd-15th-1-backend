@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#FF5A6F">
+  <title>둘픽 운영 · 로그인</title>
+  <link rel="icon" href="/favicon.png" type="image/png">
+  <style>
+    :root {
+      --coral: #ff5a6f;
+      --coral-dark: #e64960;
+      --coral-soft: #fff0f3;
+      --text: #1f1f23;
+      --muted: #6b6b73;
+      --line: #eadfe2;
+      --bg: #f7f2f3;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", sans-serif;
+      background:
+        radial-gradient(1200px 480px at 50% -120px, rgba(255, 90, 111, 0.22), transparent 60%),
+        linear-gradient(180deg, #fff7f8 0%, var(--bg) 100%);
+    }
+    .card {
+      width: min(100%, 420px);
+      padding: 36px 32px 32px;
+      background: rgba(255, 255, 255, 0.92);
+      border: 1px solid rgba(255, 212, 220, 0.9);
+      border-radius: 28px;
+      box-shadow: 0 24px 60px rgba(31, 26, 28, 0.08);
+      backdrop-filter: blur(16px);
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .mark {
+      width: 40px;
+      height: 40px;
+      border-radius: 14px;
+      background: url("/assets/logo_app.png") center / cover no-repeat;
+    }
+    .brand-name { font-size: 20px; font-weight: 800; letter-spacing: -0.04em; }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      line-height: 1.25;
+      letter-spacing: -0.04em;
+    }
+    .sub {
+      margin: 0 0 28px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .field { margin-bottom: 16px; }
+    input {
+      width: 100%;
+      height: 48px;
+      padding: 0 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+      color: var(--text);
+      font: inherit;
+      font-size: 15px;
+    }
+    input:focus {
+      outline: none;
+      border-color: var(--coral);
+      box-shadow: 0 0 0 4px rgba(255, 90, 111, 0.12);
+    }
+    .error {
+      display: none;
+      margin: -8px 0 16px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: var(--coral-soft);
+      color: var(--coral-dark);
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .error.show { display: block; }
+    button {
+      width: 100%;
+      height: 52px;
+      border: 0;
+      border-radius: 16px;
+      background: var(--coral);
+      color: #fff;
+      font: inherit;
+      font-size: 16px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:hover { background: var(--coral-dark); }
+    .foot {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div class="brand-name">둘픽 운영</div>
+    </div>
+    <h1>운영 대시보드</h1>
+    <p class="sub">운영자 계정으로 로그인한 뒤 장소 추출·콘텐츠·이미지 상태를 확인하고 장소 분류를 관리할 수 있습니다.</p>
+    <p id="error" class="error">아이디 또는 비밀번호가 올바르지 않습니다.</p>
+    <form method="post" action="/ops/login">
+      <input type="hidden" name="_csrf" id="csrf-token">
+      <div class="field">
+        <label for="username">아이디</label>
+        <input id="username" name="username" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit">로그인</button>
+    </form>
+    <p class="foot">둘픽 운영 콘솔</p>
+  </main>
+  <script>
+    function csrfToken() {
+      const value = document.cookie.split(";").map(value => value.trim()).find(value => value.startsWith("XSRF-TOKEN="))?.slice(11) || "";
+      return decodeURIComponent(value);
+    }
+    document.querySelector("form").addEventListener("submit", async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      document.getElementById("csrf-token").value = csrfToken();
+      const response = await fetch(form.action, {
+        method: form.method,
+        body: new URLSearchParams(new FormData(form)),
+        headers: { "X-XSRF-TOKEN": csrfToken() },
+        credentials: "same-origin"
+      });
+      window.location.assign(response.url);
+    });
+    if (new URLSearchParams(location.search).has("error")) {
+      document.getElementById("error").classList.add("show");
+    }
+  </script>
+</body>
+</html>

@@ -1,16 +1,28 @@
 package kr.omong.dulpick.global.web;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.MediaType;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 public class PublicPageController {
 
     private static final String HTML_UTF_8 = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8";
     private static final String AASA_RESOURCE = "universal-link/apple-app-site-association";
+    private final CsrfTokenRepository csrfTokenRepository;
+
+    public PublicPageController(
+            @Qualifier("opsCsrfTokenRepository") CsrfTokenRepository csrfTokenRepository
+    ) {
+        this.csrfTokenRepository = csrfTokenRepository;
+    }
 
     @GetMapping(value = "/", produces = HTML_UTF_8)
     public Resource home() {
@@ -27,9 +39,37 @@ public class PublicPageController {
         return page("terms.html");
     }
 
+    @GetMapping(value = "/marketing", produces = HTML_UTF_8)
+    public Resource marketing() {
+        return page("marketing.html");
+    }
+
     @GetMapping(value = "/connect", produces = HTML_UTF_8)
     public Resource connect() {
         return page("connect.html");
+    }
+
+    @GetMapping(value = "/ops/login", produces = HTML_UTF_8)
+    public Resource opsLogin(HttpServletRequest request, HttpServletResponse response) {
+        ensureCsrfToken(request, response);
+        return page("ops-login.html");
+    }
+
+    @GetMapping(value = "/ops", produces = HTML_UTF_8)
+    public Resource opsDashboard(HttpServletRequest request, HttpServletResponse response) {
+        ensureCsrfToken(request, response);
+        return page("ops-dashboard.html");
+    }
+
+    @GetMapping(value = "/ops/places", produces = HTML_UTF_8)
+    public Resource opsPlaces(HttpServletRequest request, HttpServletResponse response) {
+        ensureCsrfToken(request, response);
+        return page("ops-places.html");
+    }
+
+    @GetMapping(value = "/favicon.ico", produces = "image/png")
+    public Resource favicon() {
+        return new ClassPathResource("static/favicon.png");
     }
 
     @GetMapping(
@@ -42,5 +82,16 @@ public class PublicPageController {
 
     private Resource page(String fileName) {
         return new ClassPathResource("static/" + fileName);
+    }
+
+    private void ensureCsrfToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
+        csrfTokenRepository.saveToken(
+                csrfTokenRepository.loadDeferredToken(request, response).get(),
+                request,
+                response
+        );
     }
 }

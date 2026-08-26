@@ -12,17 +12,22 @@ import java.util.UUID;
 
 public record PushDeviceRequest(
         @NotNull
-        @Schema(description = "플랫폼", allowableValues = {"IOS"})
+        @Schema(description = "현재 지원하는 앱 플랫폼. IOS만 전달할 수 있습니다.", allowableValues = {"IOS"}, example = "IOS")
         PushPlatform platform,
         @NotNull
-        @Schema(description = "푸시 공급자", allowableValues = {"FCM"})
+        @Schema(description = "현재 사용하는 푸시 공급자. FCM만 전달할 수 있습니다.", allowableValues = {"FCM"}, example = "FCM")
         PushProviderType provider,
         @NotBlank
         @Size(max = 2_000)
-        @Schema(description = "Firebase SDK가 발급한 FCM 등록 토큰", writeOnly = true)
+        @Schema(
+                description = "Firebase SDK가 현재 앱 설치에 발급한 FCM 등록 토큰. "
+                        + "토큰이 갱신되면 이 API를 다시 호출해야 합니다.",
+                example = "fcm-registration-token-example",
+                writeOnly = true
+        )
         String providerRegistrationId,
         @Size(max = 30)
-        @Schema(description = "iOS 앱 버전", example = "1.0.0")
+        @Schema(description = "현재 설치된 iOS 앱 버전", example = "1.0.0")
         String appVersion
 ) {
 

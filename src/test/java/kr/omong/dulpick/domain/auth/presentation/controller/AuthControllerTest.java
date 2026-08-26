@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.auth.application.command.result.IssuedNonce;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.global.exception.ErrorMonitoringService;
 import kr.omong.dulpick.global.exception.GlobalExceptionHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class AuthControllerTest {
         validator.afterPropertiesSet();
         AuthController controller = new AuthController(authCommandService);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setControllerAdvice(new GlobalExceptionHandler())
+                .setControllerAdvice(new GlobalExceptionHandler(mock(ErrorMonitoringService.class)))
                 .setValidator(validator)
                 .build();
     }

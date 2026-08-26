@@ -8,8 +8,10 @@ import kr.omong.dulpick.domain.auth.application.support.TokenService;
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialAccountRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.member.application.command.InitializeMemberProfileCommand;
 import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import kr.omong.dulpick.domain.member.domain.exception.MemberAlreadyWithdrawnException;
@@ -48,6 +50,9 @@ class MemberControllerIntegrationTest {
 
     @Autowired
     private MemberCommandService memberCommandService;
+
+    @Autowired
+    private MemberProfileRepository memberProfileRepository;
 
     @Autowired
     private TokenService tokenService;
@@ -96,8 +101,12 @@ class MemberControllerIntegrationTest {
     }
 
     @Test
-    void socialLoginReactivatesWithdrawnMember() {
+    void socialLoginCreatesNewMemberAfterWithdrawal() {
         Member member = createSocialMember("rejoin-subject");
+        memberCommandService.initializeProfile(
+                member.getId(),
+                new InitializeMemberProfileCommand("기존회원", 1, null)
+        );
         memberCommandService.withdraw(member.getId());
 
         Member rejoinedMember = socialAccountService.getOrCreate(
@@ -107,10 +116,12 @@ class MemberControllerIntegrationTest {
                 ProviderAuthorization.none()
         ).member();
 
-        assertThat(rejoinedMember.getId()).isEqualTo(member.getId());
+        assertThat(rejoinedMember.getId()).isNotEqualTo(member.getId());
         assertThat(rejoinedMember.getStatus()).isEqualTo(MemberStatus.ACTIVE);
-        assertThat(rejoinedMember.getLastWithdrawnAt()).isNotNull();
-        assertThat(rejoinedMember.getLastRejoinedAt()).isNotNull();
+        assertThat(memberRepository.findById(member.getId()).orElseThrow().getStatus())
+                .isEqualTo(MemberStatus.WITHDRAWN);
+        assertThat(memberProfileRepository.findById(member.getId())).isPresent();
+        assertThat(memberProfileRepository.findById(rejoinedMember.getId())).isEmpty();
     }
 
     @Test

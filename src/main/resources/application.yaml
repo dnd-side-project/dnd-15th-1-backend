@@ -5,6 +5,10 @@ spring:
     default: local
   jackson:
     time-zone: Asia/Seoul
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   flyway:
     baseline-on-migrate: true
     baseline-version: 0
@@ -13,6 +17,14 @@ spring:
 
 server:
   forward-headers-strategy: native
+
+monitoring:
+  error-alert:
+    discord:
+      enabled: ${DISCORD_ERROR_ALERT_ENABLED:false}
+      webhook-url: ${DISCORD_ERROR_ALERT_WEBHOOK_URL:}
+      connect-timeout: ${DISCORD_ERROR_ALERT_CONNECT_TIMEOUT:1s}
+      read-timeout: ${DISCORD_ERROR_ALERT_READ_TIMEOUT:1s}
 
 springdoc:
   api-docs:
@@ -29,17 +41,25 @@ couple:
     previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
     previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
-    preview-per-minute: 5
-    preview-per-hour: 20
-    connect-per-minute: 3
-    connect-per-day: 10
-    state-changes-per-day: 10
-    code-failures-per-ten-minutes: 5
-    ip-failures-per-hour: 50
+    preview-per-minute: 10
+    preview-per-hour: 30
+    connect-per-minute: 10
+    connect-per-day: 30
+    state-changes-per-day: 50
+    code-failures-per-ten-minutes: 15
+    ip-failures-per-hour: 100
     ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
-    failure-block-duration: 15m
+    failure-block-duration: 10m
     retention: 30d
     cleanup-delay: 1h
+
+search:
+  recent:
+    max-per-type: ${SEARCH_RECENT_MAX_PER_TYPE:50}
+
+ops:
+  username: ${OPS_USERNAME:admin}
+  password: ${OPS_PASSWORD:admin}
 
 features:
   test-auth:
@@ -68,12 +88,87 @@ notification:
     batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
     max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 
+place-analysis:
+  enabled: ${PLACE_ANALYSIS_ENABLED:false}
+  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:400}
+  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:20}
+  max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
+  stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
+  retry-cooldown-seconds: ${PLACE_ANALYSIS_RETRY_COOLDOWN_SECONDS:300}
+  max-retry-count: ${PLACE_ANALYSIS_MAX_RETRY_COUNT:3}
+  recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:true}
+  recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
+  recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
+  worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:8}
+  verification-concurrency: ${PLACE_ANALYSIS_VERIFICATION_CONCURRENCY:12}
+  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
+  image-enrichment:
+    retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
+    max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
+
+place:
+  image-backfill:
+    enabled: ${PLACE_IMAGE_BACKFILL_ENABLED:false}
+    max-places: ${PLACE_IMAGE_BACKFILL_MAX_PLACES:10000}
+    delay-millis: ${PLACE_IMAGE_BACKFILL_DELAY_MILLIS:500}
+
+instagram:
+  metadata:
+    official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}
+    access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
+    base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
+    oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
+    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
+    timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
+    max-images: ${INSTAGRAM_METADATA_MAX_IMAGES:10}
+
+content:
+  thumbnail:
+    base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+    storage-path: ${CONTENT_THUMBNAIL_STORAGE_PATH:./data/content-images}
+    timeout-seconds: ${CONTENT_THUMBNAIL_TIMEOUT_SECONDS:10}
+    max-bytes: ${CONTENT_THUMBNAIL_MAX_BYTES:5000000}
+    max-images: ${CONTENT_THUMBNAIL_MAX_IMAGES:10}
+    worker-concurrency: ${CONTENT_THUMBNAIL_WORKER_CONCURRENCY:2}
+  image-backfill:
+    enabled: ${CONTENT_IMAGE_BACKFILL_ENABLED:false}
+    max-contents: ${CONTENT_IMAGE_BACKFILL_MAX_CONTENTS:10000}
+    delay-millis: ${CONTENT_IMAGE_BACKFILL_DELAY_MILLIS:500}
+
+gemini:
+  enabled: ${GEMINI_ENABLED:false}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:10}
+
+kakao:
+  local:
+    enabled: ${KAKAO_LOCAL_ENABLED:false}
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    timeout-seconds: ${KAKAO_LOCAL_TIMEOUT_SECONDS:3}
+  routing:
+    enabled: ${KAKAO_ROUTING_ENABLED:${KAKAO_LOCAL_ENABLED:false}}
+    rest-api-key: ${KAKAO_ROUTING_REST_API_KEY:${KAKAO_REST_API_KEY:}}
+    base-url: ${KAKAO_ROUTING_BASE_URL:${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}}
+    timeout-seconds: ${KAKAO_ROUTING_TIMEOUT_SECONDS:3}
+  map-photo-scraping:
+    enabled: ${KAKAO_MAP_PHOTO_SCRAPING_ENABLED:true}
+    base-url: ${KAKAO_MAP_PHOTO_BASE_URL:https://place-api.map.kakao.com}
+    timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
+    max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
+    app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
+    retry-attempts: ${KAKAO_MAP_PHOTO_RETRY_ATTEMPTS:3}
+    retry-delay-millis: ${KAKAO_MAP_PHOTO_RETRY_DELAY_MILLIS:100}
+
 auth:
   jwt:
     issuer: dulpick
     secret: ${JWT_SECRET}
     access-token-ttl: 15m
     refresh-token-ttl: 30d
+    refresh-token-replay-grace: 5s
   maintenance:
     fixed-delay: 1h
     batch-size: 1000
@@ -89,12 +184,15 @@ auth:
         jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
         audiences:
           - ${GOOGLE_SERVER_CLIENT_ID:}
+          - ${GOOGLE_IOS_CLIENT_ID:}
+          - ${GOOGLE_DEV_CLIENT_ID:}
       kakao:
         issuers:
           - https://kauth.kakao.com
         jwk-set-uri: https://kauth.kakao.com/.well-known/jwks.json
         audiences:
           - ${KAKAO_NATIVE_APP_KEY:}
+          - ${KAKAO_DEBUG_NATIVE_APP_KEY:}
       apple:
         issuers:
           - https://appleid.apple.com
@@ -118,3 +216,4 @@ auth:
       batch-size: 20
       initial-retry-delay: 1m
       max-retry-delay: 1h
+      max-attempts: ${APPLE_REVOCATION_MAX_ATTEMPTS:5}

@@ -12,7 +12,8 @@ public record JwtProperties(
         String issuer,
         String secret,
         Duration accessTokenTtl,
-        Duration refreshTokenTtl
+        Duration refreshTokenTtl,
+        Duration refreshTokenReplayGrace
 ) {
 
     public SecretKey secretKey() {

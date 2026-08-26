@@ -4,12 +4,22 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 20
   jpa:
     hibernate:
       ddl-auto: validate
 
 server:
   forward-headers-strategy: framework
+
+monitoring:
+  error-alert:
+    discord:
+      enabled: ${DISCORD_ERROR_ALERT_ENABLED:true}
+      webhook-url: ${DISCORD_ERROR_ALERT_WEBHOOK_URL:}
+      connect-timeout: ${DISCORD_ERROR_ALERT_CONNECT_TIMEOUT:1s}
+      read-timeout: ${DISCORD_ERROR_ALERT_READ_TIMEOUT:1s}
 
 management:
   endpoints:
@@ -26,6 +36,10 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+
+ops:
+  username: ${OPS_USERNAME}
+  password: ${OPS_PASSWORD}
 
 features:
   test-auth:

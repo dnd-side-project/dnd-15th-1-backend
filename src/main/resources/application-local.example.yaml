@@ -14,6 +14,18 @@ springdoc:
   swagger-ui:
     enabled: true
 
+ops:
+  username: ${OPS_USERNAME:admin}
+  password: ${OPS_PASSWORD:admin}
+
+monitoring:
+  error-alert:
+    discord:
+      enabled: ${DISCORD_ERROR_ALERT_ENABLED:false}
+      webhook-url: ${DISCORD_ERROR_ALERT_WEBHOOK_URL:}
+      connect-timeout: ${DISCORD_ERROR_ALERT_CONNECT_TIMEOUT:1s}
+      read-timeout: ${DISCORD_ERROR_ALERT_READ_TIMEOUT:1s}
+
 features:
   test-auth:
     enabled: ${TEST_AUTH_ENABLED:false}
@@ -24,11 +36,85 @@ notification:
     # 서비스 계정 JSON은 저장소에 넣지 않고 안전한 경로에 별도로 전달합니다.
     # FIREBASE_SERVICE_ACCOUNT_BASE64를 받았다면 JSON 파일로 디코딩한 뒤 그 경로를 지정합니다.
     enabled: ${FCM_ENABLED:false}
-    project-id: ${FIREBASE_PROJECT_ID:gen-lang-client-0028689995}
+    project-id: ${FIREBASE_PROJECT_ID:}
     credentials-path: ${FIREBASE_CREDENTIALS_PATH:/absolute/path/to/firebase-service-account.json}
   push:
     # openssl rand -base64 32로 생성하며 Firebase 서비스 계정 키와 분리합니다.
     registration-encryption-key: ${PUSH_REGISTRATION_ENCRYPTION_KEY:}
+
+place-analysis:
+  enabled: ${PLACE_ANALYSIS_ENABLED:true}
+  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:400}
+  max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:20}
+  max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
+  stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
+  retry-cooldown-seconds: ${PLACE_ANALYSIS_RETRY_COOLDOWN_SECONDS:300}
+  max-retry-count: ${PLACE_ANALYSIS_MAX_RETRY_COUNT:3}
+  recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:false}
+  recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
+  recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
+  worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
+  verification-concurrency: ${PLACE_ANALYSIS_VERIFICATION_CONCURRENCY:3}
+  public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+  image-enrichment:
+    retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}
+    max-attempts: ${PLACE_IMAGE_ENRICHMENT_MAX_ATTEMPTS:3}
+
+place:
+  image-backfill:
+    enabled: ${PLACE_IMAGE_BACKFILL_ENABLED:false}
+    max-places: ${PLACE_IMAGE_BACKFILL_MAX_PLACES:10000}
+    delay-millis: ${PLACE_IMAGE_BACKFILL_DELAY_MILLIS:500}
+
+gemini:
+  enabled: ${GEMINI_ENABLED:false}
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
+  timeout-seconds: ${GEMINI_TIMEOUT_SECONDS:10}
+
+kakao:
+  local:
+    enabled: ${KAKAO_LOCAL_ENABLED:false}
+    rest-api-key: ${KAKAO_REST_API_KEY:}
+    base-url: ${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}
+    timeout-seconds: ${KAKAO_LOCAL_TIMEOUT_SECONDS:3}
+  routing:
+    enabled: ${KAKAO_ROUTING_ENABLED:${KAKAO_LOCAL_ENABLED:false}}
+    rest-api-key: ${KAKAO_ROUTING_REST_API_KEY:${KAKAO_REST_API_KEY:}}
+    base-url: ${KAKAO_ROUTING_BASE_URL:${KAKAO_LOCAL_BASE_URL:https://dapi.kakao.com}}
+    timeout-seconds: ${KAKAO_ROUTING_TIMEOUT_SECONDS:3}
+  map-photo-scraping:
+    enabled: ${KAKAO_MAP_PHOTO_SCRAPING_ENABLED:true}
+    base-url: ${KAKAO_MAP_PHOTO_BASE_URL:https://place-api.map.kakao.com}
+    timeout-seconds: ${KAKAO_MAP_PHOTO_TIMEOUT_SECONDS:2}
+    max-images: ${KAKAO_MAP_PHOTO_MAX_IMAGES:5}
+    app-version: ${KAKAO_MAP_PHOTO_APP_VERSION:6.6.0}
+    retry-attempts: ${KAKAO_MAP_PHOTO_RETRY_ATTEMPTS:3}
+    retry-delay-millis: ${KAKAO_MAP_PHOTO_RETRY_DELAY_MILLIS:100}
+
+instagram:
+  metadata:
+    official-enabled: ${INSTAGRAM_METADATA_OFFICIAL_ENABLED:false}
+    access-token: ${INSTAGRAM_METADATA_ACCESS_TOKEN:}
+    base-url: ${INSTAGRAM_METADATA_BASE_URL:https://graph.facebook.com}
+    oembed-path: ${INSTAGRAM_OEMBED_PATH:/v22.0/instagram_oembed}
+    public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:false}
+    timeout-seconds: ${INSTAGRAM_METADATA_TIMEOUT_SECONDS:5}
+    max-images: ${INSTAGRAM_METADATA_MAX_IMAGES:10}
+
+content:
+  thumbnail:
+    base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
+    storage-path: ${CONTENT_THUMBNAIL_STORAGE_PATH:./data/content-images}
+    timeout-seconds: ${CONTENT_THUMBNAIL_TIMEOUT_SECONDS:10}
+    max-bytes: ${CONTENT_THUMBNAIL_MAX_BYTES:5000000}
+    max-images: ${CONTENT_THUMBNAIL_MAX_IMAGES:10}
+    worker-concurrency: ${CONTENT_THUMBNAIL_WORKER_CONCURRENCY:2}
+  image-backfill:
+    enabled: ${CONTENT_IMAGE_BACKFILL_ENABLED:false}
+    max-contents: ${CONTENT_IMAGE_BACKFILL_MAX_CONTENTS:10000}
+    delay-millis: ${CONTENT_IMAGE_BACKFILL_DELAY_MILLIS:500}
 
 couple:
   public-base-url: ${PUBLIC_WEB_BASE_URL:http://localhost:8080}
@@ -38,7 +124,15 @@ couple:
     previous-key-id: ${PREVIOUS_CONNECTION_CODE_KEY_VERSION:}
     previous-key: ${PREVIOUS_CONNECTION_CODE_ENCRYPTION_KEY:}
   abuse:
+    preview-per-minute: ${COUPLE_PREVIEW_PER_MINUTE:10}
+    preview-per-hour: ${COUPLE_PREVIEW_PER_HOUR:30}
+    connect-per-minute: ${COUPLE_CONNECT_PER_MINUTE:10}
+    connect-per-day: ${COUPLE_CONNECT_PER_DAY:30}
+    state-changes-per-day: ${COUPLE_STATE_CHANGES_PER_DAY:50}
+    code-failures-per-ten-minutes: ${COUPLE_CODE_FAILURES_PER_TEN_MINUTES:15}
+    ip-failures-per-hour: ${COUPLE_IP_FAILURES_PER_HOUR:100}
     ip-hash-key: ${CONNECTION_ABUSE_IP_HASH_KEY:${JWT_SECRET}}
+    failure-block-duration: ${COUPLE_FAILURE_BLOCK_DURATION:10m}
 
 auth:
   jwt:
@@ -48,9 +142,12 @@ auth:
       google:
         audiences:
           - ${GOOGLE_SERVER_CLIENT_ID}
+          - ${GOOGLE_IOS_CLIENT_ID:}
+          - ${GOOGLE_DEV_CLIENT_ID:}
       kakao:
         audiences:
           - ${KAKAO_NATIVE_APP_KEY}
+          - ${KAKAO_DEBUG_NATIVE_APP_KEY:}
       apple:
         audiences:
           - ${APPLE_PROD_CLIENT_ID}
@@ -63,3 +160,5 @@ auth:
       - ${APPLE_DEV_CLIENT_ID}
     private-key-path: ${APPLE_PRIVATE_KEY_PATH}
     token-encryption-key: ${PROVIDER_TOKEN_ENCRYPTION_KEY}
+    revocation:
+      max-attempts: ${APPLE_REVOCATION_MAX_ATTEMPTS:5}

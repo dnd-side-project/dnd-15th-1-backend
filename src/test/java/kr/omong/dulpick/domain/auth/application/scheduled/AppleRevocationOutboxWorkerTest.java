@@ -33,7 +33,8 @@ class AppleRevocationOutboxWorkerTest {
                     Duration.ofMinutes(1),
                     20,
                     Duration.ofMinutes(1),
-                    Duration.ofHours(1)
+                    Duration.ofHours(1),
+                    3
             );
     private final AppleRevocationOutboxWorker worker = new AppleRevocationOutboxWorker(
             outboxRepository,
@@ -69,6 +70,32 @@ class AppleRevocationOutboxWorkerTest {
         assertThat(outbox.getAttemptCount()).isEqualTo(1);
         assertThat(outbox.getNextAttemptAt()).isEqualTo(NOW.plus(Duration.ofMinutes(1)));
         verify(outboxRepository, never()).delete(outbox);
+    }
+
+    @Test
+    void marksOutboxAsFailedAfterMaximumAttempts() {
+        AppleRevocationOutbox outbox = outbox();
+        AppleRevocationOutboxWorker oneAttemptWorker = new AppleRevocationOutboxWorker(
+                outboxRepository,
+                appleAuthorizationService,
+                new AppleRevocationOutboxProperties(
+                        Duration.ofMinutes(1),
+                        20,
+                        Duration.ofMinutes(1),
+                        Duration.ofHours(1),
+                        1
+                ),
+                Clock.fixed(NOW, ZoneOffset.UTC)
+        );
+        doThrow(new AppleAuthorizationException("Apple is unavailable"))
+                .when(appleAuthorizationService)
+                .revoke("encrypted-refresh-token", "com.dulpick.app");
+        when(outboxRepository.findForUpdateById(1L)).thenReturn(Optional.of(outbox));
+
+        oneAttemptWorker.process(1L);
+
+        assertThat(outbox.getStatus().name()).isEqualTo("FAILED");
+        assertThat(outbox.getAttemptCount()).isEqualTo(1);
     }
 
     private AppleRevocationOutbox outbox() {

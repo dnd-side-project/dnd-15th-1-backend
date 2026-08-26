@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.notification.application.command.NotificationSett
 import kr.omong.dulpick.domain.notification.application.command.PushDeviceService;
 import kr.omong.dulpick.domain.notification.application.command.RegisterPushDeviceCommand;
 import kr.omong.dulpick.domain.notification.application.event.ContentSavedEvent;
+import kr.omong.dulpick.domain.notification.application.event.DateCoursePlannedEvent;
 import kr.omong.dulpick.domain.notification.application.event.DateScheduleReminderDueEvent;
 import kr.omong.dulpick.domain.notification.domain.ContentSaveCounterId;
 import kr.omong.dulpick.domain.notification.domain.ContentSaveCounterRepository;
@@ -149,6 +150,33 @@ class SelectiveNotificationIntegrationTest {
         )).hasSize(1);
         assertThat(deliveryRepository.countByReceiverMemberId(receiver.getId()))
                 .isEqualTo(1);
+    }
+
+    @Test
+    void doesNotCreateInboxNotificationForDateCoursePlannedPush() {
+        Member planner = createMember();
+        Member partner = createMember();
+        Couple couple = coupleRepository.save(Couple.connect(OCCURRED_AT));
+        testCoupleIds.add(couple.getId());
+        registerDevice(partner.getId());
+
+        publish(new DateCoursePlannedEvent(
+                1001L,
+                couple.getId(),
+                planner.getId(),
+                partner.getId(),
+                "둘픽이",
+                "성수동 데이트",
+                OCCURRED_AT
+        ));
+
+        assertThat(notificationRepository.findPage(
+                partner.getId(),
+                null,
+                PageRequest.of(0, 10)
+        )).isEmpty();
+        assertThat(deliveryRepository.countByReceiverMemberId(partner.getId()))
+                .isZero();
     }
 
     @Test

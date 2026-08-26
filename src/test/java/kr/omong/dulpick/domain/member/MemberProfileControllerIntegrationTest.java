@@ -23,6 +23,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -88,7 +89,61 @@ class MemberProfileControllerIntegrationTest {
     }
 
     @Test
-    void rejectsInvalidIconAndIncompleteDatePreferences() throws Exception {
+    void initializesProfileWithoutDatePreferences() throws Exception {
+        AuthenticatedTestMember testMember = createMember();
+
+        mockMvc.perform(post("/api/v1/members/me/profile")
+                        .header("Authorization", bearer(testMember.tokens()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname":"둘픽이",
+                                  "profileIcon":1
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.nickname").value("둘픽이"))
+                .andExpect(jsonPath("$.profileIcon").value(1))
+                .andExpect(jsonPath("$.datePreferences").value(nullValue()))
+                .andExpect(jsonPath("$.connectionCode", matchesPattern("^[A-Z]{5}$")));
+
+        MemberProfile profile = memberProfileRepository.findById(
+                testMember.member().getId()
+        ).orElseThrow();
+        assertThat(profile.getDatePreferences()).isNull();
+
+        mockMvc.perform(get("/api/v1/members/me")
+                        .header("Authorization", bearer(testMember.tokens())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.onboardingCompleted").value(true))
+                .andExpect(jsonPath("$.datePreferences").value(nullValue()));
+    }
+
+    @Test
+    void treatsAllBlankDatePreferencesAsUnset() throws Exception {
+        AuthenticatedTestMember testMember = createMember();
+
+        mockMvc.perform(post("/api/v1/members/me/profile")
+                        .header("Authorization", bearer(testMember.tokens()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "nickname":"둘픽이",
+                                  "profileIcon":1,
+                                  "datePreferences":{
+                                    "indoorOutdoor":"",
+                                    "activityLevel":"",
+                                    "dateTime":"",
+                                    "dateFocus":""
+                                  }
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.datePreferences").value(nullValue()));
+    }
+
+    @Test
+    void rejectsInvalidIconAndPartialDatePreferences() throws Exception {
         AuthenticatedTestMember invalidIconMember = createMember();
 
         mockMvc.perform(post("/api/v1/members/me/profile")
@@ -123,7 +178,8 @@ class MemberProfileControllerIntegrationTest {
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.fieldErrors[0].field")
                         .value("datePreferences.dateFocus"))
-                .andExpect(jsonPath("$.fieldErrors[0].reason").value("NotNull"));
+                .andExpect(jsonPath("$.fieldErrors[0].reason")
+                        .value("INVALID_DATE_PREFERENCE"));
     }
 
     @Test
@@ -147,7 +203,8 @@ class MemberProfileControllerIntegrationTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.fieldErrors[0].field").value("indoorOutdoor"))
+                .andExpect(jsonPath("$.fieldErrors[0].field")
+                        .value("datePreferences.indoorOutdoor"))
                 .andExpect(jsonPath("$.fieldErrors[0].reason")
                         .value("INVALID_DATE_PREFERENCE"));
 
@@ -197,6 +254,34 @@ class MemberProfileControllerIntegrationTest {
                 .isEqualTo(DatePreferenceOption.DAY);
         assertThat(profile.getDatePreferences().dateFocus())
                 .isEqualTo(DatePreferenceOption.SIGHTSEEING);
+    }
+
+    @Test
+    void setsDatePreferencesAfterOnboardingWithoutPreferences() throws Exception {
+        AuthenticatedTestMember testMember = createMember();
+
+        mockMvc.perform(post("/api/v1/members/me/profile")
+                        .header("Authorization", bearer(testMember.tokens()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nickname":"둘픽이","profileIcon":1}
+                                """))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(put("/api/v1/members/me/date-preferences")
+                        .header("Authorization", bearer(testMember.tokens()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "indoorOutdoor":"OUTDOOR",
+                                  "activityLevel":"STATIC",
+                                  "dateTime":"DAY",
+                                  "dateFocus":"SIGHTSEEING"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.indoorOutdoor").value("OUTDOOR"))
+                .andExpect(jsonPath("$.dateFocus").value("SIGHTSEEING"));
     }
 
     @Test

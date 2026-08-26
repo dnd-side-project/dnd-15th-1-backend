@@ -50,13 +50,23 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-          cache: gradle
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
 
       - name: Test and build
-        run: >-
-          JWT_SECRET="$(openssl rand -base64 48)"
-          PROVIDER_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)"
-          ./gradlew clean build --no-daemon
+        run: |
+          set -Eeuo pipefail
+          build_started_at="$(date +%s)"
+          JWT_SECRET="$(openssl rand -base64 48)" \
+          PROVIDER_TOKEN_ENCRYPTION_KEY="$(openssl rand -base64 32)" \
+            time ./gradlew assemble extendedTest --no-daemon
+          build_elapsed=$(( $(date +%s) - build_started_at ))
+          echo "Gradle test/build elapsed seconds: ${build_elapsed}"
+          {
+            echo "### Deploy timing"
+            echo "- Gradle test/build: ${build_elapsed}s"
+          } >> "${GITHUB_STEP_SUMMARY}"
         env:
           SPRING_DATASOURCE_URL: jdbc:mysql://127.0.0.1:3306/dulpick_test?serverTimezone=UTC&characterEncoding=UTF-8
           SPRING_DATASOURCE_USERNAME: dulpick
@@ -109,6 +119,19 @@ jobs:
           strip_components: 1
           overwrite: true
 
+      - name: Sync content image backfill script
+        uses: appleboy/scp-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
+          source: deploy/backfill-content-images.sh
+          target: dulpick
+          strip_components: 1
+          overwrite: true
+
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1
         env:
@@ -118,7 +141,10 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           GOOGLE_SERVER_CLIENT_ID: ${{ secrets.GOOGLE_SERVER_CLIENT_ID }}
+          GOOGLE_IOS_CLIENT_ID: ${{ secrets.GOOGLE_IOS_CLIENT_ID }}
+          GOOGLE_DEV_CLIENT_ID: ${{ secrets.GOOGLE_DEV_CLIENT_ID }}
           KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY }}
+          KAKAO_DEBUG_NATIVE_APP_KEY: ${{ secrets.KAKAO_DEBUG_NATIVE_APP_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
           APPLE_PROD_CLIENT_ID: ${{ secrets.APPLE_PROD_CLIENT_ID }}
@@ -131,14 +157,22 @@ jobs:
           FIREBASE_SERVICE_ACCOUNT_BASE64: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_BASE64 }}
           TEST_AUTH_ENABLED: ${{ secrets.TEST_AUTH_ENABLED }}
           TEST_AUTH_ACCESS_KEY: ${{ secrets.TEST_AUTH_ACCESS_KEY }}
+          OPS_USERNAME: ${{ secrets.OPS_USERNAME }}
+          OPS_PASSWORD: ${{ secrets.OPS_PASSWORD }}
           PUBLIC_WEB_BASE_URL: ${{ secrets.PUBLIC_WEB_BASE_URL }}
+          DISCORD_ERROR_ALERT_WEBHOOK_URL: ${{ secrets.DISCORD_ERROR_ALERT_WEBHOOK_URL }}
+          PLACE_ANALYSIS_ENABLED: "true"
+          PLACE_PUBLIC_CRAWLER_ENABLED: "true"
+          CONTENT_THUMBNAIL_STORAGE_PATH: "/var/lib/dulpick/content-images"
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
         with:
           host: ${{ secrets.SSH_HOST }}
           port: ${{ secrets.SSH_PORT }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           fingerprint: ${{ secrets.SSH_HOST_FINGERPRINT }}
-          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,KAKAO_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,PUBLIC_WEB_BASE_URL
+          envs: GHCR_USERNAME,GHCR_TOKEN,IMAGE_NAME,IMAGE_TAG,JWT_SECRET,GOOGLE_SERVER_CLIENT_ID,GOOGLE_IOS_CLIENT_ID,GOOGLE_DEV_CLIENT_ID,KAKAO_NATIVE_APP_KEY,KAKAO_DEBUG_NATIVE_APP_KEY,APPLE_TEAM_ID,APPLE_KEY_ID,APPLE_PROD_CLIENT_ID,APPLE_DEV_CLIENT_ID,APPLE_PRIVATE_KEY_BASE64,PROVIDER_TOKEN_ENCRYPTION_KEY,PUSH_REGISTRATION_ENCRYPTION_KEY,FCM_ENABLED,FIREBASE_PROJECT_ID,FIREBASE_SERVICE_ACCOUNT_BASE64,TEST_AUTH_ENABLED,TEST_AUTH_ACCESS_KEY,OPS_USERNAME,OPS_PASSWORD,PUBLIC_WEB_BASE_URL,DISCORD_ERROR_ALERT_WEBHOOK_URL,PLACE_ANALYSIS_ENABLED,PLACE_PUBLIC_CRAWLER_ENABLED,CONTENT_THUMBNAIL_STORAGE_PATH,GEMINI_API_KEY,KAKAO_REST_API_KEY
           script: |
             set -Eeuo pipefail
 
@@ -149,6 +183,8 @@ jobs:
             readonly FIREBASE_CREDENTIALS_FILE="${SECRETS_DIR}/firebase-service-account.json"
             readonly TEST_AUTH_ENABLED_VALUE="${TEST_AUTH_ENABLED:-false}"
             readonly FCM_ENABLED_VALUE="${FCM_ENABLED:-false}"
+            readonly PLACE_ANALYSIS_ENABLED_VALUE="${PLACE_ANALYSIS_ENABLED:-false}"
+            readonly PLACE_PUBLIC_CRAWLER_ENABLED_VALUE="${PLACE_PUBLIC_CRAWLER_ENABLED:-false}"
 
             require_value() {
               local key="$1"
@@ -170,8 +206,17 @@ jobs:
                 "GOOGLE_SERVER_CLIENT_ID" \
                 "${GOOGLE_SERVER_CLIENT_ID:-}"
               require_value \
+                "GOOGLE_IOS_CLIENT_ID" \
+                "${GOOGLE_IOS_CLIENT_ID:-}"
+              require_value \
+                "GOOGLE_DEV_CLIENT_ID" \
+                "${GOOGLE_DEV_CLIENT_ID:-}"
+              require_value \
                 "KAKAO_NATIVE_APP_KEY" \
                 "${KAKAO_NATIVE_APP_KEY:-}"
+              require_value \
+                "KAKAO_DEBUG_NATIVE_APP_KEY" \
+                "${KAKAO_DEBUG_NATIVE_APP_KEY:-}"
               require_value "APPLE_TEAM_ID" "${APPLE_TEAM_ID:-}"
               require_value "APPLE_KEY_ID" "${APPLE_KEY_ID:-}"
               require_value \
@@ -189,12 +234,30 @@ jobs:
               require_value \
                 "PUBLIC_WEB_BASE_URL" \
                 "${PUBLIC_WEB_BASE_URL:-}"
+              require_value "OPS_USERNAME" "${OPS_USERNAME:-}"
+              require_value "OPS_PASSWORD" "${OPS_PASSWORD:-}"
+              require_value \
+                "DISCORD_ERROR_ALERT_WEBHOOK_URL" \
+                "${DISCORD_ERROR_ALERT_WEBHOOK_URL:-}"
 
               if [[ "${PUBLIC_WEB_BASE_URL}" != "https://dulpick.omong.kr" ]]; then
                 echo \
                   "PUBLIC_WEB_BASE_URL must be https://dulpick.omong.kr" \
                   >&2
                 exit 1
+              fi
+
+              if [[ "${PLACE_ANALYSIS_ENABLED_VALUE}" != "true" && "${PLACE_ANALYSIS_ENABLED_VALUE}" != "false" ]]; then
+                echo "PLACE_ANALYSIS_ENABLED must be true or false" >&2
+                exit 1
+              fi
+              if [[ "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}" != "true" && "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}" != "false" ]]; then
+                echo "PLACE_PUBLIC_CRAWLER_ENABLED must be true or false" >&2
+                exit 1
+              fi
+              if [[ "${PLACE_ANALYSIS_ENABLED_VALUE}" == "true" ]]; then
+                require_value "GEMINI_API_KEY" "${GEMINI_API_KEY:-}"
+                require_value "KAKAO_REST_API_KEY" "${KAKAO_REST_API_KEY:-}"
               fi
 
               if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
@@ -267,10 +330,21 @@ jobs:
             chmod 700 "${SECRETS_DIR}"
 
             update_env "JWT_SECRET" "${JWT_SECRET}"
+            update_env "OPS_USERNAME" "${OPS_USERNAME}"
+            update_env "OPS_PASSWORD" "${OPS_PASSWORD}"
+            update_env "DISCORD_ERROR_ALERT_ENABLED" "true"
+            update_env \
+              "DISCORD_ERROR_ALERT_WEBHOOK_URL" \
+              "${DISCORD_ERROR_ALERT_WEBHOOK_URL}"
             update_env \
               "GOOGLE_SERVER_CLIENT_ID" \
               "${GOOGLE_SERVER_CLIENT_ID}"
+            update_env "GOOGLE_IOS_CLIENT_ID" "${GOOGLE_IOS_CLIENT_ID}"
+            update_env "GOOGLE_DEV_CLIENT_ID" "${GOOGLE_DEV_CLIENT_ID}"
             update_env "KAKAO_NATIVE_APP_KEY" "${KAKAO_NATIVE_APP_KEY}"
+            update_env \
+              "KAKAO_DEBUG_NATIVE_APP_KEY" \
+              "${KAKAO_DEBUG_NATIVE_APP_KEY}"
             update_env "APPLE_TEAM_ID" "${APPLE_TEAM_ID}"
             update_env "APPLE_KEY_ID" "${APPLE_KEY_ID}"
             update_env "APPLE_PROD_CLIENT_ID" "${APPLE_PROD_CLIENT_ID}"
@@ -282,6 +356,25 @@ jobs:
               "PROVIDER_TOKEN_ENCRYPTION_KEY" \
               "${PROVIDER_TOKEN_ENCRYPTION_KEY}"
             update_env "PUBLIC_WEB_BASE_URL" "${PUBLIC_WEB_BASE_URL}"
+            update_env \
+              "CONTENT_THUMBNAIL_STORAGE_PATH" \
+              "${CONTENT_THUMBNAIL_STORAGE_PATH}"
+            update_env "PLACE_ANALYSIS_ENABLED" "${PLACE_ANALYSIS_ENABLED_VALUE}"
+            update_env \
+              "PLACE_PUBLIC_CRAWLER_ENABLED" \
+              "${PLACE_PUBLIC_CRAWLER_ENABLED_VALUE}"
+            if [[ -n "${GEMINI_API_KEY:-}" ]]; then
+              update_env "GEMINI_ENABLED" "true"
+              update_env "GEMINI_API_KEY" "${GEMINI_API_KEY}"
+            else
+              update_env "GEMINI_ENABLED" "false"
+            fi
+            if [[ -n "${KAKAO_REST_API_KEY:-}" ]]; then
+              update_env "KAKAO_LOCAL_ENABLED" "true"
+              update_env "KAKAO_REST_API_KEY" "${KAKAO_REST_API_KEY}"
+            else
+              update_env "KAKAO_LOCAL_ENABLED" "false"
+            fi
             update_env "FCM_ENABLED" "${FCM_ENABLED_VALUE}"
             if [[ "${FCM_ENABLED_VALUE}" == "true" ]]; then
               update_env "FIREBASE_PROJECT_ID" "${FIREBASE_PROJECT_ID}"
