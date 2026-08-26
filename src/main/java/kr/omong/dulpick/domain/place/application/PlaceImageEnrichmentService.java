@@ -28,6 +28,7 @@ import java.util.concurrent.RejectedExecutionException;
 public class PlaceImageEnrichmentService {
 
     private static final Logger logger = LoggerFactory.getLogger(PlaceImageEnrichmentService.class);
+    private static final java.time.Duration STALE_TASK_TIMEOUT = java.time.Duration.ofMinutes(10);
 
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
@@ -125,23 +126,59 @@ public class PlaceImageEnrichmentService {
 
     @Scheduled(fixedDelay = 60_000, initialDelay = 60_000)
     public void recoverPending() {
-        backlogRepository.findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
-                        "PENDING",
-                        clock.instant().minus(properties.retryCooldown()),
+        Instant now = clock.instant();
+        backlogRepository.findRecoverable(
+                        now.minus(properties.retryCooldown()),
+                        now.minus(STALE_TASK_TIMEOUT),
                         PageRequest.of(0, 20)
                 )
-                .forEach(backlog -> submitRecovery(backlog.getPlaceId()));
+                .forEach(backlog -> submitRecovery(backlog, now));
     }
 
-    private void submitRecovery(Long placeId) {
+    private void submitRecovery(PlaceImageEnrichmentBacklog backlog, Instant now) {
+        Long placeId = backlog.getPlaceId();
+        if (backlog.getAttemptCount() >= properties.maxAttempts()) {
+            if (backlogRepository.markFailed(placeId, now) > 0) {
+                logger.warn("place_image_enrichment_failed placeId={} attemptCount={}",
+                        placeId, backlog.getAttemptCount());
+            }
+            return;
+        }
+        int claimed = backlogRepository.claimRecovery(
+                placeId,
+                now.minus(properties.retryCooldown()),
+                now.minus(STALE_TASK_TIMEOUT),
+                now
+        );
+        if (claimed == 0) {
+            return;
+        }
         try {
-            recoveryExecutor.execute(() -> enrichPlace(placeId));
+            recoveryExecutor.execute(() -> enrichRecovered(placeId));
         } catch (RejectedExecutionException exception) {
+            backlogRepository.releaseRecovery(placeId, clock.instant());
             logger.warn(
                     "Place image recovery dispatch rejected: placeId={}, cause={}",
                     placeId,
                     exception.getClass().getSimpleName()
             );
+        }
+    }
+
+    private void enrichRecovered(Long placeId) {
+        if (!inFlightPlaces.add(placeId)) {
+            backlogRepository.releaseRecovery(placeId, clock.instant());
+            return;
+        }
+        try {
+            placeRepository.findById(placeId)
+                    .filter(this::needsEnrichment)
+                    .ifPresentOrElse(
+                            this::performEnrich,
+                            () -> backlogRepository.deleteByPlaceId(placeId)
+                    );
+        } finally {
+            inFlightPlaces.remove(placeId);
         }
     }
 
@@ -174,6 +211,10 @@ public class PlaceImageEnrichmentService {
                     place.getId());
             return false;
         }
+        return performEnrich(place);
+    }
+
+    private boolean performEnrich(Place place) {
         String kakaoPlaceId = place.getKakaoPlaceId();
         if (!isValidPlaceId(kakaoPlaceId)) {
             recordFailure(place, PlaceImageEnrichmentFailureReason.INVALID_PLACE_ID);

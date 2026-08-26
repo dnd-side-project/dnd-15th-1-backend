@@ -148,12 +148,100 @@ class PlaceImageEnrichmentServiceTest {
         PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
         AtomicReference<Runnable> task = new AtomicReference<>();
         when(backlog.getPlaceId()).thenReturn(20L);
-        when(backlogRepository.findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
-                org.mockito.ArgumentMatchers.eq("PENDING"),
+        when(backlog.getAttemptCount()).thenReturn(1);
+        stubRecoverable(List.of(backlog));
+        when(backlogRepository.claimRecovery(
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        )).thenReturn(1);
+        PlaceImageEnrichmentService recoveryService = recoveryService(task::set);
+
+        recoveryService.recoverPending();
+
+        assertThat(task.get()).isNotNull();
+        verifyNoInteractions(imageProvider, imageWriter);
+    }
+
+    @Test
+    void skipsDispatchWhenAnotherWorkerAlreadyClaimedTheTask() {
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        AtomicReference<Runnable> task = new AtomicReference<>();
+        when(backlog.getPlaceId()).thenReturn(20L);
+        when(backlog.getAttemptCount()).thenReturn(0);
+        stubRecoverable(List.of(backlog));
+        when(backlogRepository.claimRecovery(
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        )).thenReturn(0);
+        PlaceImageEnrichmentService recoveryService = recoveryService(task::set);
+
+        recoveryService.recoverPending();
+
+        assertThat(task.get()).isNull();
+    }
+
+    @Test
+    void marksExhaustedBacklogAsFailedImmediatelyWithoutDispatch() {
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        AtomicReference<Runnable> task = new AtomicReference<>();
+        when(backlog.getPlaceId()).thenReturn(20L);
+        when(backlog.getAttemptCount()).thenReturn(3);
+        stubRecoverable(List.of(backlog));
+        when(backlogRepository.markFailed(
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        )).thenReturn(1);
+        PlaceImageEnrichmentService recoveryService = recoveryService(task::set);
+
+        recoveryService.recoverPending();
+
+        assertThat(task.get()).isNull();
+        verify(backlogRepository, org.mockito.Mockito.never()).claimRecovery(
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        );
+    }
+
+    @Test
+    void releasesClaimWhenRecoveryDispatchIsRejected() {
+        PlaceImageEnrichmentBacklog backlog = mock(PlaceImageEnrichmentBacklog.class);
+        when(backlog.getPlaceId()).thenReturn(20L);
+        when(backlog.getAttemptCount()).thenReturn(0);
+        stubRecoverable(List.of(backlog));
+        when(backlogRepository.claimRecovery(
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        )).thenReturn(1);
+        PlaceImageEnrichmentService recoveryService = recoveryService(task -> {
+            throw new java.util.concurrent.RejectedExecutionException();
+        });
+
+        recoveryService.recoverPending();
+
+        verify(backlogRepository).releaseRecovery(
+                org.mockito.ArgumentMatchers.eq(20L),
+                org.mockito.ArgumentMatchers.any(Instant.class)
+        );
+    }
+
+    private void stubRecoverable(List<PlaceImageEnrichmentBacklog> backlogs) {
+        when(backlogRepository.findRecoverable(
+                org.mockito.ArgumentMatchers.any(Instant.class),
                 org.mockito.ArgumentMatchers.any(Instant.class),
                 org.mockito.ArgumentMatchers.any()
-        )).thenReturn(List.of(backlog));
-        PlaceImageEnrichmentService recoveryService = new PlaceImageEnrichmentService(
+        )).thenReturn(backlogs);
+    }
+
+    private PlaceImageEnrichmentService recoveryService(java.util.function.Consumer<Runnable> executor) {
+        return new PlaceImageEnrichmentService(
                 candidateRepository,
                 placeRepository,
                 imageProvider,
@@ -162,12 +250,7 @@ class PlaceImageEnrichmentServiceTest {
                 backlogRepository,
                 new PlaceImageEnrichmentProperties(java.time.Duration.ofMinutes(10), 3),
                 Clock.fixed(Instant.parse("2026-08-10T00:00:00Z"), ZoneOffset.UTC),
-                task::set
+                executor::accept
         );
-
-        recoveryService.recoverPending();
-
-        assertThat(task.get()).isNotNull();
-        verifyNoInteractions(imageProvider, imageWriter);
     }
 }
