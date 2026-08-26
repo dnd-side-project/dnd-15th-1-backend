@@ -367,6 +367,8 @@ public class PlaceImportProcessingService {
                             verification.place(),
                             verification.status()
                     ));
+                } else {
+                    hasFailure = true;
                 }
             } catch (PlaceVerificationUnavailableException exception) {
                 hasFailure = true;

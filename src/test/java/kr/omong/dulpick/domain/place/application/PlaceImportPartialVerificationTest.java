@@ -107,6 +107,26 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
+    void preservesLinksWhenMatchReturnsNoResult() {
+        ExtractedPlace succeeded = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
+        ExtractedPlace unmatched = new ExtractedPlace("미매칭 카페", null, null, "EXPLICIT_VENUE");
+        when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(succeeded, unmatched));
+        when(placeVerifier.verify(succeeded)).thenReturn(new PlaceVerificationResult(
+                verifiedPlace("100", "성공 카페"),
+                PlaceVerificationStatus.VERIFIED
+        ));
+        when(placeVerifier.verify(unmatched)).thenReturn(null);
+
+        service.processClaimed(1L, CLAIM_TOKEN);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
+        );
+        assertThat(captor.getValue()).hasSize(1);
+    }
+
+    @Test
     void failsImportWhenEveryVerificationFails() {
         ExtractedPlace first = new ExtractedPlace("실패 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace second = new ExtractedPlace("실패 펜션", null, null, "EXPLICIT_VENUE");
