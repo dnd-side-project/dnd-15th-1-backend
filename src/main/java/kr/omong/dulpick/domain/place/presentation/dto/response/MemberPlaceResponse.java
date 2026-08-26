@@ -49,7 +49,7 @@ public record MemberPlaceResponse(
         )
         String categoryName,
         @Schema(
-                description = "현재 회원과 연결된 상대방의 저장 관계입니다. MINE은 나만 저장, PARTNER는 상대방만 저장, TOGETHER는 커플 중 한 명 이상이 저장한 장소를 의미합니다.",
+                description = "현재 회원과 연결된 상대방의 저장 관계입니다. MINE은 나만 저장, PARTNER는 상대방만 저장, TOGETHER는 두 사람 모두 저장한 장소를 의미합니다.",
                 allowableValues = {"MINE", "PARTNER", "TOGETHER"},
                 example = "MINE",
                 requiredMode = Schema.RequiredMode.REQUIRED

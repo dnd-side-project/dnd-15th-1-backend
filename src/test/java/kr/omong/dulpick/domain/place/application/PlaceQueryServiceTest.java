@@ -71,7 +71,7 @@ class PlaceQueryServiceTest {
     }
 
     @Test
-    void marksPartnerOnlyPlaceAsTogetherWhenCoupleIsActive() {
+    void marksPartnerOnlyPlaceAsPartnerWhenCoupleIsActive() {
         Place place = place(20L);
         MemberPlace partner = memberPlace(
                 2L,
@@ -84,7 +84,7 @@ class PlaceQueryServiceTest {
                 .thenReturn(List.of(partner));
 
         assertThat(service.getVisiblePlaces(1L)).singleElement().satisfies(saved ->
-                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER)
+                assertThat(saved.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.PARTNER)
         );
     }
 
