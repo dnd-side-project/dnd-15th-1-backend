@@ -13,27 +13,66 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class KakaoPlaceSearchClient implements PlaceSearcher {
 
     static final int SEARCH_SIZE = 10;
     private static final int MAX_PAGE = 45;
+    private static final int MAX_CONCURRENT_SEARCHES = 16;
+    private static final Duration SEARCH_PERMIT_TIMEOUT = Duration.ofSeconds(3);
+    private static final Duration QUERY_CACHE_TTL = Duration.ofMinutes(10);
+    private static final int QUERY_CACHE_MAX_ENTRIES = 5_000;
 
     private final KakaoProperties properties;
     private final RestClient restClient;
+    private final Clock clock;
+    private final Semaphore searchPermits;
+    private final Map<String, CachedResults> queryCache = Collections.synchronizedMap(
+            new LinkedHashMap<>(128, 0.75f, false) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<String, CachedResults> eldest) {
+                    return size() > QUERY_CACHE_MAX_ENTRIES;
+                }
+            }
+    );
 
     @Autowired
-    public KakaoPlaceSearchClient(KakaoProperties properties) {
-        this(properties, createRestClientBuilder(properties));
+    public KakaoPlaceSearchClient(KakaoProperties properties, Clock clock) {
+        this(properties, createRestClientBuilder(properties), clock);
     }
 
     KakaoPlaceSearchClient(KakaoProperties properties, RestClient.Builder restClientBuilder) {
+        this(properties, restClientBuilder, Clock.systemUTC());
+    }
+
+    KakaoPlaceSearchClient(
+            KakaoProperties properties,
+            RestClient.Builder restClientBuilder,
+            Clock clock
+    ) {
+        this(properties, restClientBuilder, clock, MAX_CONCURRENT_SEARCHES);
+    }
+
+    KakaoPlaceSearchClient(
+            KakaoProperties properties,
+            RestClient.Builder restClientBuilder,
+            Clock clock,
+            int maxConcurrentSearches
+    ) {
         this.properties = properties;
         this.restClient = restClientBuilder.baseUrl(properties.baseUrl()).build();
+        this.clock = clock;
+        this.searchPermits = new Semaphore(maxConcurrentSearches);
     }
 
     private static RestClient.Builder createRestClientBuilder(KakaoProperties properties) {
@@ -45,7 +84,18 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
 
     @Override
     public List<PlaceSearchResult> search(String query) {
-        return search(query, FIRST_PAGE).results();
+        String cacheKey = query == null ? "" : query.strip();
+        CachedResults cached = queryCache.get(cacheKey);
+        if (cached != null && cached.isFresh(clock.instant())) {
+            return cached.results();
+        }
+        List<PlaceSearchResult> results = search(cacheKey, FIRST_PAGE).results();
+        CachedResults fresh = new CachedResults(
+                List.copyOf(results),
+                clock.instant().plus(QUERY_CACHE_TTL)
+        );
+        queryCache.put(cacheKey, fresh);
+        return fresh.results();
     }
 
     @Override
@@ -57,6 +107,9 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
             throw new PlaceVerificationUnavailableException();
         }
         int kakaoPage = Math.clamp(page, FIRST_PAGE, MAX_PAGE);
+        if (!tryAcquireSearchPermit()) {
+            throw new PlaceVerificationUnavailableException();
+        }
         try {
             Map<String, Object> response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -78,6 +131,24 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
             return new PlaceKeywordSearch(results, isLastPage(response, results.size()));
         } catch (RestClientException exception) {
             throw new PlaceVerificationUnavailableException(exception);
+        } finally {
+            searchPermits.release();
+        }
+    }
+
+    private boolean tryAcquireSearchPermit() {
+        try {
+            return searchPermits.tryAcquire(SEARCH_PERMIT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+    }
+
+    private record CachedResults(List<PlaceSearchResult> results, Instant expiresAt) {
+
+        boolean isFresh(Instant now) {
+            return expiresAt.isAfter(now);
         }
     }
 

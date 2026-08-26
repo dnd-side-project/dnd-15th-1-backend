@@ -126,6 +126,7 @@ tasks.named('test', Test) {
     include '**/NaverPlaceHtmlParserTest.class'
     include '**/KakaoPlaceMatcherTest.class'
     include '**/KakaoPlaceVerifierTest.class'
+    include '**/KakaoPlaceSearchClientCacheTest.class'
     include '**/PublicInstagramMetadataProviderTest.class'
     include '**/PublicWebMetadataProviderTest.class'
     include '**/PushRegistrationCipherTest.class'
