@@ -150,7 +150,9 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
                 List.copyOf(results),
                 clock.instant().plus(QUERY_CACHE_TTL)
         );
-        queryCache.put(cacheKey, fresh);
+        if (!fresh.results().isEmpty()) {
+            queryCache.put(cacheKey, fresh);
+        }
         return fresh;
     }
 

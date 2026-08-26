@@ -162,6 +162,25 @@ class KakaoPlaceSearchClientCacheTest {
         server.verify();
     }
 
+    @Test
+    void doesNotCacheEmptyKeywordResponses() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoPlaceSearchClient client = new KakaoPlaceSearchClient(
+                properties(), builder, clock
+        );
+        server.expect(once(), anything())
+                .andRespond(withSuccess("{\"documents\": [], \"meta\": {\"is_end\": true}}", MediaType.APPLICATION_JSON));
+        server.expect(once(), anything())
+                .andRespond(withSuccess(DOCUMENTS_RESPONSE, MediaType.APPLICATION_JSON));
+
+        assertThat(client.search("테스트 카페")).isEmpty();
+        clock.advance(Duration.ofSeconds(1));
+        assertThat(client.search("테스트 카페")).hasSize(1);
+
+        server.verify();
+    }
+
     private KakaoProperties properties() {
         return new KakaoProperties(true, "local-test-key", "https://dapi.kakao.com", 3);
     }
