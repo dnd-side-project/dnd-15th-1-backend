@@ -1,0 +1,11 @@
+spring:
+  config:
+    activate:
+      on-profile: reset
+  flyway:
+    locations: classpath:db/migration-reset
+    baseline-on-migrate: false
+    clean-disabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
