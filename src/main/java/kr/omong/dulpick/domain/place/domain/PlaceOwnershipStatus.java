@@ -5,18 +5,14 @@ public enum PlaceOwnershipStatus {
     PARTNER,
     TOGETHER;
 
-    public static PlaceOwnershipStatus resolve(
-            boolean hasActiveCouple,
-            boolean savedByMe,
-            boolean savedByPartner
-    ) {
-        if (savedByMe || savedByPartner) {
-            if (hasActiveCouple) {
-                return TOGETHER;
-            }
-            if (savedByMe) {
-                return MINE;
-            }
+    public static PlaceOwnershipStatus resolve(boolean savedByMe, boolean savedByPartner) {
+        if (savedByMe && savedByPartner) {
+            return TOGETHER;
+        }
+        if (savedByMe) {
+            return MINE;
+        }
+        if (savedByPartner) {
             return PARTNER;
         }
         return null;
@@ -33,7 +29,7 @@ public enum PlaceOwnershipStatus {
         return switch (filter) {
             case MINE -> savedByMe && !savedByPartner;
             case PARTNER -> savedByPartner && !savedByMe;
-            case TOGETHER -> savedByMe || savedByPartner;
+            case TOGETHER -> savedByMe && savedByPartner;
         };
     }
 }

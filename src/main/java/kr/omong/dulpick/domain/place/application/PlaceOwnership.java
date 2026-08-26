@@ -12,13 +12,9 @@ public record PlaceOwnership(
         return new PlaceOwnership(null, false, false);
     }
 
-    public static PlaceOwnership of(
-            boolean hasActiveCouple,
-            boolean savedByMe,
-            boolean savedByPartner
-    ) {
+    public static PlaceOwnership of(boolean savedByMe, boolean savedByPartner) {
         return new PlaceOwnership(
-                PlaceOwnershipStatus.resolve(hasActiveCouple, savedByMe, savedByPartner),
+                PlaceOwnershipStatus.resolve(savedByMe, savedByPartner),
                 savedByMe,
                 savedByPartner
         );

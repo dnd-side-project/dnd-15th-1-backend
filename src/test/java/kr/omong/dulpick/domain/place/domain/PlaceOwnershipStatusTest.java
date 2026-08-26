@@ -7,33 +7,38 @@ import static org.assertj.core.api.Assertions.assertThat;
 class PlaceOwnershipStatusTest {
 
     @Test
-    void resolvesTogetherWhenCoupleHasAnySave() {
-        assertThat(PlaceOwnershipStatus.resolve(true, true, false))
+    void resolvesTogetherOnlyWhenBothMembersSaved() {
+        assertThat(PlaceOwnershipStatus.resolve(true, true))
                 .isEqualTo(PlaceOwnershipStatus.TOGETHER);
-        assertThat(PlaceOwnershipStatus.resolve(true, false, true))
-                .isEqualTo(PlaceOwnershipStatus.TOGETHER);
-        assertThat(PlaceOwnershipStatus.resolve(true, true, true))
-                .isEqualTo(PlaceOwnershipStatus.TOGETHER);
-    }
-
-    @Test
-    void resolvesMineOrPartnerWithoutActiveCouple() {
-        assertThat(PlaceOwnershipStatus.resolve(false, true, false))
+        assertThat(PlaceOwnershipStatus.resolve(true, false))
                 .isEqualTo(PlaceOwnershipStatus.MINE);
-        assertThat(PlaceOwnershipStatus.resolve(false, false, true))
+        assertThat(PlaceOwnershipStatus.resolve(false, true))
                 .isEqualTo(PlaceOwnershipStatus.PARTNER);
     }
 
     @Test
-    void matchesTogetherFilterWithEitherSave() {
+    void resolvesMineOrPartnerWithoutActiveCouple() {
+        assertThat(PlaceOwnershipStatus.resolve(true, false))
+                .isEqualTo(PlaceOwnershipStatus.MINE);
+        assertThat(PlaceOwnershipStatus.resolve(false, true))
+                .isEqualTo(PlaceOwnershipStatus.PARTNER);
+    }
+
+    @Test
+    void matchesTogetherFilterOnlyWithBothSaves() {
         assertThat(PlaceOwnershipStatus.matchesFilter(
                 PlaceOwnershipStatus.TOGETHER,
                 true,
                 false
-        )).isTrue();
+        )).isFalse();
         assertThat(PlaceOwnershipStatus.matchesFilter(
                 PlaceOwnershipStatus.TOGETHER,
                 false,
+                true
+        )).isFalse();
+        assertThat(PlaceOwnershipStatus.matchesFilter(
+                PlaceOwnershipStatus.TOGETHER,
+                true,
                 true
         )).isTrue();
         assertThat(PlaceOwnershipStatus.matchesFilter(

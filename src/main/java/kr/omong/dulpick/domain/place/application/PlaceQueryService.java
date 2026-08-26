@@ -47,14 +47,12 @@ public class PlaceQueryService {
             DulpickPlaceCategory category,
             PlaceOwnershipStatus ownershipStatus
     ) {
-        boolean hasActiveCouple = hasActiveCouple(memberId);
         List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
         Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
         return groupedPlaces.stream()
                 .filter(places -> category == null
                         || category.getDisplayName().equals(places.getFirst().getPlace().getCategoryName()))
-                .filter(places -> ownership(memberId, places, hasActiveCouple)
-                        .matchesFilter(ownershipStatus))
+                .filter(places -> ownership(memberId, places).matchesFilter(ownershipStatus))
                 .map(places -> toView(memberId, places, saveCounts))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
@@ -69,7 +67,6 @@ public class PlaceQueryService {
         if (distinctPlaceIds.isEmpty()) {
             return Map.of();
         }
-        boolean hasActiveCouple = hasActiveCouple(memberId);
         return memberPlaceRepository.findAllByMemberIdInAndPlaceIdIn(
                         visibleMemberIds(memberId),
                         distinctPlaceIds
@@ -84,7 +81,7 @@ public class PlaceQueryService {
                 .stream()
                 .collect(Collectors.toMap(
                         Map.Entry::getKey,
-                        entry -> ownership(memberId, entry.getValue(), hasActiveCouple)
+                        entry -> ownership(memberId, entry.getValue())
                 ));
     }
 
@@ -117,10 +114,6 @@ public class PlaceQueryService {
         return memberIds;
     }
 
-    private boolean hasActiveCouple(Long memberId) {
-        return visibleMemberIds(memberId).size() > 1;
-    }
-
     private MemberPlaceView toView(
             Long memberId,
             List<MemberPlace> places,
@@ -131,7 +124,7 @@ public class PlaceQueryService {
                 .findFirst()
                 .orElse(null);
         MemberPlace selected = mine == null ? places.getFirst() : mine;
-        PlaceOwnership ownership = ownership(memberId, places, hasActiveCouple(memberId));
+        PlaceOwnership ownership = ownership(memberId, places);
         Long placeId = selected.getPlace().getId();
         return new MemberPlaceView(
                 selected.getMemberId(),
@@ -181,11 +174,10 @@ public class PlaceQueryService {
 
     private PlaceOwnership ownership(
             Long memberId,
-            List<MemberPlace> places,
-            boolean hasActiveCouple
+            List<MemberPlace> places
     ) {
         boolean savedByMe = places.stream().anyMatch(place -> place.getMemberId().equals(memberId));
         boolean savedByPartner = places.stream().anyMatch(place -> !place.getMemberId().equals(memberId));
-        return PlaceOwnership.of(hasActiveCouple, savedByMe, savedByPartner);
+        return PlaceOwnership.of(savedByMe, savedByPartner);
     }
 }
