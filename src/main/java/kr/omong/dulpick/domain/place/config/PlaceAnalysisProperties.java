@@ -53,13 +53,13 @@ public record PlaceAnalysisProperties(
         }
         if (workerConcurrency <= 0) {
             workerConcurrency = 2;
-        } else if (workerConcurrency > 10) {
-            workerConcurrency = 10;
+        } else if (workerConcurrency > 16) {
+            workerConcurrency = 16;
         }
         if (verificationConcurrency <= 0) {
             verificationConcurrency = 3;
-        } else if (verificationConcurrency > 5) {
-            verificationConcurrency = 5;
+        } else if (verificationConcurrency > 20) {
+            verificationConcurrency = 20;
         }
     }
 }

@@ -98,6 +98,7 @@ tasks.named('test', Test) {
         'ContentSearchIntegrationTest',
         'PlaceClassificationAdminIntegrationTest',
         'PlaceMapIntegrationTest',
+        'PlaceAnalysisPropertiesTest',
         'PushDeviceIntegrationTest',
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
