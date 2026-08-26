@@ -21,6 +21,9 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 
@@ -47,6 +50,8 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
                 }
             }
     );
+    private final Map<String, CompletableFuture<CachedResults>> inFlightQueries =
+            new ConcurrentHashMap<>();
 
     @Autowired
     public KakaoPlaceSearchClient(
@@ -114,13 +119,50 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
         if (cached != null && cached.isFresh(clock.instant())) {
             return cached.results();
         }
+        return loadOnce(cacheKey).results();
+    }
+
+    private CachedResults loadOnce(String cacheKey) {
+        CompletableFuture<CachedResults> myLoad = null;
+        CompletableFuture<CachedResults> ongoingLoad = inFlightQueries.get(cacheKey);
+        if (ongoingLoad == null) {
+            myLoad = new CompletableFuture<>();
+            ongoingLoad = inFlightQueries.putIfAbsent(cacheKey, myLoad);
+            if (ongoingLoad == null) {
+                try {
+                    CachedResults fresh = fetchAndCache(cacheKey);
+                    myLoad.complete(fresh);
+                    return fresh;
+                } catch (RuntimeException exception) {
+                    myLoad.completeExceptionally(exception);
+                    throw exception;
+                } finally {
+                    inFlightQueries.remove(cacheKey);
+                }
+            }
+        }
+        return awaitOngoingLoad(ongoingLoad);
+    }
+
+    private CachedResults fetchAndCache(String cacheKey) {
         List<PlaceSearchResult> results = search(cacheKey, FIRST_PAGE).results();
         CachedResults fresh = new CachedResults(
                 List.copyOf(results),
                 clock.instant().plus(QUERY_CACHE_TTL)
         );
         queryCache.put(cacheKey, fresh);
-        return fresh.results();
+        return fresh;
+    }
+
+    private CachedResults awaitOngoingLoad(CompletableFuture<CachedResults> ongoingLoad) {
+        try {
+            return ongoingLoad.join();
+        } catch (CompletionException exception) {
+            if (exception.getCause() instanceof RuntimeException runtimeException) {
+                throw runtimeException;
+            }
+            throw exception;
+        }
     }
 
     @Override

@@ -15,6 +15,11 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -126,6 +131,35 @@ class KakaoPlaceSearchClientCacheTest {
         );
 
         assertThat(defaultClient.searchPermitCount()).isEqualTo(16);
+    }
+
+    @Test
+    void collapsesConcurrentIdenticalQueriesIntoSingleRequest() throws Exception {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoPlaceSearchClient client = new KakaoPlaceSearchClient(
+                properties(), builder, clock
+        );
+        server.expect(once(), anything())
+                .andRespond(withSuccess(DOCUMENTS_RESPONSE, MediaType.APPLICATION_JSON));
+        int callerCount = 6;
+        CyclicBarrier barrier = new CyclicBarrier(callerCount);
+        List<Future<List<PlaceSearchResult>>> callers = new java.util.ArrayList<>();
+        ExecutorService executor = Executors.newFixedThreadPool(callerCount);
+        for (int index = 0; index < callerCount; index++) {
+            callers.add(executor.submit(() -> {
+                barrier.await(5, TimeUnit.SECONDS);
+                return client.search("테스트 카페");
+            }));
+        }
+
+        List<PlaceSearchResult> first = callers.getFirst().get(5, TimeUnit.SECONDS);
+        for (Future<List<PlaceSearchResult>> caller : callers) {
+            assertThat(caller.get(5, TimeUnit.SECONDS)).isSameAs(first);
+        }
+        executor.shutdownNow();
+
+        server.verify();
     }
 
     private KakaoProperties properties() {
