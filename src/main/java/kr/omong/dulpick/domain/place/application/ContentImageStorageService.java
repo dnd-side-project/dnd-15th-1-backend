@@ -73,7 +73,7 @@ public class ContentImageStorageService {
             ContentThumbnailProperties properties,
             Clock clock,
             PlatformTransactionManager transactionManager,
-            Executor refreshExecutor,
+            @Qualifier("contentImageExecutor") Executor refreshExecutor,
             ContentImageEnrichmentBacklogRepository backlogRepository,
             ObjectMapper objectMapper
     ) {
