@@ -16,7 +16,7 @@
 
 1. 서비스 쓰기 요청을 중지할 점검 시간을 확정한다.
 2. 운영 DB 전체 dump를 별도 저장소에 보관하고 복구 테스트를 완료한다.
-3. `/home/ubuntu/dulpick/content-images`와 장소 이미지 저장 디렉터리를 DB dump와 별도로 백업한다.
+3. 콘텐츠·장소 이미지 저장소를 DB dump와 별도로 백업한다.
 4. DB의 `content_images.storage_key`, `place_images.storage_key`와 실제 파일을 대조한다.
 5. 복구 대상 원본 URL 목록과 기본 장소 seed 목록을 확정한다.
 6. 새 DB에서 기본 Flyway 경로의 `V1`~`V10` 실행 후 애플리케이션 기동과 `ddl-auto: validate` 통과를 확인한다.
