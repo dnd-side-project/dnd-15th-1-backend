@@ -7,10 +7,12 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
+import kr.omong.dulpick.domain.place.application.exception.PublicContentImageUnavailableException;
 import kr.omong.dulpick.global.exception.ErrorResponse;
 import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,7 +35,7 @@ public class ContentImageController {
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "이미지 조회 성공"),
-            @ApiResponse(responseCode = "502", description = "이미지를 불러올 수 없음", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ErrorResponse.class)))
+            @ApiResponse(responseCode = "404", description = "이미지를 찾을 수 없음", content = @io.swagger.v3.oas.annotations.media.Content(schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = ErrorResponse.class)))
     })
     @SecurityRequirements
     @GetMapping("/{imageKey}")
@@ -46,5 +48,10 @@ public class ContentImageController {
                 .contentType(image.contentType())
                 .cacheControl(CacheControl.maxAge(Duration.ofDays(1)).cachePublic())
                 .body(image.bytes());
+    }
+
+    @ExceptionHandler(PublicContentImageUnavailableException.class)
+    public ResponseEntity<Void> handleUnavailableImage() {
+        return ResponseEntity.notFound().build();
     }
 }
