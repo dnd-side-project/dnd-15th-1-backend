@@ -169,6 +169,7 @@ public class PlaceImageEnrichmentService {
 
     private boolean enrich(Place place) {
         if (!canAttempt(place.getId())) {
+            closeExhaustedBacklog(place.getId());
             logger.info("place_image_enrichment_skipped placeId={} reason=RETRY_LIMIT_OR_COOLDOWN",
                     place.getId());
             return false;
@@ -204,6 +205,17 @@ public class PlaceImageEnrichmentService {
                     place.getId(), exception.getClass().getSimpleName());
             return false;
         }
+    }
+
+    private void closeExhaustedBacklog(Long placeId) {
+        backlogRepository.findByPlaceId(placeId)
+                .filter(backlog -> "PENDING".equals(backlog.getStatus()))
+                .filter(backlog -> backlog.getAttemptCount() >= properties.maxAttempts())
+                .ifPresent(backlog -> {
+                    backlogRepository.markFailed(placeId, Instant.now(clock));
+                    logger.warn("place_image_enrichment_failed placeId={} attemptCount={}",
+                            placeId, backlog.getAttemptCount());
+                });
     }
 
     private boolean canAttempt(Long placeId) {

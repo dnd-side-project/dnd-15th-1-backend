@@ -50,4 +50,16 @@ public interface PlaceImageEnrichmentBacklogRepository
     @Modifying
     @Query("DELETE FROM PlaceImageEnrichmentBacklog backlog WHERE backlog.placeId = :placeId")
     void deleteByPlaceId(@Param("placeId") Long placeId);
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE place_image_enrichment_backlogs
+               SET status = 'FAILED', updated_at = :now
+             WHERE place_id = :placeId AND status = 'PENDING'
+            """, nativeQuery = true)
+    void markFailed(
+            @Param("placeId") Long placeId,
+            @Param("now") Instant now
+    );
 }
