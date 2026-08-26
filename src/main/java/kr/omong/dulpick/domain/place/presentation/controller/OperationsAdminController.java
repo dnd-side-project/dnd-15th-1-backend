@@ -56,6 +56,17 @@ public class OperationsAdminController {
     }
 
     @Operation(
+            summary = "일별 장소 추출 통계 조회",
+            description = "최근 N일(7~30, 기본 14)의 요청 수·완료·후보 확인·실패와 평균 처리 시간을 반환합니다."
+    )
+    @GetMapping("/stats/daily")
+    public ResponseEntity<OperationsAdminView.DailyStats> dailyStats(
+            @Parameter(example = "14") @RequestParam(defaultValue = "14") @Schema(example = "14") int days
+    ) {
+        return ResponseEntity.ok(adminService.dailyStats(days));
+    }
+
+    @Operation(
             summary = "장소 추출 작업 목록 조회",
             description = "hasUnverified=true이면 검증되지 않은 후보(EXTRACTED)가 남아 있는 작업만 조회합니다."
     )

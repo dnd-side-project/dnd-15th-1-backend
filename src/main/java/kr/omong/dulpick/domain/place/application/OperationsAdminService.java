@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.application;
 
+import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPlace;
@@ -54,6 +55,10 @@ public class OperationsAdminService {
 
     private static final int MAX_PAGE_SIZE = 50;
     private static final Duration STALE_IMPORT_TIMEOUT = Duration.ofMinutes(10);
+    private static final String CANDIDATE_COUNT_COLUMNS =
+            "(SELECT COUNT(*) FROM place_candidates pc WHERE pc.import_id = place_imports.id) AS candidate_count, "
+            + "(SELECT COUNT(*) FROM place_candidates pc2 WHERE pc2.import_id = place_imports.id "
+            + "AND pc2.verification_status = 'EXTRACTED') AS unverified_count";
 
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
@@ -69,6 +74,7 @@ public class OperationsAdminService {
     private final PlaceCandidateRepository placeCandidateRepository;
     private final PlaceImageRepository placeImageRepository;
     private final PlaceImageStorageService placeImageStorageService;
+    private final PlaceAnalysisProperties analysisProperties;
 
     public OperationsAdminService(
             JdbcTemplate jdbcTemplate,
@@ -84,7 +90,8 @@ public class OperationsAdminService {
             ContentPlaceRepository contentPlaceRepository,
             PlaceCandidateRepository placeCandidateRepository,
             PlaceImageRepository placeImageRepository,
-            PlaceImageStorageService placeImageStorageService
+            PlaceImageStorageService placeImageStorageService,
+            PlaceAnalysisProperties analysisProperties
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
@@ -100,6 +107,7 @@ public class OperationsAdminService {
         this.placeCandidateRepository = placeCandidateRepository;
         this.placeImageRepository = placeImageRepository;
         this.placeImageStorageService = placeImageStorageService;
+        this.analysisProperties = analysisProperties;
     }
 
     @Transactional(readOnly = true)
@@ -128,11 +136,36 @@ public class OperationsAdminService {
                 placeBacklogs,
                 duration[0],
                 duration[1],
+                analysisProperties.dailyLimit(),
                 grouped("SELECT failure_code AS item, COUNT(*) AS total FROM place_imports "
                         + "WHERE created_at >= ? AND failure_code IS NOT NULL GROUP BY failure_code ORDER BY total DESC", since),
                 grouped("SELECT source_type AS item, COUNT(*) AS total FROM place_imports "
                         + "WHERE created_at >= ? GROUP BY source_type ORDER BY total DESC", since)
         );
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsAdminView.DailyStats dailyStats(int days) {
+        int boundedDays = Math.max(7, Math.min(days, 30));
+        Instant since = clock.instant().minus(Duration.ofDays(boundedDays));
+        List<OperationsAdminView.DailyStat> stats = jdbcTemplate.query(
+                "SELECT DATE(created_at) AS stat_date, COUNT(*) AS total, "
+                        + "SUM(status = 'COMPLETED') AS completed, "
+                        + "SUM(status = 'REVIEW_REQUIRED') AS review_required, "
+                        + "SUM(status = 'FAILED') AS failed, "
+                        + "COALESCE(AVG(CASE WHEN completed_at IS NOT NULL THEN TIMESTAMPDIFF(MICROSECOND, created_at, completed_at) / 1000 END), 0) AS avg_ms "
+                        + "FROM place_imports WHERE created_at >= ? GROUP BY DATE(created_at) ORDER BY stat_date",
+                (rs, rowNum) -> new OperationsAdminView.DailyStat(
+                        rs.getString("stat_date"),
+                        rs.getLong("total"),
+                        rs.getLong("completed"),
+                        rs.getLong("review_required"),
+                        rs.getLong("failed"),
+                        rs.getLong("avg_ms")
+                ),
+                since
+        );
+        return new OperationsAdminView.DailyStats(stats);
     }
 
     @Transactional(readOnly = true)
@@ -166,7 +199,8 @@ public class OperationsAdminService {
     public OperationsAdminView.ImportDetail importDetail(Long importId) {
         OperationsAdminView.ImportSummary summary = jdbcTemplate.query(
                 "SELECT id, content_id, source_type, canonical_url, status, failure_code, retry_count, "
-                        + "created_at, updated_at, completed_at FROM place_imports WHERE id = ?",
+                        + "created_at, updated_at, completed_at, " + CANDIDATE_COUNT_COLUMNS
+                        + " FROM place_imports WHERE id = ?",
                 (rs, rowNum) -> importSummary(rs),
                 importId
         ).stream().findFirst().orElseThrow(() -> new BusinessException(ErrorCode.PLACE_IMPORT_NOT_FOUND));
@@ -812,7 +846,7 @@ public class OperationsAdminService {
         String columns = " FROM place_imports" + where;
         return new QueryParts(
                 "SELECT id, content_id, source_type, canonical_url, status, failure_code, retry_count, "
-                        + "created_at, updated_at, completed_at" + columns,
+                        + "created_at, updated_at, completed_at, " + CANDIDATE_COUNT_COLUMNS + columns,
                 "SELECT COUNT(*)" + columns,
                 parameters
         );
@@ -829,7 +863,9 @@ public class OperationsAdminService {
                 rs.getInt("retry_count"),
                 instant(rs, "created_at"),
                 instant(rs, "updated_at"),
-                instant(rs, "completed_at")
+                instant(rs, "completed_at"),
+                rs.getLong("candidate_count"),
+                rs.getLong("unverified_count")
         );
     }
 

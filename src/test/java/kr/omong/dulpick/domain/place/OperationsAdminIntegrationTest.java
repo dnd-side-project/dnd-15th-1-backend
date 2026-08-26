@@ -212,6 +212,15 @@ class OperationsAdminIntegrationTest {
     }
 
     @Test
+    void returnsDailyStatsWithinConfiguredWindow() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/stats/daily")
+                        .param("days", "14")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.stats").isArray());
+    }
+
+    @Test
     void createsAdminPlaceIdempotently() throws Exception {
         String kakaoPlaceId = "ops-create-" + UUID.randomUUID();
         String body = """
