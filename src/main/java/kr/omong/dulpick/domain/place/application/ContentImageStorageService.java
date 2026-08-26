@@ -551,10 +551,19 @@ public class ContentImageStorageService {
             return;
         }
         try {
+            List<String> sourceUrls = imageRepository
+                    .findAllByContentIdOrderByDisplayOrderAsc(image.getContentId())
+                    .stream()
+                    .map(ContentImage::getSourceUrl)
+                    .filter(url -> url != null && !url.isBlank())
+                    .toList();
+            if (sourceUrls.isEmpty()) {
+                return;
+            }
             Instant now = clock.instant();
             backlogRepository.enqueue(
                     image.getContentId(),
-                    objectMapper.writeValueAsString(List.of(image.getSourceUrl())),
+                    objectMapper.writeValueAsString(sourceUrls),
                     now.plusSeconds(60),
                     now
             );
