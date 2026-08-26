@@ -16,10 +16,47 @@ public interface PlaceImageEnrichmentBacklogRepository
 
     Optional<PlaceImageEnrichmentBacklog> findByPlaceId(Long placeId);
 
-    List<PlaceImageEnrichmentBacklog> findByStatusAndLastFailedAtBeforeOrderByLastFailedAtAsc(
-            String status,
-            Instant before,
+    @Query("""
+            SELECT backlog
+              FROM PlaceImageEnrichmentBacklog backlog
+             WHERE (backlog.status = 'PENDING'
+                    AND backlog.lastFailedAt <= :cooldownBefore)
+                OR (backlog.status = 'PROCESSING'
+                    AND backlog.updatedAt <= :staleBefore)
+             ORDER BY backlog.lastFailedAt ASC, backlog.id ASC
+            """)
+    List<PlaceImageEnrichmentBacklog> findRecoverable(
+            @Param("cooldownBefore") Instant cooldownBefore,
+            @Param("staleBefore") Instant staleBefore,
             Pageable pageable
+    );
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE place_image_enrichment_backlogs
+               SET status = 'PROCESSING', updated_at = :now
+             WHERE place_id = :placeId
+               AND ((status = 'PENDING' AND last_failed_at <= :cooldownBefore)
+                    OR (status = 'PROCESSING' AND updated_at <= :staleBefore))
+            """, nativeQuery = true)
+    int claimRecovery(
+            @Param("placeId") Long placeId,
+            @Param("cooldownBefore") Instant cooldownBefore,
+            @Param("staleBefore") Instant staleBefore,
+            @Param("now") Instant now
+    );
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE place_image_enrichment_backlogs
+               SET status = 'PENDING', updated_at = :now
+             WHERE place_id = :placeId AND status = 'PROCESSING'
+            """, nativeQuery = true)
+    void releaseRecovery(
+            @Param("placeId") Long placeId,
+            @Param("now") Instant now
     );
 
     @Transactional
@@ -50,4 +87,16 @@ public interface PlaceImageEnrichmentBacklogRepository
     @Modifying
     @Query("DELETE FROM PlaceImageEnrichmentBacklog backlog WHERE backlog.placeId = :placeId")
     void deleteByPlaceId(@Param("placeId") Long placeId);
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            UPDATE place_image_enrichment_backlogs
+               SET status = 'FAILED', updated_at = :now
+             WHERE place_id = :placeId AND status = 'PENDING'
+            """, nativeQuery = true)
+    int markFailed(
+            @Param("placeId") Long placeId,
+            @Param("now") Instant now
+    );
 }

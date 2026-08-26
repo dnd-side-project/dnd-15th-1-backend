@@ -13,6 +13,8 @@ import java.util.List;
 public interface ContentImageEnrichmentBacklogRepository
         extends JpaRepository<ContentImageEnrichmentBacklog, Long> {
 
+    boolean existsByContentIdAndStatusIn(Long contentId, List<String> statuses);
+
     @Transactional
     @Modifying
     @Query(value = """
@@ -23,8 +25,11 @@ public interface ContentImageEnrichmentBacklogRepository
                     :nextAttemptAt, :now, :now)
             ON DUPLICATE KEY UPDATE
                 source_urls = :sourceUrls,
-                status = 'PENDING',
-                next_attempt_at = :nextAttemptAt,
+                attempt_count = IF(status = 'FAILED', 0, attempt_count),
+                next_attempt_at = IF(status = 'FAILED',
+                                     :nextAttemptAt,
+                                     LEAST(next_attempt_at, :nextAttemptAt)),
+                status = IF(status = 'FAILED', 'PENDING', status),
                 updated_at = :now
             """, nativeQuery = true)
     void enqueue(

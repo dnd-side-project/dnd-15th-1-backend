@@ -98,10 +98,15 @@ tasks.named('test', Test) {
         'ContentSearchIntegrationTest',
         'PlaceClassificationAdminIntegrationTest',
         'PlaceMapIntegrationTest',
+        'PlaceAnalysisPropertiesTest',
+        'PlaceImportViewMapperRetryAfterTest',
+        'PlaceImportPartialVerificationTest',
+        'ImageEnrichmentBacklogSqlIntegrationTest',
         'PushDeviceIntegrationTest',
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
         'MarketingNotificationAdminIntegrationTest',
+        'EmailAnnouncementIntegrationTest',
         'OperationsAdminIntegrationTest',
         'NotificationDeliveryWorkerIntegrationTest',
         'NotificationInboxIntegrationTest',
@@ -124,6 +129,7 @@ tasks.named('test', Test) {
     include '**/NaverPlaceHtmlParserTest.class'
     include '**/KakaoPlaceMatcherTest.class'
     include '**/KakaoPlaceVerifierTest.class'
+    include '**/KakaoPlaceSearchClientCacheTest.class'
     include '**/PublicInstagramMetadataProviderTest.class'
     include '**/PublicWebMetadataProviderTest.class'
     include '**/PushRegistrationCipherTest.class'

@@ -27,6 +27,24 @@ public interface ContentRepository extends JpaRepository<Content, Long> {
 
     List<Content> findAllBySourceTypeInOrderByIdAsc(List<ContentSourceType> sourceTypes);
 
+    @Query("""
+            SELECT content
+            FROM Content content
+            WHERE content.publicationStatus = :status
+              AND content.sourceType IN :sourceTypes
+              AND (LOWER(content.canonicalUrl) LIKE LOWER(:reelPattern)
+                   OR LOWER(content.canonicalUrl) LIKE LOWER(:postPattern)
+                   OR LOWER(content.canonicalUrl) LIKE LOWER(:postsPattern))
+            ORDER BY content.id ASC
+            """)
+    List<Content> findPublicContentsByInstagramMediaKey(
+            @Param("status") ContentPublicationStatus status,
+            @Param("sourceTypes") List<ContentSourceType> sourceTypes,
+            @Param("reelPattern") String reelPattern,
+            @Param("postPattern") String postPattern,
+            @Param("postsPattern") String postsPattern
+    );
+
     @Query(
             value = """
                     SELECT content

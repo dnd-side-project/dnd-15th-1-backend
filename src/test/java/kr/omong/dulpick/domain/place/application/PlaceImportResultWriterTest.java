@@ -186,7 +186,8 @@ class PlaceImportResultWriterTest {
                 1L,
                 "import-claim",
                 metadata,
-                List.of(reviewCandidate, verifiedCandidate)
+                List.of(reviewCandidate, verifiedCandidate),
+                false
         );
 
         verify(placeRepository, times(1)).insertIfAbsent(
@@ -232,7 +233,8 @@ class PlaceImportResultWriterTest {
                 1L,
                 "stale-claim",
                 metadata,
-                List.of()
+                List.of(),
+                false
         )).isInstanceOf(PlaceImportClaimLostException.class);
 
         verifyNoInteractions(candidateRepository, placeRepository);

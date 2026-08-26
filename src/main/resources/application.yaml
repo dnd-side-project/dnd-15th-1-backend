@@ -90,7 +90,7 @@ notification:
 
 place-analysis:
   enabled: ${PLACE_ANALYSIS_ENABLED:false}
-  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:100}
+  daily-limit: ${PLACE_ANALYSIS_DAILY_LIMIT:400}
   max-candidates: ${PLACE_ANALYSIS_MAX_CANDIDATES:20}
   max-retries: ${PLACE_ANALYSIS_MAX_RETRIES:1}
   stale-timeout-seconds: ${PLACE_ANALYSIS_STALE_TIMEOUT_SECONDS:600}
@@ -99,8 +99,8 @@ place-analysis:
   recovery-enabled: ${PLACE_ANALYSIS_RECOVERY_ENABLED:true}
   recovery-delay: ${PLACE_ANALYSIS_RECOVERY_DELAY:5s}
   recovery-batch-size: ${PLACE_ANALYSIS_RECOVERY_BATCH_SIZE:20}
-  worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:2}
-  verification-concurrency: ${PLACE_ANALYSIS_VERIFICATION_CONCURRENCY:3}
+  worker-concurrency: ${PLACE_ANALYSIS_WORKER_CONCURRENCY:8}
+  verification-concurrency: ${PLACE_ANALYSIS_VERIFICATION_CONCURRENCY:12}
   public-crawler-enabled: ${PLACE_PUBLIC_CRAWLER_ENABLED:true}
   image-enrichment:
     retry-cooldown: ${PLACE_IMAGE_ENRICHMENT_RETRY_COOLDOWN:10m}

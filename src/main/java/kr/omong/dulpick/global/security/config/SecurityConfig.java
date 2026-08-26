@@ -33,6 +33,7 @@ public class SecurityConfig {
             "/.well-known/apple-app-site-association",
             "/assets/**",
             "/favicon.ico",
+            "/robots.txt",
             "/favicon.svg",
             "/favicon.png",
             "/health",

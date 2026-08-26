@@ -35,8 +35,31 @@ public final class OperationsAdminView {
             long averageDurationMs,
             @Schema(example = "12000")
             long maxDurationMs,
+            @Schema(example = "400")
+            int dailyLimitPerMember,
             Map<String, Long> failures,
             Map<String, Long> sources
+    ) {
+    }
+
+    public record DailyStats(
+            List<DailyStat> stats
+    ) {
+    }
+
+    public record DailyStat(
+            @Schema(example = "2026-08-26")
+            String date,
+            @Schema(example = "58")
+            long total,
+            @Schema(example = "41")
+            long completed,
+            @Schema(example = "12")
+            long reviewRequired,
+            @Schema(example = "5")
+            long failed,
+            @Schema(example = "4200")
+            long averageDurationMs
     ) {
     }
 
@@ -75,7 +98,11 @@ public final class OperationsAdminView {
             @Schema(example = "2026-08-24T10:00:05Z")
             Instant updatedAt,
             @Schema(example = "2026-08-24T10:00:05Z", nullable = true)
-            Instant completedAt
+            Instant completedAt,
+            @Schema(example = "3")
+            long candidateCount,
+            @Schema(example = "1")
+            long unverifiedCount
     ) {
     }
 

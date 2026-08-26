@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.place.application.exception.PublicContentImageUna
 import kr.omong.dulpick.domain.place.config.ContentThumbnailProperties;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentImage;
+import kr.omong.dulpick.domain.place.domain.ContentImageEnrichmentBacklogRepository;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
@@ -18,13 +19,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -35,6 +39,8 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
+import tools.jackson.databind.ObjectMapper;
+
 import java.util.concurrent.RejectedExecutionException;
 
 @Service
@@ -51,7 +57,12 @@ public class ContentImageStorageService {
     private final Clock clock;
     private final Path storageDirectory;
     private final Executor refreshExecutor;
-    private final Set<String> refreshInFlight = ConcurrentHashMap.newKeySet();
+    private final ContentImageEnrichmentBacklogRepository backlogRepository;
+    private final ObjectMapper objectMapper;
+    private final TransactionTemplate transactionTemplate;
+    private static final Duration MIN_CONTENT_REFRESH_INTERVAL = Duration.ofSeconds(60);
+    private final Set<Long> refreshInFlightByContent = ConcurrentHashMap.newKeySet();
+    private final Map<Long, Instant> lastContentRefreshAt = new ConcurrentHashMap<>();
 
     @Autowired
     public ContentImageStorageService(
@@ -61,49 +72,10 @@ public class ContentImageStorageService {
             PublicInstagramMetadataProvider metadataProvider,
             ContentThumbnailProperties properties,
             Clock clock,
-            @Qualifier("contentImageExecutor") Executor refreshExecutor
-    ) {
-        this(
-                imageRepository,
-                contentRepository,
-                downloader,
-                metadataProvider,
-                properties,
-                clock,
-                refreshExecutor,
-                true
-        );
-    }
-
-    public ContentImageStorageService(
-            ContentImageRepository imageRepository,
-            ContentRepository contentRepository,
-            @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
-            PublicInstagramMetadataProvider metadataProvider,
-            ContentThumbnailProperties properties,
-            Clock clock
-    ) {
-        this(
-                imageRepository,
-                contentRepository,
-                downloader,
-                metadataProvider,
-                properties,
-                clock,
-                null,
-                true
-        );
-    }
-
-    private ContentImageStorageService(
-            ContentImageRepository imageRepository,
-            ContentRepository contentRepository,
-            ContentThumbnailDownloader downloader,
-            PublicInstagramMetadataProvider metadataProvider,
-            ContentThumbnailProperties properties,
-            Clock clock,
-            Executor refreshExecutor,
-            boolean ignored
+            PlatformTransactionManager transactionManager,
+            @Qualifier("contentImageExecutor") Executor refreshExecutor,
+            ContentImageEnrichmentBacklogRepository backlogRepository,
+            ObjectMapper objectMapper
     ) {
         this.imageRepository = imageRepository;
         this.contentRepository = contentRepository;
@@ -112,10 +84,34 @@ public class ContentImageStorageService {
         this.properties = properties;
         this.clock = clock;
         this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.refreshExecutor = refreshExecutor;
+        this.backlogRepository = backlogRepository;
+        this.objectMapper = objectMapper;
     }
 
-    @Transactional
+    public ContentImageStorageService(
+            ContentImageRepository imageRepository,
+            ContentRepository contentRepository,
+            @Qualifier("instagramThumbnailDownloader") ContentThumbnailDownloader downloader,
+            PublicInstagramMetadataProvider metadataProvider,
+            ContentThumbnailProperties properties,
+            Clock clock,
+            PlatformTransactionManager transactionManager
+    ) {
+        this.imageRepository = imageRepository;
+        this.contentRepository = contentRepository;
+        this.downloader = downloader;
+        this.metadataProvider = metadataProvider;
+        this.properties = properties;
+        this.clock = clock;
+        this.storageDirectory = Path.of(properties.storagePath()).toAbsolutePath().normalize();
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
+        this.refreshExecutor = null;
+        this.backlogRepository = null;
+        this.objectMapper = null;
+    }
+
     public void storeIfAvailable(Long contentId, List<String> sourceUrls) {
         if (contentId == null) {
             return;
@@ -124,7 +120,6 @@ public class ContentImageStorageService {
                 .ifPresent(content -> storeIfAvailable(content, sourceUrls));
     }
 
-    @Transactional
     public void storeIfAvailable(Content content, List<String> sourceUrls) {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
@@ -162,10 +157,10 @@ public class ContentImageStorageService {
             }
         }
         retryNewImagesFromOriginalContent(content, failedImages, occupiedHashes, images);
-        imageRepository.saveAll(removeDuplicateStoredImages(images, existingImageKeys));
+        DuplicateRemoval removal = deduplicateStoredImages(images, existingImageKeys);
+        transactionTemplate.executeWithoutResult(status -> persistImages(removal));
     }
 
-    @Transactional
     public void refreshExistingIfAvailable(Content content, List<String> sourceUrls) {
         if (content == null || !isInstagramContent(content) || sourceUrls == null) {
             return;
@@ -202,27 +197,25 @@ public class ContentImageStorageService {
             }
         }
         retryFailedImages(content, failedImages, occupiedHashes);
-        imageRepository.saveAllAndFlush(removeDuplicateStoredImages(existingImages, existingImageKeys));
+        DuplicateRemoval removal = deduplicateStoredImages(existingImages, existingImageKeys);
+        transactionTemplate.executeWithoutResult(status -> persistImages(removal));
     }
 
-    @Transactional
     public StoredImage load(String imageKey) {
         ContentImage image = imageRepository.findById(imageKey)
                 .orElseThrow(PublicContentImageUnavailableException::new);
-        Content content = contentRepository.findByIdAndPublicationStatus(
+        contentRepository.findByIdAndPublicationStatus(
                         image.getContentId(), ContentPublicationStatus.PUBLIC
                 )
                 .orElseThrow(PublicContentImageUnavailableException::new);
+        if (!hasStoredFile(image)) {
+            dispatchRefresh(image);
+            throw new PublicContentImageUnavailableException();
+        }
         try {
-            if (hasStoredFile(image)) {
-                return read(image);
-            }
-            return downloadAndStore(image, image.getSourceUrl());
-        } catch (IOException | RuntimeException exception) {
-            if (refreshExecutor == null) {
-                return refreshFromOriginalContent(content, image, exception);
-            }
-            dispatchRefresh(image.getImageKey());
+            return read(image);
+        } catch (IOException exception) {
+            dispatchRefresh(image);
             throw new PublicContentImageUnavailableException(exception);
         }
     }
@@ -403,31 +396,6 @@ public class ContentImageStorageService {
         }
     }
 
-    private StoredImage refreshFromOriginalContent(
-            Content content,
-            ContentImage image,
-            Throwable originalFailure
-    ) {
-        if (!isInstagramContent(content)) {
-            throw new PublicContentImageUnavailableException(originalFailure);
-        }
-        RuntimeException lastFailure = originalFailure instanceof RuntimeException runtimeException
-                ? runtimeException
-                : new PublicContentImageUnavailableException(originalFailure);
-        for (int attempt = 0; attempt < 2; attempt++) {
-            try {
-                List<String> freshUrls = metadataProvider.fetchImageUrls(content.getCanonicalUrl());
-                StoredImage refreshed = downloadFromCandidates(image, freshUrls);
-                if (refreshed != null) {
-                    return refreshed;
-                }
-            } catch (RuntimeException exception) {
-                lastFailure = exception;
-            }
-        }
-        throw new PublicContentImageUnavailableException(lastFailure);
-    }
-
     private boolean storeFromCandidates(
             ContentImage image,
             List<String> freshUrls,
@@ -452,19 +420,6 @@ public class ContentImageStorageService {
             }
         }
         return false;
-    }
-
-    private StoredImage downloadFromCandidates(ContentImage image, List<String> freshUrls) {
-        List<String> candidates = orderCandidates(freshUrls, image.getDisplayOrder());
-        for (int index = 0; index < Math.min(candidates.size(), MAX_IMAGE_URL_ATTEMPTS); index++) {
-            String freshUrl = candidates.get(index);
-            try {
-                return downloadAndStore(image, freshUrl);
-            } catch (RuntimeException ignored) {
-                // Try another fresh image URL for the same stable image key.
-            }
-        }
-        return null;
     }
 
     private List<String> orderCandidates(List<String> freshUrls, int displayOrder) {
@@ -498,51 +453,136 @@ public class ContentImageStorageService {
         return new StoredImage(downloaded.bytes(), downloaded.contentType());
     }
 
-    private void dispatchRefresh(String imageKey) {
-        if (!refreshInFlight.add(imageKey)) {
+    private void dispatchRefresh(ContentImage image) {
+        Long contentId = image.getContentId();
+        if (contentId == null) {
+            return;
+        }
+        if (refreshExecutor == null) {
+            registerMissingImageBacklog(contentId);
+            return;
+        }
+        if (!canDispatchRefresh(contentId)) {
+            return;
+        }
+        if (!refreshInFlightByContent.add(contentId)) {
             return;
         }
         try {
             refreshExecutor.execute(() -> {
                 try {
-                    refreshImage(imageKey);
+                    refreshContentImages(contentId);
                 } catch (RuntimeException exception) {
                     logger.warn(
-                            "Content image background refresh failed: imageKey={}, cause={}",
-                            imageKey,
+                            "Content image background refresh failed: contentId={}, cause={}",
+                            contentId,
                             exception.getClass().getSimpleName()
                     );
+                    registerMissingImageBacklog(contentId);
                 } finally {
-                    refreshInFlight.remove(imageKey);
+                    lastContentRefreshAt.put(contentId, clock.instant());
+                    refreshInFlightByContent.remove(contentId);
                 }
             });
         } catch (RejectedExecutionException exception) {
-            refreshInFlight.remove(imageKey);
+            refreshInFlightByContent.remove(contentId);
             logger.warn(
-                    "Content image background refresh rejected: imageKey={}, cause={}",
-                    imageKey,
+                    "Content image background refresh rejected: contentId={}, cause={}",
+                    contentId,
+                    exception.getClass().getSimpleName()
+            );
+            registerMissingImageBacklog(contentId);
+        }
+    }
+
+    private boolean canDispatchRefresh(Long contentId) {
+        Instant lastAttemptAt = lastContentRefreshAt.get(contentId);
+        if (lastAttemptAt == null) {
+            return true;
+        }
+        return lastAttemptAt.plus(MIN_CONTENT_REFRESH_INTERVAL).isBefore(clock.instant());
+    }
+
+    public void registerMissingImageBacklog(Long contentId) {
+        if (backlogRepository == null || objectMapper == null || contentId == null) {
+            return;
+        }
+        try {
+            List<String> sourceUrls = imageRepository
+                    .findAllByContentIdOrderByDisplayOrderAsc(contentId)
+                    .stream()
+                    .map(ContentImage::getSourceUrl)
+                    .filter(url -> url != null && !url.isBlank())
+                    .toList();
+            if (sourceUrls.isEmpty()) {
+                return;
+            }
+            Instant now = clock.instant();
+            backlogRepository.enqueue(
+                    contentId,
+                    objectMapper.writeValueAsString(sourceUrls),
+                    now.plusSeconds(60),
+                    now
+            );
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Content image backlog registration failed: contentId={}, cause={}",
+                    contentId,
                     exception.getClass().getSimpleName()
             );
         }
     }
 
-    private void refreshImage(String imageKey) {
-        ContentImage image = imageRepository.findById(imageKey).orElse(null);
-        if (image == null) {
-            return;
-        }
+    private void refreshContentImages(Long contentId) {
         Content content = contentRepository.findByIdAndPublicationStatus(
-                        image.getContentId(), ContentPublicationStatus.PUBLIC
+                        contentId, ContentPublicationStatus.PUBLIC
                 )
                 .orElse(null);
         if (content == null || !isInstagramContent(content)) {
             return;
         }
-        refreshFromOriginalContent(content, image, new PublicContentImageUnavailableException());
-        imageRepository.saveAndFlush(image);
+        List<ContentImage> images = imageRepository.findAllByContentIdOrderByDisplayOrderAsc(contentId);
+        List<ContentImage> brokenImages = images.stream()
+                .filter(image -> !hasStoredFile(image))
+                .toList();
+        if (brokenImages.isEmpty()) {
+            return;
+        }
+        List<String> freshUrls = normalizeImageUrls(fetchFreshImageUrls(content));
+        if (freshUrls.isEmpty()) {
+            registerMissingImageBacklog(contentId);
+            return;
+        }
+        Set<String> occupiedHashes = images.stream()
+                .map(ContentImage::getSourceUrlHash)
+                .collect(java.util.stream.Collectors.toCollection(HashSet::new));
+        for (ContentImage image : brokenImages) {
+            if (!storeFromCandidates(image, freshUrls, occupiedHashes)) {
+                logger.warn(
+                        "Content image background retry failed: contentId={}, imageKey={}, cause={}",
+                        contentId,
+                        image.getImageKey(),
+                        "ALL_CANDIDATES_REJECTED"
+                );
+            }
+        }
+        transactionTemplate.executeWithoutResult(status -> imageRepository.saveAll(brokenImages));
     }
 
-    private List<ContentImage> removeDuplicateStoredImages(
+    private List<String> fetchFreshImageUrls(Content content) {
+        try {
+            return metadataProvider.fetchImageUrls(content.getCanonicalUrl());
+        } catch (RuntimeException exception) {
+            logger.warn(
+                    "Content image metadata refresh failed: contentId={}, cause={}",
+                    content.getId(),
+                    exception.getClass().getSimpleName()
+            );
+            return List.of();
+        }
+    }
+
+    private DuplicateRemoval deduplicateStoredImages(
             List<ContentImage> images,
             Set<String> existingImageKeys
     ) {
@@ -563,12 +603,17 @@ public class ContentImageStorageService {
                 .map(ContentImage::getImageKey)
                 .filter(existingImageKeys::contains)
                 .toList();
-        if (!persistedDuplicateKeys.isEmpty()) {
-            imageRepository.deleteAllById(persistedDuplicateKeys);
-        }
-        return images.stream()
+        List<ContentImage> survivors = images.stream()
                 .filter(image -> !duplicates.contains(image))
                 .toList();
+        return new DuplicateRemoval(survivors, persistedDuplicateKeys);
+    }
+
+    private void persistImages(DuplicateRemoval removal) {
+        if (!removal.removedKeys().isEmpty()) {
+            imageRepository.deleteAllById(removal.removedKeys());
+        }
+        imageRepository.saveAll(removal.survivors());
     }
 
     private String storedContentHash(ContentImage image) {
@@ -717,6 +762,12 @@ public class ContentImageStorageService {
     public record StoredImage(
             byte[] bytes,
             MediaType contentType
+    ) {
+    }
+
+    private record DuplicateRemoval(
+            List<ContentImage> survivors,
+            List<String> removedKeys
     ) {
     }
 

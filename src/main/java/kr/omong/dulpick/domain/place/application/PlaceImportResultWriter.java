@@ -106,8 +106,8 @@ public class PlaceImportResultWriter {
     }
 
     public void saveSuccess(Long importId, String claimToken, ContentMetadata metadata,
-                            List<VerifiedCandidate> verifiedCandidates) {
-        contentWriter.saveSuccess(importId, claimToken, metadata, verifiedCandidates);
+                            List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks) {
+        contentWriter.saveSuccess(importId, claimToken, metadata, verifiedCandidates, preserveExistingLinks);
     }
 
     private PlaceImport requireClaim(Long importId, String claimToken) {

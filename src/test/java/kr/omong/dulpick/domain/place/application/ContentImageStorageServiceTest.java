@@ -73,7 +73,7 @@ class ContentImageStorageServiceTest {
     }
 
     @Test
-    void loadsImageByOpaqueImageKeyAndLazilyStoresMissingFile() throws Exception {
+    void returnsUnavailableWithoutExternalCallWhenStoredFileIsMissing() {
         ContentImageRepository imageRepository = mock(ContentImageRepository.class);
         ContentRepository contentRepository = mock(ContentRepository.class);
         ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
@@ -88,21 +88,18 @@ class ContentImageStorageServiceTest {
         when(imageRepository.findById(image.getImageKey())).thenReturn(Optional.of(image));
         when(contentRepository.findByIdAndPublicationStatus(11L, ContentPublicationStatus.PUBLIC))
                 .thenReturn(Optional.of(content(11L)));
-        when(downloader.download("https://scontent.cdninstagram.com/old.jpg"))
-                .thenReturn(downloaded("old"));
         ContentImageStorageService service = service(
                 imageRepository, contentRepository, downloader, metadataProvider
         );
 
-        ContentImageStorageService.StoredImage result = service.load(image.getImageKey());
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
 
-        assertThat(result.bytes()).containsExactly("old".getBytes());
-        assertThat(result.contentType()).isEqualTo(MediaType.IMAGE_JPEG);
-        assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
+        verifyNoInteractions(downloader, metadataProvider);
     }
 
     @Test
-    void refreshesExpiredInstagramSourceWithOriginalContentImage() {
+    void refreshesMissingFileInBackgroundAndServesOnNextLoad() {
         ContentImageRepository imageRepository = mock(ContentImageRepository.class);
         ContentRepository contentRepository = mock(ContentRepository.class);
         ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
@@ -116,6 +113,7 @@ class ContentImageStorageServiceTest {
                 NOW
         );
         when(imageRepository.findById(image.getImageKey())).thenReturn(Optional.of(image));
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(12L)).thenReturn(List.of(image));
         when(contentRepository.findByIdAndPublicationStatus(12L, ContentPublicationStatus.PUBLIC))
                 .thenReturn(Optional.of(content));
         when(downloader.download("https://scontent.cdninstagram.com/expired.jpg"))
@@ -128,12 +126,17 @@ class ContentImageStorageServiceTest {
         when(downloader.download("https://scontent.cdninstagram.com/fresh-second.jpg"))
                 .thenReturn(downloaded("fresh"));
         ContentImageStorageService service = service(
-                imageRepository, contentRepository, downloader, metadataProvider
+                imageRepository, contentRepository, downloader, metadataProvider,
+                Runnable::run
         );
+
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
 
         ContentImageStorageService.StoredImage result = service.load(image.getImageKey());
 
         assertThat(result.bytes()).containsExactly("fresh".getBytes());
+        assertThat(result.contentType()).isEqualTo(MediaType.IMAGE_JPEG);
         assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/fresh-second.jpg");
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
@@ -161,7 +164,7 @@ class ContentImageStorageServiceTest {
 
         service.refreshExistingIfAvailable(content, List.of("https://scontent.cdninstagram.com/fresh.jpg"));
 
-        verify(imageRepository).saveAllAndFlush(List.of(image));
+        verify(imageRepository).saveAll(List.of(image));
         assertThat(image.getSourceUrl()).isEqualTo("https://scontent.cdninstagram.com/fresh.jpg");
         assertThat(image.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
     }
@@ -390,6 +393,124 @@ class ContentImageStorageServiceTest {
         assertThat(service.hasStoredFile(image)).isTrue();
     }
 
+    @Test
+    void refreshesAllBrokenImagesOfSameContentWithSingleMetadataFetch() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(22L);
+        ContentImage first = ContentImage.create(
+                22L,
+                "https://scontent.cdninstagram.com/broken-a.jpg",
+                "broken-hash-a",
+                0,
+                NOW
+        );
+        ContentImage second = ContentImage.create(
+                22L,
+                "https://scontent.cdninstagram.com/broken-b.jpg",
+                "broken-hash-b",
+                1,
+                NOW
+        );
+        when(imageRepository.findById(first.getImageKey())).thenReturn(Optional.of(first));
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(22L))
+                .thenReturn(List.of(first, second));
+        when(contentRepository.findByIdAndPublicationStatus(22L, ContentPublicationStatus.PUBLIC))
+                .thenReturn(Optional.of(content));
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl()))
+                .thenReturn(List.of(
+                        "https://scontent.cdninstagram.com/fresh-a.jpg",
+                        "https://scontent.cdninstagram.com/fresh-b.jpg"
+                ));
+        when(downloader.download("https://scontent.cdninstagram.com/fresh-a.jpg"))
+                .thenReturn(downloaded("fresh-a"));
+        when(downloader.download("https://scontent.cdninstagram.com/fresh-b.jpg"))
+                .thenReturn(downloaded("fresh-b"));
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider, Runnable::run
+        );
+
+        assertThatThrownBy(() -> service.load(first.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+
+        verify(metadataProvider, org.mockito.Mockito.times(1))
+                .fetchImageUrls(content.getCanonicalUrl());
+        assertThat(first.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
+        assertThat(second.getContentType()).isEqualTo(MediaType.IMAGE_JPEG.toString());
+    }
+
+    @Test
+    void coalescesConcurrentRefreshRequestsForTheSameContent() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(23L);
+        ContentImage image = ContentImage.create(
+                23L,
+                "https://scontent.cdninstagram.com/expired.jpg",
+                "expired-hash",
+                0,
+                NOW
+        );
+        java.util.List<Runnable> submittedTasks = new java.util.ArrayList<>();
+        when(imageRepository.findById(image.getImageKey())).thenReturn(Optional.of(image));
+        when(contentRepository.findByIdAndPublicationStatus(23L, ContentPublicationStatus.PUBLIC))
+                .thenReturn(Optional.of(content));
+        ContentImageStorageService service = service(
+                imageRepository,
+                contentRepository,
+                downloader,
+                metadataProvider,
+                submittedTasks::add
+        );
+
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+
+        assertThat(submittedTasks).hasSize(1);
+        verifyNoInteractions(downloader, metadataProvider);
+    }
+
+    @Test
+    void throttlesRepeatedBackgroundRefreshWithinMinimumInterval() {
+        ContentImageRepository imageRepository = mock(ContentImageRepository.class);
+        ContentRepository contentRepository = mock(ContentRepository.class);
+        ContentThumbnailDownloader downloader = mock(ContentThumbnailDownloader.class);
+        PublicInstagramMetadataProvider metadataProvider = mock(PublicInstagramMetadataProvider.class);
+        Content content = content(24L);
+        ContentImage image = ContentImage.create(
+                24L,
+                "https://scontent.cdninstagram.com/expired.jpg",
+                "expired-hash",
+                0,
+                NOW
+        );
+        when(imageRepository.findById(image.getImageKey())).thenReturn(Optional.of(image));
+        when(imageRepository.findAllByContentIdOrderByDisplayOrderAsc(24L)).thenReturn(List.of(image));
+        when(contentRepository.findByIdAndPublicationStatus(24L, ContentPublicationStatus.PUBLIC))
+                .thenReturn(Optional.of(content));
+        when(metadataProvider.fetchImageUrls(content.getCanonicalUrl()))
+                .thenReturn(List.of("https://scontent.cdninstagram.com/fresh.jpg"));
+        when(downloader.download(org.mockito.ArgumentMatchers.anyString()))
+                .thenThrow(new PublicContentImageUnavailableException());
+        ContentImageStorageService service = service(
+                imageRepository, contentRepository, downloader, metadataProvider, Runnable::run
+        );
+
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+        assertThatThrownBy(() -> service.load(image.getImageKey()))
+                .isInstanceOf(PublicContentImageUnavailableException.class);
+
+        verify(downloader, org.mockito.Mockito.times(1))
+                .download(org.mockito.ArgumentMatchers.anyString());
+    }
+
     private ContentImageStorageService service(
             ContentImageRepository imageRepository,
             ContentRepository contentRepository,
@@ -408,7 +529,8 @@ class ContentImageStorageServiceTest {
                         5_000_000L,
                         10
                 ),
-                Clock.fixed(NOW, ZoneOffset.UTC)
+                Clock.fixed(NOW, ZoneOffset.UTC),
+                transactionManager()
         );
     }
 
@@ -432,8 +554,19 @@ class ContentImageStorageServiceTest {
                         10
                 ),
                 Clock.fixed(NOW, ZoneOffset.UTC),
-                refreshExecutor
+                transactionManager(),
+                refreshExecutor,
+                null,
+                null
         );
+    }
+
+    private org.springframework.transaction.PlatformTransactionManager transactionManager() {
+        org.springframework.transaction.PlatformTransactionManager manager =
+                mock(org.springframework.transaction.PlatformTransactionManager.class);
+        when(manager.getTransaction(org.mockito.ArgumentMatchers.any()))
+                .thenReturn(new org.springframework.transaction.support.SimpleTransactionStatus());
+        return manager;
     }
 
     private ContentThumbnailDownloader.DownloadedThumbnail downloaded(String value) {

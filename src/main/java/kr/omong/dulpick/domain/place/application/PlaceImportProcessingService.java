@@ -307,11 +307,22 @@ public class PlaceImportProcessingService {
                     timing
             );
         }
-        List<VerifiedCandidate> candidates = measure(
+        CandidateVerifications verifications = measure(
                 () -> verifyCandidates(extractedCandidates),
                 timing::addKakaoVerification
         );
-        if (candidates.isEmpty()) {
+        if (verifications.hadFailure() && !verifications.candidates().isEmpty()) {
+            logger.warn(
+                    "Place verification partially failed: importId={}, succeeded={}, failed={}",
+                    placeImport.getId(),
+                    verifications.candidates().size(),
+                    extractedCandidates.size() - verifications.candidates().size()
+            );
+        }
+        if (verifications.candidates().isEmpty()) {
+            if (verifications.hadFailure()) {
+                throw new PlaceVerificationUnavailableException();
+            }
             measureDbWrite(
                     () -> reservationService.failClaimed(
                             placeImport.getId(), claimToken,
@@ -322,14 +333,16 @@ public class PlaceImportProcessingService {
             return;
         }
         measureDbWrite(
-                () -> resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, candidates),
+                () -> resultWriter.saveSuccess(
+                        placeImport.getId(), claimToken, metadata,
+                        verifications.candidates(), verifications.hadFailure()),
                 timing
         );
         contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
         dispatchPlaceImageEnrichment(placeImport.getId());
     }
 
-    private List<VerifiedCandidate> verifyCandidates(List<ExtractedPlace> extracted) {
+    private CandidateVerifications verifyCandidates(List<ExtractedPlace> extracted) {
         List<CompletableFuture<PlaceVerificationResult>> futures = new ArrayList<>();
         try {
             for (ExtractedPlace place : extracted) {
@@ -343,18 +356,25 @@ public class PlaceImportProcessingService {
         }
         waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
+        boolean hasFailure = false;
         for (int index = 0; index < extracted.size(); index++) {
-            PlaceVerificationResult verification = awaitVerification(futures.get(index));
-            if (verification != null) {
-                ExtractedPlace extractedPlace = extracted.get(index);
-                candidates.add(new VerifiedCandidate(
-                        extractedPlace,
-                        verification.place(),
-                        verification.status()
-                ));
+            try {
+                PlaceVerificationResult verification = awaitVerification(futures.get(index));
+                if (verification != null) {
+                    ExtractedPlace extractedPlace = extracted.get(index);
+                    candidates.add(new VerifiedCandidate(
+                            extractedPlace,
+                            verification.place(),
+                            verification.status()
+                    ));
+                } else {
+                    hasFailure = true;
+                }
+            } catch (PlaceVerificationUnavailableException exception) {
+                hasFailure = true;
             }
         }
-        return candidates;
+        return new CandidateVerifications(candidates, hasFailure);
     }
 
     private void waitForAllVerifications(List<CompletableFuture<PlaceVerificationResult>> futures) {
@@ -582,6 +602,12 @@ public class PlaceImportProcessingService {
 
     private long queueWaitMillis(Instant queuedAt) {
         return Math.max(Duration.between(queuedAt, clock.instant()).toMillis(), 0L);
+    }
+
+    private record CandidateVerifications(
+            List<VerifiedCandidate> candidates,
+            boolean hadFailure
+    ) {
     }
 
     private static final class ProcessingTiming {

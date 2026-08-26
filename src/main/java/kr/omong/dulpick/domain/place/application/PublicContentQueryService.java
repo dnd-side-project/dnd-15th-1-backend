@@ -38,6 +38,11 @@ import java.util.stream.Collectors;
 public class PublicContentQueryService {
 
     private static final int MAX_PAGE_SIZE = 50;
+    private static final String INSTAGRAM_HOST = "instagram.com";
+    private static final List<ContentSourceType> INSTAGRAM_SOURCE_TYPES = List.of(
+            ContentSourceType.INSTAGRAM_REEL,
+            ContentSourceType.INSTAGRAM_POST
+    );
 
     private final ContentRepository contentRepository;
     private final ContentPlaceRepository contentPlaceRepository;
@@ -46,6 +51,7 @@ public class PublicContentQueryService {
     private final MemberPlaceRepository memberPlaceRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final ContentImageRepository contentImageRepository;
+    private final ContentImageStorageService contentImageStorageService;
 
     public PublicContentQueryService(
             ContentRepository contentRepository,
@@ -54,7 +60,8 @@ public class PublicContentQueryService {
             PlaceClassificationRepository placeClassificationRepository,
             MemberPlaceRepository memberPlaceRepository,
             MemberProfileRepository memberProfileRepository,
-            ContentImageRepository contentImageRepository
+            ContentImageRepository contentImageRepository,
+            ContentImageStorageService contentImageStorageService
     ) {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
@@ -63,6 +70,7 @@ public class PublicContentQueryService {
         this.memberPlaceRepository = memberPlaceRepository;
         this.memberProfileRepository = memberProfileRepository;
         this.contentImageRepository = contentImageRepository;
+        this.contentImageStorageService = contentImageStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -140,12 +148,8 @@ public class PublicContentQueryService {
                         ContentPublicationStatus.PUBLIC
                 )
                 .orElseThrow(PublicContentNotFoundException::new);
-        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
-                contentRepository.findAllBySourceTypeInOrderByIdAsc(List.of(
-                        ContentSourceType.INSTAGRAM_REEL,
-                        ContentSourceType.INSTAGRAM_POST
-                ))
-        );
+        List<Content> candidates = findPublicInstagramDuplicates(content);
+        PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(candidates);
         Content representative = deduplicated.contents().stream()
                 .filter(candidate -> deduplicated.sourceIdsByRepresentative()
                         .getOrDefault(candidate.getId(), List.of())
@@ -162,6 +166,33 @@ public class PublicContentQueryService {
                 ContentRecommendationSort.POPULAR,
                 sourceIdsByRepresentative
         ).getContent().getFirst();
+    }
+
+    private List<Content> findPublicInstagramDuplicates(Content content) {
+        if (!isInstagramSource(content.getSourceType())) {
+            return List.of(content);
+        }
+        String mediaKey = PublicContentDeduplicator.instagramMediaKey(content.getCanonicalUrl());
+        if (mediaKey == null) {
+            return List.of(content);
+        }
+        List<Content> candidates = contentRepository.findPublicContentsByInstagramMediaKey(
+                ContentPublicationStatus.PUBLIC,
+                INSTAGRAM_SOURCE_TYPES,
+                "%" + INSTAGRAM_HOST + "/reel/" + mediaKey,
+                "%" + INSTAGRAM_HOST + "/p/" + mediaKey,
+                "%" + INSTAGRAM_HOST + "/posts/" + mediaKey
+        );
+        boolean selfIncluded = candidates.stream().anyMatch(candidate -> candidate.getId().equals(content.getId()));
+        if (selfIncluded) {
+            return candidates;
+        }
+        return java.util.stream.Stream.concat(candidates.stream(), java.util.stream.Stream.of(content)).toList();
+    }
+
+    private boolean isInstagramSource(ContentSourceType sourceType) {
+        return sourceType == ContentSourceType.INSTAGRAM_REEL
+                || sourceType == ContentSourceType.INSTAGRAM_POST;
     }
 
     private List<Content> rankContents(
@@ -416,6 +447,7 @@ public class PublicContentQueryService {
         return contentImageRepository
                 .findAllByContentIdInAndContentTypeIsNotNullOrderByContentIdAscDisplayOrderAsc(contentIds)
                 .stream()
+                .filter(contentImageStorageService::hasStoredFile)
                 .collect(Collectors.groupingBy(
                         ContentImage::getContentId,
                         Collectors.mapping(ContentImage::getImageKey, Collectors.toList())
