@@ -13,6 +13,8 @@ import java.util.List;
 public interface ContentImageEnrichmentBacklogRepository
         extends JpaRepository<ContentImageEnrichmentBacklog, Long> {
 
+    boolean existsByContentIdAndStatusIn(Long contentId, List<String> statuses);
+
     @Transactional
     @Modifying
     @Query(value = """

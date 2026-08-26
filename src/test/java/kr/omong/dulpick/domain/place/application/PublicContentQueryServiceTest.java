@@ -28,6 +28,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +52,8 @@ class PublicContentQueryServiceTest {
     private final MemberPlaceRepository memberPlaceRepository = mock(MemberPlaceRepository.class);
     private final MemberProfileRepository memberProfileRepository = mock(MemberProfileRepository.class);
     private final ContentImageRepository contentImageRepository = mock(ContentImageRepository.class);
+    private final ContentImageStorageService contentImageStorageService =
+            mock(ContentImageStorageService.class);
     private final PublicContentQueryService service = new PublicContentQueryService(
             contentRepository,
             contentPlaceRepository,
@@ -58,7 +61,8 @@ class PublicContentQueryServiceTest {
             placeClassificationRepository,
             memberPlaceRepository,
             memberProfileRepository,
-            contentImageRepository
+            contentImageRepository,
+            contentImageStorageService
     );
 
     @Test
@@ -376,6 +380,43 @@ class PublicContentQueryServiceTest {
                 99L,
                 PageRequest.of(0, 20)
         )).isInstanceOf(PlaceNotFoundException.class);
+    }
+
+    @Test
+    void excludesImagesWithoutStoredFilesFromPublicResponse() {
+        Content content = content(10L);
+        Instant now = Instant.parse("2026-08-24T00:00:00Z");
+        kr.omong.dulpick.domain.place.domain.ContentImage stored =
+                kr.omong.dulpick.domain.place.domain.ContentImage.create(
+                        10L, "https://scontent.cdninstagram.com/a.jpg", "hash-a", 0, now
+                );
+        kr.omong.dulpick.domain.place.domain.ContentImage missing =
+                kr.omong.dulpick.domain.place.domain.ContentImage.create(
+                        10L, "https://scontent.cdninstagram.com/b.jpg", "hash-b", 1, now
+                );
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(content));
+        stubPlaces(List.of(contentPlace(10L, 20L)), List.of(place(20L)));
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 1L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+        when(contentImageRepository
+                .findAllByContentIdInAndContentTypeIsNotNullOrderByContentIdAscDisplayOrderAsc(List.of(10L)))
+                .thenReturn(List.of(stored, missing));
+        when(contentImageStorageService.hasStoredFile(stored)).thenReturn(true);
+        when(contentImageStorageService.hasStoredFile(missing)).thenReturn(false);
+
+        Page<PublicContentView> result = service.findPublicContents(
+                1L,
+                PageRequest.of(0, 20),
+                ContentRecommendationSort.POPULAR
+        );
+
+        assertThat(result.getContent().getFirst().imageKeys())
+                .containsExactly(stored.getImageKey());
     }
 
     private void stubPlaces(List<ContentPlace> relations, List<Place> places) {

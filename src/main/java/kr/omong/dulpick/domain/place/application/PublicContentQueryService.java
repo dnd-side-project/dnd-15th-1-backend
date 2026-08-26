@@ -51,6 +51,7 @@ public class PublicContentQueryService {
     private final MemberPlaceRepository memberPlaceRepository;
     private final MemberProfileRepository memberProfileRepository;
     private final ContentImageRepository contentImageRepository;
+    private final ContentImageStorageService contentImageStorageService;
 
     public PublicContentQueryService(
             ContentRepository contentRepository,
@@ -59,7 +60,8 @@ public class PublicContentQueryService {
             PlaceClassificationRepository placeClassificationRepository,
             MemberPlaceRepository memberPlaceRepository,
             MemberProfileRepository memberProfileRepository,
-            ContentImageRepository contentImageRepository
+            ContentImageRepository contentImageRepository,
+            ContentImageStorageService contentImageStorageService
     ) {
         this.contentRepository = contentRepository;
         this.contentPlaceRepository = contentPlaceRepository;
@@ -68,6 +70,7 @@ public class PublicContentQueryService {
         this.memberPlaceRepository = memberPlaceRepository;
         this.memberProfileRepository = memberProfileRepository;
         this.contentImageRepository = contentImageRepository;
+        this.contentImageStorageService = contentImageStorageService;
     }
 
     @Transactional(readOnly = true)
@@ -444,6 +447,7 @@ public class PublicContentQueryService {
         return contentImageRepository
                 .findAllByContentIdInAndContentTypeIsNotNullOrderByContentIdAscDisplayOrderAsc(contentIds)
                 .stream()
+                .filter(contentImageStorageService::hasStoredFile)
                 .collect(Collectors.groupingBy(
                         ContentImage::getContentId,
                         Collectors.mapping(ContentImage::getImageKey, Collectors.toList())
