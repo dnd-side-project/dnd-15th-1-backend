@@ -67,6 +67,11 @@ public class PublicPageController {
         return page("ops-places.html");
     }
 
+    @GetMapping(value = "/favicon.ico", produces = "image/png")
+    public Resource favicon() {
+        return new ClassPathResource("static/favicon.png");
+    }
+
     @GetMapping(
             value = "/.well-known/apple-app-site-association",
             produces = MediaType.APPLICATION_JSON_VALUE
