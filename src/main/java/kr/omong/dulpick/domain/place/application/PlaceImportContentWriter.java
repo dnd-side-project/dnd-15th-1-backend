@@ -102,7 +102,7 @@ public class PlaceImportContentWriter {
 
     @Transactional
     public void saveSuccess(Long importId, String claimToken, ContentMetadata metadata,
-                            List<VerifiedCandidate> verifiedCandidates) {
+                            List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks) {
         List<VerifiedCandidate> uniqueCandidates = uniqueCandidates(verifiedCandidates);
         PlaceImport placeImport = requireClaim(importId, claimToken);
         Long contentId = placeImport.getContentId();
@@ -112,7 +112,7 @@ public class PlaceImportContentWriter {
         }
         final Long resolvedContentId = contentId;
         candidateRepository.deleteAllByImportId(importId);
-        if (resolvedContentId != null) {
+        if (!preserveExistingLinks && resolvedContentId != null) {
             contentPlaceRepository.deleteAllByContentId(resolvedContentId);
         }
         List<PlaceCandidate> candidates = uniqueCandidates.stream()
@@ -128,8 +128,11 @@ public class PlaceImportContentWriter {
                     metadata.likeCount(), metadata.commentCount(), metadata.engagementCheckedAt()));
             candidates.forEach(candidate -> contentPlaceRepository.insertIfAbsent(
                     resolvedContentId, candidate.getPlaceId(), clock.instant()));
+            int linkedPlaceCount = preserveExistingLinks
+                    ? contentPlaceRepository.findAllByContentId(resolvedContentId).size()
+                    : candidates.size();
             contentRepository.findById(resolvedContentId)
-                    .ifPresent(content -> content.updatePlaceCount(candidates.size()));
+                    .ifPresent(content -> content.updatePlaceCount(linkedPlaceCount));
             contentRepository.findById(resolvedContentId)
                     .ifPresent(content -> content.publish(clock.instant()));
         }

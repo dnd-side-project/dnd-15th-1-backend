@@ -333,7 +333,9 @@ public class PlaceImportProcessingService {
             return;
         }
         measureDbWrite(
-                () -> resultWriter.saveSuccess(placeImport.getId(), claimToken, metadata, verifications.candidates()),
+                () -> resultWriter.saveSuccess(
+                        placeImport.getId(), claimToken, metadata,
+                        verifications.candidates(), verifications.hadFailure()),
                 timing
         );
         contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());

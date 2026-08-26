@@ -99,7 +99,7 @@ class PlaceImportPartialVerificationTest {
 
         var captor = org.mockito.ArgumentCaptor.forClass(List.class);
         org.mockito.Mockito.verify(resultWriter).saveSuccess(
-                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture()
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
         List<VerifiedCandidate> saved = captor.getValue();
         assertThat(saved).hasSize(1);

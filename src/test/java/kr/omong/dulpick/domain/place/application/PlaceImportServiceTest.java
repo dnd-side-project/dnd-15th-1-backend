@@ -32,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -266,7 +267,8 @@ class PlaceImportServiceTest {
                         extractedPlace,
                         verifiedPlace,
                         PlaceVerificationStatus.VERIFIED
-                ))
+                )),
+                false
         );
     }
 
@@ -314,7 +316,8 @@ class PlaceImportServiceTest {
                     List.of(
                             new VerifiedCandidate(first, firstVerified, PlaceVerificationStatus.VERIFIED),
                             new VerifiedCandidate(second, secondVerified, PlaceVerificationStatus.VERIFIED)
-                    )
+                    ),
+                    false
             );
         } finally {
             executor.shutdownNow();
@@ -481,7 +484,8 @@ class PlaceImportServiceTest {
                         extractedPlace,
                         verifiedPlace,
                         PlaceVerificationStatus.VERIFIED
-                ))
+                )),
+                false
         );
     }
 
@@ -532,7 +536,8 @@ class PlaceImportServiceTest {
                 eq(1L),
                 eq(IMPORT_CLAIM_TOKEN),
                 eq(metadata),
-                any()
+                any(),
+                anyBoolean()
         );
     }
 

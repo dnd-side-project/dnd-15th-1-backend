@@ -90,7 +90,8 @@ class PlaceStorageIntegrationTest {
                         extractedPlace(),
                         verifiedPlace,
                         PlaceVerificationStatus.VERIFIED
-                ))
+                )),
+                false
         );
         entityManager.flush();
         entityManager.clear();
