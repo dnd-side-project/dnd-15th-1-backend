@@ -105,6 +105,7 @@ tasks.named('test', Test) {
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
         'MarketingNotificationAdminIntegrationTest',
+        'EmailAnnouncementIntegrationTest',
         'OperationsAdminIntegrationTest',
         'NotificationDeliveryWorkerIntegrationTest',
         'NotificationInboxIntegrationTest',
