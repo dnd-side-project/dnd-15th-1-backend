@@ -209,19 +209,17 @@ public class ContentImageStorageService {
     public StoredImage load(String imageKey) {
         ContentImage image = imageRepository.findById(imageKey)
                 .orElseThrow(PublicContentImageUnavailableException::new);
-        Content content = contentRepository.findByIdAndPublicationStatus(
+        contentRepository.findByIdAndPublicationStatus(
                         image.getContentId(), ContentPublicationStatus.PUBLIC
                 )
                 .orElseThrow(PublicContentImageUnavailableException::new);
+        if (!hasStoredFile(image)) {
+            dispatchRefresh(image.getImageKey());
+            throw new PublicContentImageUnavailableException();
+        }
         try {
-            if (hasStoredFile(image)) {
-                return read(image);
-            }
-            return downloadAndStore(image, image.getSourceUrl());
-        } catch (IOException | RuntimeException exception) {
-            if (refreshExecutor == null) {
-                return refreshFromOriginalContent(content, image, exception);
-            }
+            return read(image);
+        } catch (IOException exception) {
             dispatchRefresh(image.getImageKey());
             throw new PublicContentImageUnavailableException(exception);
         }
@@ -499,6 +497,9 @@ public class ContentImageStorageService {
     }
 
     private void dispatchRefresh(String imageKey) {
+        if (refreshExecutor == null) {
+            return;
+        }
         if (!refreshInFlight.add(imageKey)) {
             return;
         }
