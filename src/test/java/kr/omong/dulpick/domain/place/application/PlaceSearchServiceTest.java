@@ -57,7 +57,7 @@ class PlaceSearchServiceTest {
         when(placeRepository.findAllByKakaoPlaceIdIn(List.of("kakao-1", "kakao-2")))
                 .thenReturn(List.of(databasePlace));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
-                .thenReturn(Map.of(10L, PlaceOwnership.of(true, true, true)));
+                .thenReturn(Map.of(10L, PlaceOwnership.of(true, true)));
 
         PlaceSearchPage result = service.search(1L, "카페", 0);
 

@@ -30,7 +30,7 @@ class PlaceDetailQueryServiceTest {
         Place place = place();
         when(placeRepository.findById(10L)).thenReturn(Optional.of(place));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
-                .thenReturn(Map.of(10L, PlaceOwnership.of(true, false, true)));
+                .thenReturn(Map.of(10L, PlaceOwnership.of(true, true)));
         when(placeQueryService.savedMemberCount(10L)).thenReturn(2);
 
         PlaceDetailView result = service.get(1L, 10L);
@@ -39,7 +39,7 @@ class PlaceDetailQueryServiceTest {
         assertThat(result.kakaoPlaceId()).isEqualTo("kakao-10");
         assertThat(result.phone()).isEqualTo("02-1234-5678");
         assertThat(result.ownershipStatus()).isEqualTo(PlaceOwnershipStatus.TOGETHER);
-        assertThat(result.savedByMe()).isFalse();
+        assertThat(result.savedByMe()).isTrue();
         assertThat(result.savedMemberCount()).isEqualTo(2);
     }
 
@@ -150,7 +150,7 @@ class PlaceDetailQueryServiceTest {
                 new BigDecimal("127.0557000")
         )).thenReturn(List.of(place));
         when(placeQueryService.getOwnerships(1L, List.of(10L)))
-                .thenReturn(Map.of(10L, PlaceOwnership.of(false, true, false)));
+                .thenReturn(Map.of(10L, PlaceOwnership.of(true, false)));
         when(placeQueryService.savedMemberCount(10L)).thenReturn(0);
 
         List<PlaceDetailView> result = service.findByCoordinates(
