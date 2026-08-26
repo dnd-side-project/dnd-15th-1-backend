@@ -21,6 +21,8 @@ import java.util.stream.Collectors;
 @Component
 public class PlaceImportViewMapper {
 
+    static final long PROCESSING_RETRY_AFTER_SECONDS = 3L;
+
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
     private final MemberPlaceRepository memberPlaceRepository;
@@ -143,7 +145,7 @@ public class PlaceImportViewMapper {
     private Long retryAfterSeconds(PlaceImport placeImport) {
         if (placeImport.getStatus() == PlaceImportStatus.RECEIVED
                 || placeImport.getStatus() == PlaceImportStatus.PROCESSING) {
-            return 1L;
+            return PROCESSING_RETRY_AFTER_SECONDS;
         }
         if (placeImport.getStatus() == PlaceImportStatus.FAILED
                 && isRetryableFailure(placeImport)) {

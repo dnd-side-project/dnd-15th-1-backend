@@ -35,7 +35,7 @@ class PlaceImportViewMapperRetryAfterTest {
     );
 
     @Test
-    void asksClientToPollEverySecondWhileProcessing() {
+    void asksClientToPollEveryThreeSecondsWhileProcessing() {
         when(candidateRepository.findAllByImportIdOrderByIdAsc(anyLong())).thenReturn(List.of());
         PlaceImport placeImport = PlaceImport.receive(
                 1L,
@@ -47,6 +47,8 @@ class PlaceImportViewMapperRetryAfterTest {
         placeImport.start(placeImport.getCreatedAt());
 
         assertThat(placeImport.getStatus()).isEqualTo(PlaceImportStatus.PROCESSING);
-        assertThat(mapper.toView(placeImport).retryAfterSeconds()).isEqualTo(1L);
+        assertThat(mapper.toView(placeImport).retryAfterSeconds())
+                .isEqualTo(PlaceImportViewMapper.PROCESSING_RETRY_AFTER_SECONDS)
+                .isEqualTo(3L);
     }
 }
