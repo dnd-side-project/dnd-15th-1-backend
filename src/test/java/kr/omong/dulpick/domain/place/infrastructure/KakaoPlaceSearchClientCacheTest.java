@@ -3,6 +3,7 @@ package kr.omong.dulpick.domain.place.infrastructure;
 import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
 import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.KakaoProperties;
+import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
@@ -100,6 +101,31 @@ class KakaoPlaceSearchClientCacheTest {
         assertThat(client.search("테스트 카페")).hasSize(1);
 
         server.verify();
+    }
+
+    @Test
+    void sizesSearchPermitsAboveVerificationConcurrency() {
+        KakaoPlaceSearchClient client = new KakaoPlaceSearchClient(
+                properties(),
+                clock,
+                new PlaceAnalysisProperties(
+                        true, 100, 10, 1, true, 600, 300, 3,
+                        Duration.ofSeconds(5), 20, 8, 20
+                )
+        );
+
+        assertThat(client.searchPermitCount()).isEqualTo(24);
+
+        KakaoPlaceSearchClient defaultClient = new KakaoPlaceSearchClient(
+                properties(),
+                clock,
+                new PlaceAnalysisProperties(
+                        true, 100, 10, 1, true, 600, 300, 3,
+                        Duration.ofSeconds(5), 20, 8, 12
+                )
+        );
+
+        assertThat(defaultClient.searchPermitCount()).isEqualTo(16);
     }
 
     private KakaoProperties properties() {

@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.place.application.PlaceSearchResult;
 import kr.omong.dulpick.domain.place.application.PlaceSearcher;
 import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.KakaoProperties;
+import kr.omong.dulpick.domain.place.config.PlaceAnalysisProperties;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -28,7 +29,8 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
 
     static final int SEARCH_SIZE = 10;
     private static final int MAX_PAGE = 45;
-    private static final int MAX_CONCURRENT_SEARCHES = 16;
+    private static final int BASE_CONCURRENT_SEARCHES = 16;
+    private static final int VERIFICATION_PERMIT_BUFFER = 4;
     private static final Duration SEARCH_PERMIT_TIMEOUT = Duration.ofSeconds(3);
     private static final Duration QUERY_CACHE_TTL = Duration.ofMinutes(10);
     private static final int QUERY_CACHE_MAX_ENTRIES = 5_000;
@@ -47,8 +49,17 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
     );
 
     @Autowired
-    public KakaoPlaceSearchClient(KakaoProperties properties, Clock clock) {
-        this(properties, createRestClientBuilder(properties), clock);
+    public KakaoPlaceSearchClient(
+            KakaoProperties properties,
+            Clock clock,
+            PlaceAnalysisProperties analysisProperties
+    ) {
+        this(
+                properties,
+                createRestClientBuilder(properties),
+                clock,
+                resolvePermitCount(analysisProperties)
+        );
     }
 
     KakaoPlaceSearchClient(KakaoProperties properties, RestClient.Builder restClientBuilder) {
@@ -60,7 +71,7 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
             RestClient.Builder restClientBuilder,
             Clock clock
     ) {
-        this(properties, restClientBuilder, clock, MAX_CONCURRENT_SEARCHES);
+        this(properties, restClientBuilder, clock, BASE_CONCURRENT_SEARCHES);
     }
 
     KakaoPlaceSearchClient(
@@ -80,6 +91,20 @@ public class KakaoPlaceSearchClient implements PlaceSearcher {
         factory.setConnectTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
         factory.setReadTimeout(Duration.ofSeconds(properties.timeoutSeconds()));
         return RestClient.builder().requestFactory(factory);
+    }
+
+    private static int resolvePermitCount(PlaceAnalysisProperties analysisProperties) {
+        if (analysisProperties == null) {
+            return BASE_CONCURRENT_SEARCHES;
+        }
+        return Math.max(
+                BASE_CONCURRENT_SEARCHES,
+                analysisProperties.verificationConcurrency() + VERIFICATION_PERMIT_BUFFER
+        );
+    }
+
+    int searchPermitCount() {
+        return searchPermits.availablePermits();
     }
 
     @Override
