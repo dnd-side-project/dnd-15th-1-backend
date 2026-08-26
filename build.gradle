@@ -101,6 +101,7 @@ tasks.named('test', Test) {
         'PlaceAnalysisPropertiesTest',
         'PlaceImportViewMapperRetryAfterTest',
         'PlaceImportPartialVerificationTest',
+        'ImageEnrichmentBacklogSqlIntegrationTest',
         'PushDeviceIntegrationTest',
         'NotificationSettingsIntegrationTest',
         'SelectiveNotificationIntegrationTest',
