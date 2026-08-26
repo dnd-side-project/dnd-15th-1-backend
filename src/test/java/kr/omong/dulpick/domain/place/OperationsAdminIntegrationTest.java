@@ -7,7 +7,6 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
-import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -52,9 +51,6 @@ class OperationsAdminIntegrationTest {
 
     @Autowired
     private ContentImageRepository contentImageRepository;
-
-    @Autowired
-    private ContentPlaceRepository contentPlaceRepository;
 
     @Autowired
     private PlaceRepository placeRepository;

@@ -706,14 +706,6 @@ public class ContentImageStorageService {
         }
     }
 
-    private long fileSize(String storageKey) {
-        try {
-            return Files.size(resolve(storageKey));
-        } catch (IOException exception) {
-            return Long.MAX_VALUE;
-        }
-    }
-
     private Path resolve(String storageKey) {
         Path resolved = storageDirectory.resolve(storageKey).normalize();
         if (!resolved.startsWith(storageDirectory)) {
