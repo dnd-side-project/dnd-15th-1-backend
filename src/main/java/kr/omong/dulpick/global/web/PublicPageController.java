@@ -39,6 +39,11 @@ public class PublicPageController {
         return page("terms.html");
     }
 
+    @GetMapping(value = "/marketing", produces = HTML_UTF_8)
+    public Resource marketing() {
+        return page("marketing.html");
+    }
+
     @GetMapping(value = "/connect", produces = HTML_UTF_8)
     public Resource connect() {
         return page("connect.html");
