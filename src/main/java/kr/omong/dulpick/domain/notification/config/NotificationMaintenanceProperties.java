@@ -8,7 +8,6 @@ import java.time.Duration;
 public record NotificationMaintenanceProperties(
         Duration fixedDelay,
         Duration notificationRetention,
-        Duration feedbackRetention,
         int batchSize,
         int maxBatchesPerRun
 ) {
@@ -16,7 +15,6 @@ public record NotificationMaintenanceProperties(
     public NotificationMaintenanceProperties {
         requirePositive(fixedDelay, "fixed-delay");
         requirePositive(notificationRetention, "notification-retention");
-        requirePositive(feedbackRetention, "feedback-retention");
         if (batchSize <= 0 || maxBatchesPerRun <= 0) {
             throw new IllegalArgumentException(
                     "notification maintenance batch values must be positive"

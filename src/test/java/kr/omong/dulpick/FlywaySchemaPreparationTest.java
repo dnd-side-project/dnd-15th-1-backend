@@ -39,13 +39,15 @@ class FlywaySchemaPreparationTest {
                 "active_couple_members", "connection_attempts", "places", "place_images", "contents",
                 "place_imports", "place_candidates", "member_places", "content_places", "content_submissions",
                 "member_notification_settings", "marketing_consent_histories", "push_devices", "notifications",
-                "notification_deliveries", "couple_content_save_counters", "member_feedbacks", "date_courses",
-                "date_course_places", "recent_searches", "place_classifications", "walking_route_cache",
+                "notification_deliveries", "couple_content_save_counters", "date_courses",
+                "date_course_places", "place_classifications", "walking_route_cache",
                 "place_image_enrichment_backlogs", "content_images", "content_image_enrichment_backlogs",
                 "marketing_notification_campaigns", "email_opt_outs", "email_announcements"
         );
 
         tables.forEach(table -> assertThat(sql).contains("CREATE TABLE " + table));
+        assertThat(sql)
+                .doesNotContain("member_feedbacks", "recent_searches", "CREATE TABLE feedback");
         assertThat(sql).contains("dulpick_category_code");
         assertThat(sql).contains("content_hash CHAR(64)");
         assertThat(sql).doesNotContain("DROP TABLE", "TRUNCATE", "DELETE FROM", "INSERT INTO", "UPDATE ");
