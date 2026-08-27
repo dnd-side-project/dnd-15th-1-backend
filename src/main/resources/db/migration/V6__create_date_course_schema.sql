@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V6: 데이트 코스.
+
 CREATE TABLE date_courses
 (
     id                   BIGINT       NOT NULL AUTO_INCREMENT,
@@ -44,3 +46,4 @@ CREATE TABLE date_course_places
 
 CREATE INDEX idx_date_course_places_course_order
     ON date_course_places (date_course_id, sequence_order);
+

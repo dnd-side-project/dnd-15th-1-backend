@@ -25,12 +25,6 @@ public enum ErrorCode {
     PROFILE_REQUIRED(HttpStatus.CONFLICT, "최초 프로필 설정이 필요합니다"),
     PROFILE_ALREADY_INITIALIZED(HttpStatus.CONFLICT, "이미 프로필 설정을 완료했습니다"),
 
-    // 피드백
-    FEEDBACK_RATE_LIMIT_EXCEEDED(
-            HttpStatus.TOO_MANY_REQUESTS,
-            "피드백 등록 횟수 제한을 초과했습니다"
-    ),
-
     // 알림
     MARKETING_CONSENT_VERSION_REQUIRED(
             HttpStatus.BAD_REQUEST,
@@ -46,7 +40,6 @@ public enum ErrorCode {
             HttpStatus.SERVICE_UNAVAILABLE,
             "푸시 디바이스를 등록할 수 없습니다. 잠시 후 다시 시도해 주세요"
     ),
-    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "알림을 찾을 수 없습니다"),
 
     // 장소 import
     UNSUPPORTED_SOURCE_URL(HttpStatus.BAD_REQUEST, "지원하지 않는 콘텐츠 URL입니다"),
@@ -84,9 +77,6 @@ public enum ErrorCode {
             HttpStatus.CONFLICT,
             "다른 운영자에 의해 데이터가 변경되었습니다. 최신 정보를 확인해 주세요"
     ),
-
-    // 검색
-    RECENT_SEARCH_NOT_FOUND(HttpStatus.NOT_FOUND, "최근 검색어를 찾을 수 없습니다"),
 
     // 데이트 코스
     DATE_COURSE_NOT_FOUND(HttpStatus.NOT_FOUND, "데이트 코스를 찾을 수 없습니다"),

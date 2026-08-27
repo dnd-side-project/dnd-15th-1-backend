@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V2: 커플·연결·접속 제한.
+
 CREATE TABLE connection_codes
 (
     id               BIGINT       NOT NULL AUTO_INCREMENT,
@@ -88,3 +90,4 @@ CREATE INDEX idx_connection_attempts_ip_outcome_created
 
 CREATE INDEX idx_connection_attempts_created_at
     ON connection_attempts (created_at);
+

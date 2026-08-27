@@ -10,8 +10,8 @@ spring:
       max-file-size: 5MB
       max-request-size: 5MB
   flyway:
-    baseline-on-migrate: true
-    baseline-version: 0
+    baseline-on-migrate: false
+    clean-disabled: true
   jpa:
     open-in-view: false
 
@@ -53,10 +53,6 @@ couple:
     retention: 30d
     cleanup-delay: 1h
 
-search:
-  recent:
-    max-per-type: ${SEARCH_RECENT_MAX_PER_TYPE:50}
-
 ops:
   username: ${OPS_USERNAME:admin}
   password: ${OPS_PASSWORD:admin}
@@ -84,7 +80,6 @@ notification:
   maintenance:
     fixed-delay: ${NOTIFICATION_CLEANUP_DELAY:1h}
     notification-retention: ${NOTIFICATION_RETENTION:90d}
-    feedback-retention: ${FEEDBACK_RETENTION:365d}
     batch-size: ${NOTIFICATION_CLEANUP_BATCH_SIZE:1000}
     max-batches-per-run: ${NOTIFICATION_CLEANUP_MAX_BATCHES:10}
 

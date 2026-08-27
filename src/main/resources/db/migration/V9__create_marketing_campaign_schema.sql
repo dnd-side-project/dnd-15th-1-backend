@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V9: 마케팅 알림 캠페인.
+
 CREATE TABLE marketing_notification_campaigns
 (
     id            CHAR(36)     NOT NULL,

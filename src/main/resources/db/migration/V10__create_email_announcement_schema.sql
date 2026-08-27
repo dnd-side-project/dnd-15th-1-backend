@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V10: 이메일 공지.
+
 CREATE TABLE email_opt_outs
 (
     id         BIGINT      NOT NULL AUTO_INCREMENT,

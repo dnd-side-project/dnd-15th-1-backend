@@ -1,6 +1,5 @@
 package kr.omong.dulpick.domain.notification.application.scheduled;
 
-import kr.omong.dulpick.domain.feedback.domain.MemberFeedbackRepository;
 import kr.omong.dulpick.domain.notification.config.NotificationMaintenanceProperties;
 import kr.omong.dulpick.domain.notification.domain.NotificationRepository;
 import org.springframework.data.domain.PageRequest;
@@ -18,18 +17,15 @@ import java.util.function.Supplier;
 public class NotificationDataCleanupService {
 
     private final NotificationRepository notificationRepository;
-    private final MemberFeedbackRepository feedbackRepository;
     private final NotificationMaintenanceProperties properties;
     private final Clock clock;
 
     public NotificationDataCleanupService(
             NotificationRepository notificationRepository,
-            MemberFeedbackRepository feedbackRepository,
             NotificationMaintenanceProperties properties,
             Clock clock
     ) {
         this.notificationRepository = notificationRepository;
-        this.feedbackRepository = feedbackRepository;
         this.properties = properties;
         this.clock = clock;
     }
@@ -47,13 +43,6 @@ public class NotificationDataCleanupService {
                         PageRequest.of(0, properties.batchSize())
                 ),
                 notificationRepository::deleteAllByIdInBatch
-        );
-        deleteExpired(
-                () -> feedbackRepository.findExpiredIds(
-                        now.minus(properties.feedbackRetention()),
-                        PageRequest.of(0, properties.batchSize())
-                ),
-                feedbackRepository::deleteAllByIdInBatch
         );
     }
 
