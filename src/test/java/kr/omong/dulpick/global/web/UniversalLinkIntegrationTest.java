@@ -52,8 +52,19 @@ class UniversalLinkIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentType("text/html;charset=UTF-8"))
                 .andExpect(content().string(containsString("커플 연결 초대")))
+                .andExpect(content().string(containsString("둘픽 커플연결 초대코드가 도착했어요")))
+                .andExpect(content().string(containsString("apps.apple.com/kr/app")))
                 .andExpect(content().string(containsString("textContent")))
                 .andExpect(content().string(not(containsString("innerHTML"))));
+    }
+
+    @Test
+    void servesAppStoreDownloadLinkOnHomePage() throws Exception {
+        mockMvc.perform(get("/").accept(MediaType.TEXT_HTML))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("App Store에서 둘픽 다운로드")))
+                .andExpect(content().string(containsString("id6796011877")))
+                .andExpect(content().string(not(containsString("iOS 앱 출시 준비 중"))));
     }
 
     @Test
