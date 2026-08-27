@@ -268,13 +268,11 @@ class TestAuthIntegrationTest {
     void exposesConcreteExamplesForCommonSwaggerSchemas() throws Exception {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.components.schemas.FeedbackResponse.properties.feedbackId.example")
-                        .value(501))
                 .andExpect(jsonPath("$.components.schemas.NotificationResponse.properties.type.example")
                         .value("CONTENT_SAVE_MILESTONE"))
                 .andExpect(jsonPath("$.components.schemas.PlaceSearchResponse.properties.kakaoPlaceId.example")
                         .value("18699959"))
-                .andExpect(jsonPath("$.paths['/api/v1/couple-connections/preview'].post.responses['401'].content['application/json']")
+                .andExpect(jsonPath("$.paths['/api/v1/couples'].post.responses['401'].content['application/json']")
                         .exists());
     }
 
@@ -283,10 +281,6 @@ class TestAuthIntegrationTest {
         mockMvc.perform(get("/v3/api-docs"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.paths['/api/v1/auth/nonce'].post.responses['400'].content['application/json']")
-                        .exists())
-                .andExpect(jsonPath("$.paths['/api/v1/feedbacks'].post.responses['201'].content['application/json'].schema['$ref']")
-                        .value("#/components/schemas/FeedbackResponse"))
-                .andExpect(jsonPath("$.paths['/api/v1/notifications'].get.responses['401'].content['application/json']")
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/members/me/notification-settings'].put.responses['409'].content['application/json']")
                         .exists())
@@ -298,6 +292,19 @@ class TestAuthIntegrationTest {
                         .exists())
                 .andExpect(jsonPath("$.paths['/api/v1/places/{placeId}/contents'].get.responses['404'].content['application/json']")
                         .exists());
+    }
+
+    @Test
+    void doesNotExposeRetiredMobileEndpoints() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.paths['/api/v1/places/walking-route']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/places/by-coordinate']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/home/recent-saved-places/all']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/couple-connections/preview']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/recent-searches']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/notifications']").doesNotExist())
+                .andExpect(jsonPath("$.paths['/api/v1/feedbacks']").doesNotExist());
     }
 
     @Test
