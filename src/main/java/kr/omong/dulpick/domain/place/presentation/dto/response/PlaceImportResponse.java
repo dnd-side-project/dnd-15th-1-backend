@@ -58,7 +58,7 @@ public record PlaceImportResponse(
         PlaceImportNextAction nextAction,
         @Schema(
                 description = "다음 상태 조회 또는 재시도까지 권장하는 대기 시간(초)입니다. 즉시 처리할 필요가 없으면 null입니다.",
-                example = "3",
+                example = "2",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )

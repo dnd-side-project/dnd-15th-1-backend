@@ -405,7 +405,7 @@ public class PlaceCommandService {
         boolean savedByPartner = memberPlaceRepository
                 .findByMemberIdAndPlaceId(partnerId, placeId)
                 .isPresent();
-        return PlaceOwnershipStatus.resolve(true, true, savedByPartner);
+        return PlaceOwnershipStatus.resolve(true, savedByPartner);
     }
 
     @Transactional

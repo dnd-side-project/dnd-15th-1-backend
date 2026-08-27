@@ -195,6 +195,13 @@ a {
   font-size: 14px;
   font-weight: 750;
   box-shadow: 0 8px 24px rgba(230, 73, 96, 0.08);
+  text-decoration: none;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.home-page .app-store-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(230, 73, 96, 0.14);
 }
 
 .home-page .hero-sub {
@@ -819,14 +826,30 @@ a {
   text-indent: 0.22em;
 }
 
-.invite-page .invite-note,
-.invite-page .release-status {
+.invite-page .invite-note {
   color: var(--text-disabled);
   font-size: 13px;
 }
 
-.invite-page .release-status {
+.invite-page .app-store-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 46px;
   margin-top: 24px;
+  padding: 0 20px;
+  color: #fff;
+  background: var(--coral);
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 750;
+  text-decoration: none;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.invite-page .app-store-button:hover {
+  background: var(--coral-dark);
+  transform: translateY(-2px);
 }
 
 .invite-page .invite-links {

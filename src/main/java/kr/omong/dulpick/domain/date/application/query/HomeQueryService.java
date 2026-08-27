@@ -73,12 +73,6 @@ public class HomeQueryService {
     }
 
     @Transactional(readOnly = true)
-    public List<MemberPlaceView> getRecentSavedPlacesAll(Long memberId) {
-        validateActiveMember(memberId);
-        return placeQueryService.getVisiblePlaces(memberId);
-    }
-
-    @Transactional(readOnly = true)
     public List<DateCourseSummaryView> getPastDates(Long memberId, int size) {
         validateActiveMember(memberId);
         return activeCoupleMemberRepository.findByMemberId(memberId)
