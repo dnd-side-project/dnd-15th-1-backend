@@ -7,7 +7,6 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.notification.application.event.ContentSavedEvent;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
@@ -36,7 +35,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -221,18 +219,24 @@ public class PlaceCommandService {
                 .stream()
                 .collect(Collectors.toMap(PlaceCandidate::getId, Function.identity()));
         validateCandidates(importId, selections, candidates);
-        rejectInvalidStateOrDuplicates(memberId, placeImport, selections, candidates);
+        Map<Long, MemberPlace> existingMemberPlaces = existingMemberPlaces(
+                memberId,
+                selections,
+                candidates
+        );
+        validateImportStatus(placeImport, selections, candidates, existingMemberPlaces);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
         Instant now = clock.instant();
         List<PlaceConfirmationView.SavedPlaceView> savedPlaces = selections.stream()
-                .map(selection -> saveSelection(
+                .map(selection -> saveOrReuseSelection(
                         memberId,
                         importId,
                         selection,
                         candidates.get(selection.candidateId()),
+                        existingMemberPlaces,
                         membership,
                         partnerId,
                         now
@@ -247,15 +251,24 @@ public class PlaceCommandService {
         );
     }
 
-    private PlaceConfirmationView.SavedPlaceView saveSelection(
+    private PlaceConfirmationView.SavedPlaceView saveOrReuseSelection(
             Long memberId,
             Long importId,
             PlaceSelection selection,
             PlaceCandidate candidate,
+            Map<Long, MemberPlace> existingMemberPlaces,
             ActiveCoupleMember membership,
             Long partnerId,
             Instant now
     ) {
+        MemberPlace existing = existingMemberPlaces.get(candidate.getPlaceId());
+        if (existing != null) {
+            Place place = existing.getPlace();
+            return new PlaceConfirmationView.SavedPlaceView(
+                    toView(existing, place, ownershipStatus(partnerId, place.getId())),
+                    false
+            );
+        }
         Place place = findPlace(candidate.getPlaceId());
         MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
                 memberId,
@@ -307,22 +320,7 @@ public class PlaceCommandService {
                 || status == PlaceVerificationStatus.REVIEW_REQUIRED;
     }
 
-    private void rejectInvalidStateOrDuplicates(
-            Long memberId,
-            PlaceImport placeImport,
-            List<PlaceSelection> selections,
-            Map<Long, PlaceCandidate> candidates
-    ) {
-        Set<Long> existingPlaceIds = existingPlaceIds(memberId, selections, candidates);
-        if (!existingPlaceIds.isEmpty()) {
-            throw new PlaceAlreadySavedException();
-        }
-        if (placeImport.getStatus() != PlaceImportStatus.REVIEW_REQUIRED) {
-            throw new InvalidPlaceCandidateException();
-        }
-    }
-
-    private Set<Long> existingPlaceIds(
+    private Map<Long, MemberPlace> existingMemberPlaces(
             Long memberId,
             List<PlaceSelection> selections,
             Map<Long, PlaceCandidate> candidates
@@ -333,8 +331,28 @@ public class PlaceCommandService {
                 .toList();
         return memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(memberId, placeIds)
                 .stream()
-                .map(memberPlace -> memberPlace.getPlace().getId())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toMap(
+                        memberPlace -> memberPlace.getPlace().getId(),
+                        Function.identity()
+                ));
+    }
+
+    private void validateImportStatus(
+            PlaceImport placeImport,
+            List<PlaceSelection> selections,
+            Map<Long, PlaceCandidate> candidates,
+            Map<Long, MemberPlace> existingMemberPlaces
+    ) {
+        if (placeImport.getStatus() == PlaceImportStatus.REVIEW_REQUIRED) {
+            return;
+        }
+        boolean completedReplay = placeImport.getStatus() == PlaceImportStatus.COMPLETED
+                && selections.stream()
+                .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
+                .allMatch(existingMemberPlaces::containsKey);
+        if (!completedReplay) {
+            throw new InvalidPlaceCandidateException();
+        }
     }
 
     private MemberPlaceView toView(

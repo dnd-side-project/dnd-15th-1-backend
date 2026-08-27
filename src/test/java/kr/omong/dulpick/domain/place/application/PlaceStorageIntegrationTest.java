@@ -4,7 +4,6 @@ import jakarta.persistence.EntityManager;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
@@ -111,7 +110,7 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
-    void rejectsAllSelectionsBeforeWriteWhenOnePlaceIsAlreadySaved() {
+    void reusesExistingPlaceAndSavesOnlyNewSelections() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(
                 member.getId(),
@@ -130,18 +129,22 @@ class PlaceStorageIntegrationTest {
         ));
         entityManager.flush();
 
-        assertThatThrownBy(() -> commandService.confirm(
+        PlaceConfirmationView result = commandService.confirm(
                 member.getId(),
                 placeImport.getId(),
                 List.of(
                         new PlaceCommandService.PlaceSelection(firstCandidate.getId(), null),
                         new PlaceCommandService.PlaceSelection(duplicateCandidate.getId(), null)
                 )
-        )).isInstanceOf(PlaceAlreadySavedException.class);
+        );
 
         assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))
                 .extracting(saved -> saved.getPlace().getId())
-                .containsExactly(duplicate.getId());
+                .containsExactlyInAnyOrder(first.getId(), duplicate.getId());
+        assertThat(result.savedPlaces())
+                .extracting(PlaceConfirmationView.SavedPlaceView::newlySaved)
+                .containsExactly(true, false);
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.COMPLETED);
     }
 
     @Test
