@@ -47,7 +47,7 @@ class PlaceImportControllerTest {
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.ACCEPTED);
         assertThat(response.getHeaders().getLocation())
                 .hasToString("/api/v1/place-imports/10");
-        assertThat(response.getBody().retryAfterSeconds()).isEqualTo(3L);
+        assertThat(response.getBody().retryAfterSeconds()).isEqualTo(2L);
     }
 
     @Test
@@ -76,7 +76,7 @@ class PlaceImportControllerTest {
                 ContentSourceType.INSTAGRAM_REEL,
                 status,
                 nextAction,
-                status == PlaceImportStatus.RECEIVED ? 3L : null,
+                status == PlaceImportStatus.RECEIVED ? 2L : null,
                 null,
                 new PlaceImportView.ContentView(null, null, null, null, null, null),
                 now,

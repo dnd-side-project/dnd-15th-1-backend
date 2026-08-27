@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 @Component
 public class PlaceImportViewMapper {
 
-    static final long PROCESSING_RETRY_AFTER_SECONDS = 3L;
+    static final long PROCESSING_RETRY_AFTER_SECONDS = 2L;
 
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
