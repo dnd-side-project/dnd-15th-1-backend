@@ -16,7 +16,7 @@ public record PlaceConfirmResponse(
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         PlaceImportStatus status,
-        @Schema(description = "이번 요청으로 저장된 장소 목록입니다. 항상 배열로 반환하며 없으면 빈 배열입니다.", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "선택한 장소 목록입니다. 이미 저장된 장소도 포함하며 newlySaved=false로 표시합니다.", requiredMode = Schema.RequiredMode.REQUIRED)
         List<SavedPlaceResponse> savedPlaces
 ) {
 

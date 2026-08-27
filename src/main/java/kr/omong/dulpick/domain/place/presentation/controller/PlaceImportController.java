@@ -170,13 +170,8 @@ public class PlaceImportController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "409",
-                    description = "선택한 장소 중 현재 회원이 이미 저장한 장소가 있습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
                     responseCode = "422",
-                    description = "현재 분석 작업에 속하지 않거나 검증 완료 상태가 아닌 후보입니다",
+                    description = "현재 분석 작업에 속하지 않거나 저장 가능한 상태가 아닌 후보입니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })
