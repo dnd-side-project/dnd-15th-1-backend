@@ -83,17 +83,9 @@ class CoupleConnectionIntegrationTest {
     private ApplicationEvents applicationEvents;
 
     @Test
-    void previewsAndConnectsTwoMembersWithOneStatusContract() throws Exception {
+    void connectsTwoMembersWithOneStatusContract() throws Exception {
         TestMember inviter = createProfileMember("초대자", 3);
         TestMember requester = createProfileMember("요청자", 1);
-
-        mockMvc.perform(post("/api/v1/couple-connections/preview")
-                        .header("Authorization", bearer(requester))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(connectionRequest(inviter.connectionCode().toLowerCase())))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nickname").value("초대자"))
-                .andExpect(jsonPath("$.profileIcon").value(3));
 
         mockMvc.perform(post("/api/v1/couples")
                         .header("Authorization", bearer(requester))

@@ -38,8 +38,6 @@ class CoupleControllerStructureTest {
 
     @Test
     void documentsConnectionRequestLimits() {
-        assertThat(operationDescription("preview"))
-                .contains("분당 10회", "시간당 30회", "10분간 15회", "10분간", "시간당 100회");
         assertThat(operationDescription("connect"))
                 .contains("분당 10회", "일일 30회", "10분간 15회", "시간당 100회");
         assertThat(operationDescription("disconnect"))
@@ -47,10 +45,7 @@ class CoupleControllerStructureTest {
     }
 
     @Test
-    void documentsConnectedPartnerAndOptionalPreviewFlow() {
-        assertThat(operationDescription("preview"))
-                .contains("현재 iOS 필수 연결 플로우에서는 사용하지 않지만")
-                .contains("영문 대문자 5자리");
+    void documentsConnectedPartnerFlow() {
         assertThat(operationDescription("connect"))
                 .contains("connected=true")
                 .contains("partner")

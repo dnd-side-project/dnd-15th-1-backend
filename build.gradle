@@ -109,7 +109,6 @@ tasks.named('test', Test) {
         'EmailAnnouncementIntegrationTest',
         'OperationsAdminIntegrationTest',
         'NotificationDeliveryWorkerIntegrationTest',
-        'NotificationInboxIntegrationTest',
         'LoginNonceServiceTest',
         'SocialAccountServiceTest'
     ].each { testClass ->
