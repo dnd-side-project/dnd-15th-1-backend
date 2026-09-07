@@ -87,6 +87,7 @@ tasks.named('test', Test) {
         'TestAuthDisabledIntegrationTest',
         'OpsAuthenticationIntegrationTest',
         'UniversalLinkIntegrationTest',
+        'PublicPageControllerTest',
         'ConnectionAbusePreventionIntegrationTest',
         'CoupleConnectionConcurrencyIntegrationTest',
         'CoupleConnectionIntegrationTest',
