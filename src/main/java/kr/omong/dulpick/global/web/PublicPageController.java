@@ -78,6 +78,12 @@ public class PublicPageController {
         return page("ops-places.html");
     }
 
+    @GetMapping(value = "/ops/notices", produces = HTML_UTF_8)
+    public Resource opsNotices(HttpServletRequest request, HttpServletResponse response) {
+        ensureCsrfToken(request, response);
+        return page("ops-notices.html");
+    }
+
     @GetMapping(value = "/favicon.ico", produces = "image/png")
     public Resource favicon() {
         return new ClassPathResource("static/favicon.png");

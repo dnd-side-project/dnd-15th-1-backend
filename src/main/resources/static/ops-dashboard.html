@@ -13,7 +13,7 @@
   </style>
 </head>
 <body>
-  <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">게시글·장소·이미지 상태를 한 화면에서 관리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
+  <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">게시글·장소·이미지 상태를 한 화면에서 관리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><a href="/ops/notices">공지사항</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
   <main>
     <div class="topline"><div><div class="eyebrow">DULPICK OPERATIONS</div><h2>오늘의 운영 현황</h2><p class="hint">실패 작업을 확인하고 콘텐츠를 검토·수정·공개할 수 있습니다.</p></div><button id="overview-refresh" class="primary" type="button" aria-label="운영 현황 수동 새로고침">↻ 수동 새로고침</button></div>
     <p id="status" class="status"></p><div id="cards" class="cards"></div>

@@ -31,4 +31,5 @@ class PublicPageControllerTest {
                 .andExpect(status().isFound())
                 .andExpect(redirectedUrl(APP_STORE_URL));
     }
+
 }
