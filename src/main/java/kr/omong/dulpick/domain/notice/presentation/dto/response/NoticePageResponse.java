@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.notice.application.NoticePageView;
 import java.util.List;
 
 public record NoticePageResponse(
+        @Schema(description = "공지사항 목록입니다. 없으면 빈 배열입니다.", example = "[]")
         List<NoticeResponse> notices,
         @Schema(example = "0") int page,
         @Schema(example = "20") int size,
