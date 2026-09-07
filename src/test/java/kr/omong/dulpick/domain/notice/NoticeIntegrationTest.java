@@ -1,6 +1,5 @@
 package kr.omong.dulpick.domain.notice;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import kr.omong.dulpick.domain.notice.domain.Notice;
 import kr.omong.dulpick.domain.notice.domain.NoticeNotificationCampaignRepository;
 import kr.omong.dulpick.domain.notice.domain.NoticeRepository;
@@ -10,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,9 +31,6 @@ class NoticeIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private OpsAccessProperties opsAccessProperties;
@@ -66,7 +63,7 @@ class NoticeIntegrationTest {
 
     @Test
     void operatorCanCreateSilentlyAndUpdateWithoutSendingAnotherNotification() throws Exception {
-        String response = mockMvc.perform(post("/api/v1/admin/notices")
+        mockMvc.perform(post("/api/v1/admin/notices")
                         .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,13 +72,12 @@ class NoticeIntegrationTest {
                                 """))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.notice.title").value("운영 공지"))
-                .andExpect(jsonPath("$.notification").doesNotExist())
-                .andReturn()
-                .getResponse()
-                .getContentAsString();
-        var created = objectMapper.readTree(response);
-        long noticeId = created.path("notice").path("noticeId").asLong();
-        String updatedAt = created.path("notice").path("updatedAt").asText();
+                .andExpect(jsonPath("$.notification").doesNotExist());
+        Notice created = noticeRepository.findAllByOrderByCreatedAtDesc(PageRequest.of(0, 1))
+                .getContent()
+                .getFirst();
+        long noticeId = created.getId();
+        String updatedAt = created.getUpdatedAt().toString();
 
         mockMvc.perform(patch("/api/v1/admin/notices/{noticeId}", noticeId)
                         .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))

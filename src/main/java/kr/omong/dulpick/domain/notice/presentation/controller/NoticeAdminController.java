@@ -77,7 +77,7 @@ public class NoticeAdminController {
     })
     @PatchMapping("/{noticeId:[0-9]+}")
     public ResponseEntity<NoticeResponse> update(
-            @PathVariable Long noticeId,
+            @PathVariable @Schema(example = "42") Long noticeId,
             @Valid @RequestBody UpdateNoticeRequest request
     ) {
         return ResponseEntity.ok(NoticeResponse.from(noticeService.update(noticeId, request.toCommand())));

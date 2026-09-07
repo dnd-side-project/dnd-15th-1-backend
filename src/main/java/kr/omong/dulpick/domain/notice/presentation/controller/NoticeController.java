@@ -46,7 +46,9 @@ public class NoticeController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
     @GetMapping("/{noticeId:[0-9]+}")
-    public ResponseEntity<NoticeResponse> get(@PathVariable Long noticeId) {
+    public ResponseEntity<NoticeResponse> get(
+            @PathVariable @Schema(example = "42") Long noticeId
+    ) {
         return ResponseEntity.ok(NoticeResponse.from(noticeService.get(noticeId)));
     }
 }
