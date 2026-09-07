@@ -38,6 +38,16 @@ public class PublicPageController {
         return page("privacy.html");
     }
 
+    @GetMapping(value = "/privacy/history", produces = HTML_UTF_8)
+    public Resource privacyHistory() {
+        return page("privacy-history.html");
+    }
+
+    @GetMapping(value = "/privacy/history/v1.0", produces = HTML_UTF_8)
+    public Resource privacyHistoryV1() {
+        return page("privacy-v1.0.html");
+    }
+
     @GetMapping(value = "/terms", produces = HTML_UTF_8)
     public Resource terms() {
         return page("terms.html");

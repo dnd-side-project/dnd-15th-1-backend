@@ -26,6 +26,8 @@ public class SecurityConfig {
             "/index.html",
             "/privacy",
             "/privacy.html",
+            "/privacy/history",
+            "/privacy/history/**",
             "/terms",
             "/terms.html",
             "/marketing",

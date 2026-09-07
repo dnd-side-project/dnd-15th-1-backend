@@ -43,8 +43,8 @@ public class NoticeAdminController {
     @Operation(summary = "운영자 공지사항 목록 조회")
     @GetMapping
     public ResponseEntity<NoticePageResponse> list(
-            @Parameter(example = "0") @RequestParam(defaultValue = "0") int page,
-            @Parameter(example = "20") @RequestParam(defaultValue = "20") int size
+            @Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
+            @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(NoticePageResponse.from(noticeService.list(page, size)));
     }
