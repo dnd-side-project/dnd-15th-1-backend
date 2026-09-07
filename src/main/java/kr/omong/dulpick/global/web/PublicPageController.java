@@ -1,9 +1,13 @@
 package kr.omong.dulpick.global.web;
 
+import java.net.URI;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -47,6 +51,13 @@ public class PublicPageController {
     @GetMapping(value = "/connect", produces = HTML_UTF_8)
     public Resource connect() {
         return page("connect.html");
+    }
+
+    @GetMapping("/download")
+    public ResponseEntity<Void> download() {
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(URI.create("https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877"))
+                .build();
     }
 
     @GetMapping(value = "/ops/login", produces = HTML_UTF_8)

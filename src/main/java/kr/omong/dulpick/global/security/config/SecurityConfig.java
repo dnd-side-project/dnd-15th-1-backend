@@ -30,6 +30,7 @@ public class SecurityConfig {
             "/marketing",
             "/marketing.html",
             "/connect",
+            "/download",
             "/.well-known/apple-app-site-association",
             "/assets/**",
             "/favicon.ico",
