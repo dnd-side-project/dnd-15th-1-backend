@@ -109,6 +109,7 @@ tasks.named('test', Test) {
         'SelectiveNotificationIntegrationTest',
         'MarketingNotificationAdminIntegrationTest',
         'EmailAnnouncementIntegrationTest',
+        'NoticeIntegrationTest',
         'OperationsAdminIntegrationTest',
         'NotificationDeliveryWorkerIntegrationTest',
         'LoginNonceServiceTest',

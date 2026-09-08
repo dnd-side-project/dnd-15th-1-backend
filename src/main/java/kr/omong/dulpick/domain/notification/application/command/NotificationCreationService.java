@@ -47,6 +47,11 @@ public class NotificationCreationService {
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
+    public boolean createSystemNotificationIfAbsent(NotificationRequest request) {
+        return createNotification(request, true);
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
     public boolean createMarketingNotification(NotificationRequest request) {
         boolean enabled = settingsRepository.findById(request.receiverMemberId())
                 .map(MemberNotificationSettings::isMarketingEnabled)
