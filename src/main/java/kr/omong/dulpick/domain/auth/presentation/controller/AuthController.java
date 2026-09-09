@@ -69,7 +69,7 @@ public class AuthController {
 
     @Operation(
             summary = "소셜 로그인",
-            description = "소셜 제공자의 ID Token과 nonce를 검증하고, 둘픽 인증 토큰과 온보딩 완료 여부를 반환합니다."
+            description = "소셜 제공자의 ID Token과 nonce를 검증하고, 둘픽 인증 토큰·온보딩 완료 여부·커플 식별자를 반환합니다."
     )
     @ApiResponses({
             @ApiResponse(

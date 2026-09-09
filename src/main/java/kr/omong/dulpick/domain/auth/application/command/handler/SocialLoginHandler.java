@@ -14,6 +14,7 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.springframework.stereotype.Component;
 
@@ -25,6 +26,7 @@ public class SocialLoginHandler {
     private final AppleAuthorizationService appleAuthorizationService;
     private final SocialAccountService socialAccountService;
     private final MemberProfileRepository memberProfileRepository;
+    private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final TokenService tokenService;
 
     public SocialLoginHandler(
@@ -33,6 +35,7 @@ public class SocialLoginHandler {
             AppleAuthorizationService appleAuthorizationService,
             SocialAccountService socialAccountService,
             MemberProfileRepository memberProfileRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
             TokenService tokenService
     ) {
         this.verifierRegistry = verifierRegistry;
@@ -40,6 +43,7 @@ public class SocialLoginHandler {
         this.appleAuthorizationService = appleAuthorizationService;
         this.socialAccountService = socialAccountService;
         this.memberProfileRepository = memberProfileRepository;
+        this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.tokenService = tokenService;
     }
 
@@ -54,12 +58,20 @@ public class SocialLoginHandler {
                 providerAuthorization
         );
         IssuedTokens tokens = tokenService.issue(authenticatedMember.member());
+        Long memberId = authenticatedMember.member().getId();
         return new SocialLoginResult(
-                authenticatedMember.member().getId(),
+                memberId,
                 authenticatedMember.newMember(),
                 isOnboardingCompleted(authenticatedMember),
+                findCoupleId(memberId),
                 tokens
         );
+    }
+
+    private Long findCoupleId(Long memberId) {
+        return activeCoupleMemberRepository.findByMemberId(memberId)
+                .map(membership -> membership.getCouple().getId())
+                .orElse(null);
     }
 
     private boolean isOnboardingCompleted(AuthenticatedMember authenticatedMember) {

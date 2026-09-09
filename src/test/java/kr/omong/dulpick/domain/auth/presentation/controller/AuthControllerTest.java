@@ -59,7 +59,7 @@ class AuthControllerTest {
     void logsInWithVerifiedSocialIdentity() throws Exception {
         IssuedTokens tokens = new IssuedTokens("access", "refresh", 900);
         when(authCommandService.socialLogin(any()))
-                .thenReturn(new SocialLoginResult(1L, true, false, tokens));
+                .thenReturn(new SocialLoginResult(1L, true, false, null, tokens));
 
         mockMvc.perform(post("/api/v1/auth/social-login")
                         .contentType("application/json")
@@ -74,6 +74,7 @@ class AuthControllerTest {
                 .andExpect(jsonPath("$.memberId").value(1))
                 .andExpect(jsonPath("$.newMember").value(true))
                 .andExpect(jsonPath("$.onboardingCompleted").value(false))
+                .andExpect(jsonPath("$.coupleId").doesNotExist())
                 .andExpect(jsonPath("$.token.tokenType").value("Bearer"));
     }
 
