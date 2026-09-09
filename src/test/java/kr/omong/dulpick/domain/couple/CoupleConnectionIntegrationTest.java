@@ -96,7 +96,8 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.me.nickname").value("요청자"))
                 .andExpect(jsonPath("$.partner.nickname").value("초대자"))
                 .andExpect(jsonPath("$.connectedAt").isNotEmpty())
-                .andExpect(jsonPath("$.daysTogether").value(1));
+                .andExpect(jsonPath("$.daysTogether").value(1))
+                .andExpect(jsonPath("$.coupleId").isNumber());
 
         assertConnectionCodeStatus(inviter, ConnectionCodeStatus.USED);
         assertConnectionCodeStatus(requester, ConnectionCodeStatus.REVOKED);
@@ -117,7 +118,8 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.connected").value(true))
                 .andExpect(jsonPath("$.me.nickname").value("초대자"))
                 .andExpect(jsonPath("$.partner.nickname").value("요청자"))
-                .andExpect(jsonPath("$.daysTogether").value(1));
+                .andExpect(jsonPath("$.daysTogether").value(1))
+                .andExpect(jsonPath("$.coupleId").value(coupleId));
 
         mockMvc.perform(get("/api/v1/connection-codes/me")
                         .header("Authorization", bearer(requester)))
@@ -152,7 +154,8 @@ class CoupleConnectionIntegrationTest {
                 .andExpect(jsonPath("$.me.profileIcon").value(2))
                 .andExpect(jsonPath("$.partner").doesNotExist())
                 .andExpect(jsonPath("$.connectedAt").doesNotExist())
-                .andExpect(jsonPath("$.daysTogether").doesNotExist());
+                .andExpect(jsonPath("$.daysTogether").doesNotExist())
+                .andExpect(jsonPath("$.coupleId").doesNotExist());
     }
 
     @Test
