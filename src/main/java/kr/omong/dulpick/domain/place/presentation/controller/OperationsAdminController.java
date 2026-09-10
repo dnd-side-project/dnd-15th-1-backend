@@ -21,6 +21,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.CompletePlaceImportRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReviewPlaceCandidateRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
@@ -247,7 +249,7 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.updateContent(contentId, request));
     }
 
-    @Operation(summary = "게시글 연결 장소 수정")
+    @Operation(summary = "게시글 연결 장소 수정", description = "장소를 저장하고 publish=true이면 게시글을 PUBLIC으로 전환합니다.")
     @PatchMapping("/contents/{contentId:[0-9]+}/places")
     public ResponseEntity<OperationsAdminView.ContentDetail> updateContentPlaces(
             @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
@@ -425,6 +427,29 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.manuallyLinkPlace(importId, request));
     }
 
+    @Operation(summary = "장소 추출 후보 제외")
+    @DeleteMapping("/place-imports/{importId:[0-9]+}/candidates/{candidateId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ImportDetail> rejectPlaceCandidate(
+            @Parameter(example = "1001") @PathVariable @Schema(example = "1001") Long importId,
+            @Parameter(example = "3001") @PathVariable @Schema(example = "3001") Long candidateId,
+            @Valid @RequestBody ReviewPlaceCandidateRequest request
+    ) {
+        return ResponseEntity.ok(adminService.rejectCandidate(
+                importId, candidateId, request.expectedUpdatedAt()
+        ));
+    }
+
+    @Operation(summary = "장소 추출 작업 최종 확정 및 공개")
+    @PostMapping("/place-imports/{importId:[0-9]+}/complete")
+    public ResponseEntity<OperationsAdminView.ContentDetail> completePlaceImport(
+            @Parameter(example = "1001") @PathVariable @Schema(example = "1001") Long importId,
+            @Valid @RequestBody CompletePlaceImportRequest request
+    ) {
+        return ResponseEntity.ok(adminService.completeManualPlaceImport(
+                importId, request.expectedUpdatedAt()
+        ));
+    }
+
     @Operation(summary = "이미지 보강 백로그 조회")
     @GetMapping("/image-backlogs")
     public ResponseEntity<OperationsAdminView.ImageBacklogPage> imageBacklogs(
@@ -450,6 +475,15 @@ public class OperationsAdminController {
             @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId
     ) {
         adminService.retryPlaceImages(placeId);
+        return ResponseEntity.accepted().build();
+    }
+
+    @Operation(summary = "장소 원본 이미지 재추출")
+    @PostMapping("/places/{placeId:[0-9]+}/images/refresh")
+    public ResponseEntity<Void> refreshPlaceImages(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId
+    ) {
+        adminService.refreshPlaceImages(placeId);
         return ResponseEntity.accepted().build();
     }
 
