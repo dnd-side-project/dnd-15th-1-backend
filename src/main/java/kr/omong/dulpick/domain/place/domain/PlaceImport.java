@@ -224,6 +224,10 @@ public class PlaceImport {
         this.completedAt = now;
     }
 
+    public void touch(Instant now) {
+        this.updatedAt = now;
+    }
+
     public Long getId() {
         return id;
     }

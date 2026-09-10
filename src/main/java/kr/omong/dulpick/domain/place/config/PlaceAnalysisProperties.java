@@ -24,8 +24,8 @@ public record PlaceAnalysisProperties(
         if (dailyLimit <= 0) {
             dailyLimit = 100;
         }
-        if (maxCandidates <= 0 || maxCandidates > 20) {
-            maxCandidates = 20;
+        if (maxCandidates <= 0 || maxCandidates > 30) {
+            maxCandidates = 30;
         }
         if (maxRetries < 0) {
             maxRetries = 1;

@@ -17,6 +17,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,24 +48,7 @@ class PlaceImportPartialVerificationTest {
     private final PlaceAnalyzer placeAnalyzer = mock(PlaceAnalyzer.class);
     private final PlaceVerifier placeVerifier = mock(PlaceVerifier.class);
 
-    private final PlaceImportProcessingService service = new PlaceImportProcessingService(
-            importRepository,
-            candidateRepository,
-            placeRepository,
-            resultWriter,
-            imageEnrichmentService,
-            contentImageEnrichmentService,
-            reservationService,
-            metadataService,
-            placeAnalyzer,
-            placeVerifier,
-            new PlaceAnalysisProperties(
-                    true, 100, 20, 1, true, 600, 300, 3,
-                    Duration.ofSeconds(5), 20, 8, 12
-            ),
-            Clock.fixed(NOW, Clock.systemDefaultZone().getZone()),
-            Runnable::run
-    );
+    private final PlaceImportProcessingService service = createService(Runnable::run);
 
     @BeforeEach
     void setUp() {
@@ -124,6 +110,53 @@ class PlaceImportPartialVerificationTest {
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
         assertThat(captor.getValue()).hasSize(1);
+    }
+
+    @Test
+    void preservesAcceptedCandidatesWhenVerificationQueueRejectsRemainingCandidates() {
+        ExtractedPlace accepted = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
+        ExtractedPlace rejected = new ExtractedPlace("대기 카페", null, null, "EXPLICIT_VENUE");
+        when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(accepted, rejected));
+        when(placeVerifier.verify(accepted)).thenReturn(new PlaceVerificationResult(
+                verifiedPlace("100", "성공 카페"),
+                PlaceVerificationStatus.VERIFIED
+        ));
+        AtomicInteger submissions = new AtomicInteger();
+        Executor rejectingExecutor = command -> {
+            if (submissions.incrementAndGet() > 1) {
+                throw new RejectedExecutionException();
+            }
+            command.run();
+        };
+
+        createService(rejectingExecutor).processClaimed(1L, CLAIM_TOKEN);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
+        );
+        assertThat(captor.getValue()).hasSize(1);
+    }
+
+    private PlaceImportProcessingService createService(Executor verificationExecutor) {
+        return new PlaceImportProcessingService(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                resultWriter,
+                imageEnrichmentService,
+                contentImageEnrichmentService,
+                reservationService,
+                metadataService,
+                placeAnalyzer,
+                placeVerifier,
+                new PlaceAnalysisProperties(
+                        true, 100, 20, 1, true, 600, 300, 3,
+                        Duration.ofSeconds(5), 20, 8, 12
+                ),
+                Clock.fixed(NOW, Clock.systemDefaultZone().getZone()),
+                verificationExecutor
+        );
     }
 
     @Test
