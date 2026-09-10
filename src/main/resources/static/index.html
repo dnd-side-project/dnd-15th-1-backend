@@ -15,6 +15,15 @@
   <link rel="canonical" href="https://dulpick.omong.kr/">
   <link rel="icon" href="/favicon.png" type="image/png">
   <link rel="stylesheet" href="/assets/site.css">
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-91V1WZ1N46"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-91V1WZ1N46');
+  </script>
 </head>
 <body class="home-page">
 
@@ -189,6 +198,17 @@
     </div>
   </div>
 </footer>
+
+<script>
+  document.querySelectorAll('a.app-store-badge').forEach((link) => {
+    link.addEventListener('click', () => {
+      gtag('event', 'app_store_click', {
+        link_url: link.href,
+        page_location: window.location.href
+      });
+    });
+  });
+</script>
 
 </body>
 </html>
