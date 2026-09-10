@@ -77,6 +77,13 @@ class OperationsAdminIntegrationTest {
     }
 
     @Test
+    void rejectsKakaoPlaceSearchWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/places/kakao-search")
+                        .param("query", "도원반점"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void rejectsStaleContentUpdateWithConflict() throws Exception {
         Content content = createContent();
         Instant expectedUpdatedAt = content.getUpdatedAt();

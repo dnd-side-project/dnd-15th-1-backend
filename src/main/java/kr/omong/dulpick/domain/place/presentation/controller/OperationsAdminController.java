@@ -8,6 +8,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.analytics.application.AnalyticsMetricsService;
 import kr.omong.dulpick.domain.analytics.presentation.AnalyticsMetricsResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsComparisonResponse;
 import kr.omong.dulpick.domain.analytics.presentation.AnalyticsFunnelResponse;
 import kr.omong.dulpick.domain.analytics.presentation.AnalyticsRetentionResponse;
 import kr.omong.dulpick.domain.analytics.presentation.AnalyticsTrendResponse;
@@ -44,6 +45,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -81,6 +83,27 @@ public class OperationsAdminController {
         MetricPeriod period = metricPeriod(from, to);
         return ResponseEntity.ok(AnalyticsMetricsResponse.from(
                 analyticsMetricsService.overview(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 기간 비교 조회")
+    @GetMapping("/metrics/comparison")
+    public ResponseEntity<AnalyticsComparisonResponse> metricsComparison(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate startDate = from == null ? today.withDayOfMonth(1) : from;
+        LocalDate endDate = to == null ? startDate.plusMonths(1) : to;
+        MetricPeriod current = metricPeriod(startDate, endDate);
+        long periodDays = ChronoUnit.DAYS.between(startDate, endDate);
+        MetricPeriod previous = metricPeriod(
+                startDate.minusDays(periodDays),
+                startDate
+        );
+        return ResponseEntity.ok(AnalyticsComparisonResponse.from(
+                analyticsMetricsService.overview(current.from(), current.to()),
+                analyticsMetricsService.overview(previous.from(), previous.to())
         ));
     }
 
@@ -363,6 +386,15 @@ public class OperationsAdminController {
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+    }
+
+    @Operation(summary = "카카오맵 장소 검색")
+    @GetMapping("/places/kakao-search")
+    public ResponseEntity<OperationsAdminView.KakaoPlaceSearchPage> searchKakaoPlaces(
+            @Parameter(example = "도원반점")
+            @RequestParam @Schema(example = "도원반점") String query
+    ) {
+        return ResponseEntity.ok(adminService.searchKakaoPlaces(query));
     }
 
     @Operation(

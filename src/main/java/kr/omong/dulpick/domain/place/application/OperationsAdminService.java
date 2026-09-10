@@ -80,6 +80,7 @@ public class OperationsAdminService {
     private final PlaceImageRepository placeImageRepository;
     private final PlaceImageStorageService placeImageStorageService;
     private final PlaceAnalysisProperties analysisProperties;
+    private final PlaceSearcher placeSearcher;
 
     public OperationsAdminService(
             JdbcTemplate jdbcTemplate,
@@ -96,7 +97,8 @@ public class OperationsAdminService {
             PlaceCandidateRepository placeCandidateRepository,
             PlaceImageRepository placeImageRepository,
             PlaceImageStorageService placeImageStorageService,
-            PlaceAnalysisProperties analysisProperties
+            PlaceAnalysisProperties analysisProperties,
+            PlaceSearcher placeSearcher
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
@@ -113,6 +115,7 @@ public class OperationsAdminService {
         this.placeImageRepository = placeImageRepository;
         this.placeImageStorageService = placeImageStorageService;
         this.analysisProperties = analysisProperties;
+        this.placeSearcher = placeSearcher;
     }
 
     @Transactional(readOnly = true)
@@ -625,6 +628,31 @@ public class OperationsAdminService {
                 totalPages(total, bounds.size()),
                 hasNext
         );
+    }
+
+    @Transactional(readOnly = true)
+    public OperationsAdminView.KakaoPlaceSearchPage searchKakaoPlaces(String query) {
+        String keyword = query == null ? "" : query.strip();
+        if (keyword.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        List<OperationsAdminView.KakaoPlace> places = placeSearcher.search(keyword, 1).results()
+                .stream()
+                .map(result -> new OperationsAdminView.KakaoPlace(
+                        result.kakaoPlaceId(),
+                        result.name(),
+                        result.address(),
+                        result.roadAddress(),
+                        result.latitude(),
+                        result.longitude(),
+                        result.categoryGroupCode(),
+                        result.category(),
+                        result.phone(),
+                        result.kakaoPlaceUrl(),
+                        result.thumbnailUrl()
+                ))
+                .toList();
+        return new OperationsAdminView.KakaoPlaceSearchPage(places);
     }
 
     @Transactional
