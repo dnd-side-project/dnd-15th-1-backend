@@ -19,14 +19,16 @@ class FlywaySchemaPreparationTest {
     private static final Pattern VERSIONED_MIGRATION = Pattern.compile("V(\\d+)__.+\\.sql");
 
     @Test
-    void containsOnlyTheRebuiltV1ToV11MigrationChain() throws IOException {
+    void containsTheRebuiltV1ToV12MigrationChain() throws IOException {
         List<String> versions = migrationFiles()
                 .map(path -> VERSIONED_MIGRATION.matcher(path.getFileName().toString()))
                 .filter(java.util.regex.Matcher::matches)
                 .map(matcher -> matcher.group(1))
                 .toList();
 
-        assertThat(versions).containsExactly("1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11");
+        assertThat(versions).containsExactly(
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+        );
     }
 
     @Test
@@ -43,7 +45,7 @@ class FlywaySchemaPreparationTest {
                 "date_course_places", "place_classifications", "walking_route_cache",
                 "place_image_enrichment_backlogs", "content_images", "content_image_enrichment_backlogs",
                 "marketing_notification_campaigns", "email_opt_outs", "email_announcements",
-                "notices", "notice_notification_campaigns"
+                "notices", "notice_notification_campaigns", "analytics_events"
         );
 
         tables.forEach(table -> assertThat(sql).contains("CREATE TABLE " + table));

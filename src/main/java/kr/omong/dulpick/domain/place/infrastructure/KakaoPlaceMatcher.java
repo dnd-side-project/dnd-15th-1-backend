@@ -91,7 +91,7 @@ final class KakaoPlaceMatcher {
             NameQuality nameQuality,
             AddressQuality addressQuality
     ) {
-        if (nameQuality != NameQuality.NONE && !addressQuality.requiresReview()) {
+        if (nameQuality != NameQuality.NONE || addressQuality != AddressQuality.NONE) {
             return PlaceVerificationStatus.VERIFIED;
         }
         return PlaceVerificationStatus.REVIEW_REQUIRED;
@@ -110,7 +110,37 @@ final class KakaoPlaceMatcher {
                 && (result.contains(extracted) || extracted.contains(result))) {
             return NameQuality.PARTIAL;
         }
+        if (isLikelyTypo(extracted, result)) {
+            return NameQuality.FUZZY;
+        }
         return NameQuality.NONE;
+    }
+
+    private boolean isLikelyTypo(String first, String second) {
+        int lengthDifference = Math.abs(first.length() - second.length());
+        if (Math.min(first.length(), second.length()) < 3 || lengthDifference > 1) {
+            return false;
+        }
+        return editDistance(first, second) <= 1;
+    }
+
+    private int editDistance(String first, String second) {
+        int[] previous = new int[second.length() + 1];
+        for (int index = 0; index <= second.length(); index++) {
+            previous[index] = index;
+        }
+        for (int row = 1; row <= first.length(); row++) {
+            int[] current = new int[second.length() + 1];
+            current[0] = row;
+            for (int column = 1; column <= second.length(); column++) {
+                current[column] = Math.min(
+                        Math.min(current[column - 1] + 1, previous[column] + 1),
+                        previous[column - 1] + (first.charAt(row - 1) == second.charAt(column - 1) ? 0 : 1)
+                );
+            }
+            previous = current;
+        }
+        return previous[second.length()];
     }
 
     private AddressQuality addressQuality(String addressHint, String resultAddress) {
@@ -292,6 +322,7 @@ final class KakaoPlaceMatcher {
 
     private enum NameQuality {
         NONE(0),
+        FUZZY(65),
         PARTIAL(70),
         EXACT(100);
 
@@ -319,8 +350,5 @@ final class KakaoPlaceMatcher {
             return this == LOCATION || this == SAME_ROAD || this == EXACT;
         }
 
-        private boolean requiresReview() {
-            return this == SAME_ROAD;
-        }
     }
 }

@@ -207,6 +207,10 @@ public class Place {
                 : dulpickCategoryCode;
     }
 
+    public DulpickPlaceCategory getStoredDulpickCategoryCode() {
+        return dulpickCategoryCode;
+    }
+
     public DulpickPlaceCategory getDulpickCategory(
             String fallbackCategoryGroupCode,
             String fallbackCategory

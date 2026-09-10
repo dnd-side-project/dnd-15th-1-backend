@@ -228,6 +228,12 @@ public class ContentImageStorageService {
         return !images.isEmpty() && images.stream().allMatch(this::hasStoredFile);
     }
 
+    public void refreshIfMissing(ContentImage image) {
+        if (image != null && !hasStoredFile(image)) {
+            dispatchRefresh(image);
+        }
+    }
+
     @Transactional
     public ContentImage storeManual(
             Long contentId,
@@ -325,6 +331,7 @@ public class ContentImageStorageService {
                 .filter(candidate -> candidate.getContentId().equals(contentId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND));
         if (!hasStoredFile(image)) {
+            refreshIfMissing(image);
             throw new BusinessException(ErrorCode.NOT_FOUND);
         }
         try {

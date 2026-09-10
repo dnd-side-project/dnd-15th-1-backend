@@ -35,20 +35,49 @@ public class PlaceCategoryWriteThroughService {
             String kakaoCategoryGroupCode,
             String kakaoCategory
     ) {
-        if (!shouldFill(
+        fillIfMissing(
+                placeId,
                 storedCategoryGroupCode,
                 storedCategory,
                 kakaoCategoryGroupCode,
-                kakaoCategory
-        )) {
-            return;
-        }
-        placeRepository.updateCategoryIfMissing(
-                placeId,
-                kakaoCategoryGroupCode,
                 kakaoCategory,
-                Instant.now(clock)
+                null
         );
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void fillIfMissing(
+            Long placeId,
+            String storedCategoryGroupCode,
+            String storedCategory,
+            String kakaoCategoryGroupCode,
+            String kakaoCategory,
+            DulpickPlaceCategory storedDulpickCategory
+    ) {
+        String categoryGroupCode = firstNonBlank(
+                kakaoCategoryGroupCode,
+                storedCategoryGroupCode
+        );
+        String category = firstNonBlank(kakaoCategory, storedCategory);
+        DulpickPlaceCategory dulpickCategory =
+                DulpickPlaceCategory.fromKakao(categoryGroupCode, category);
+        Instant now = Instant.now(clock);
+        if (shouldFill(storedCategoryGroupCode, storedCategory,
+                kakaoCategoryGroupCode, kakaoCategory)) {
+            placeRepository.updateCategoryIfMissing(
+                    placeId,
+                    kakaoCategoryGroupCode,
+                    kakaoCategory,
+                    now
+            );
+        }
+        if (storedDulpickCategory == null) {
+            placeRepository.updateDulpickCategoryIfMissing(placeId, dulpickCategory, now);
+        }
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null && !first.isBlank() ? first : second;
     }
 
     private boolean shouldFill(

@@ -164,6 +164,7 @@ public class PlaceImportContentWriter {
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),
                 verified.categoryGroupCode(), verified.phone(), verified.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(verified.categoryGroupCode(), verified.category()).name(),
                 null, now);
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
