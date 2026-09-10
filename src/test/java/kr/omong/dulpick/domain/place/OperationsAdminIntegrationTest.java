@@ -346,6 +346,12 @@ class OperationsAdminIntegrationTest {
 
         assertThat(response).contains("\"importId\":" + partialImport.getId());
         assertThat(response).doesNotContain("\"importId\":" + cleanImport.getId());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", partialImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.canonicalUrl").value(partialContent.getCanonicalUrl()))
+                .andExpect(jsonPath("$.summary.failedPlaceNames").value("미검증 후보"));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {
