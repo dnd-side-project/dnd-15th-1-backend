@@ -146,16 +146,14 @@ public interface AnalyticsEventRepository extends JpaRepository<AnalyticsEvent, 
     long countDistinctSharedPlaceCouples(@Param("from") Instant from, @Param("to") Instant to);
 
     @Query(value = """
-            SELECT COUNT(DISTINCT first_event.member_id)
-            FROM analytics_events first_event
-            JOIN analytics_events save_event
-              ON save_event.member_id = first_event.member_id
-             AND save_event.event_type = 'PLACE_SAVED'
-             AND save_event.occurred_at >= :from
-             AND save_event.occurred_at < :to
-            WHERE first_event.event_type = 'MEMBER_SIGNED_UP'
-              AND first_event.occurred_at >= :from
-              AND first_event.occurred_at < :to
+            SELECT COUNT(DISTINCT member.id)
+            FROM members member
+            JOIN member_places saved_place
+              ON saved_place.member_id = member.id
+             AND saved_place.saved_at >= :from
+             AND saved_place.saved_at < :to
+            WHERE member.created_at >= :from
+              AND member.created_at < :to
             """, nativeQuery = true)
     long countActivatedNewMembers(@Param("from") Instant from, @Param("to") Instant to);
 
@@ -261,14 +259,39 @@ public interface AnalyticsEventRepository extends JpaRepository<AnalyticsEvent, 
     long countActiveMembers(@Param("to") Instant to);
 
     @Query(value = """
+            SELECT COUNT(*)
+            FROM members
+            WHERE created_at >= :from
+              AND created_at < :to
+            """, nativeQuery = true)
+    long countMembersCreatedAt(
+            @Param("from") Instant from,
+            @Param("to") Instant to
+    );
+
+    @Query(value = """
             SELECT DATE(occurred_at) AS occurred_date, event_type, COUNT(*) AS event_count
             FROM analytics_events
             WHERE occurred_at >= :from
               AND occurred_at < :to
+              AND event_type <> 'MEMBER_SIGNED_UP'
             GROUP BY DATE(occurred_at), event_type
             ORDER BY occurred_date ASC, event_type ASC
             """, nativeQuery = true)
     List<Object[]> findDailyEventCounts(
+            @Param("from") Instant from,
+            @Param("to") Instant to
+    );
+
+    @Query(value = """
+            SELECT DATE(created_at) AS created_date, 'MEMBER_SIGNED_UP' AS event_type, COUNT(*) AS member_count
+            FROM members
+            WHERE created_at >= :from
+              AND created_at < :to
+            GROUP BY DATE(created_at)
+            ORDER BY created_date ASC
+            """, nativeQuery = true)
+    List<Object[]> findDailyMemberSignupCounts(
             @Param("from") Instant from,
             @Param("to") Instant to
     );

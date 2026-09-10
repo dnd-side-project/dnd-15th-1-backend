@@ -30,7 +30,7 @@ public class AnalyticsMetricsService {
         long activeCouples = eventRepository.countDistinctCouplesByTypes(
                 List.of("PLACE_SAVED", "DATE_COURSE_CREATED"), from, to
         );
-        long newMembers = count(AnalyticsEventType.MEMBER_SIGNED_UP, from, to);
+        long newMembers = eventRepository.countMembersCreatedAt(from, to);
         long connectedCouples = eventRepository.countDistinctCouples(
                 AnalyticsEventType.COUPLE_CONNECTED, from, to
         );
@@ -92,6 +92,10 @@ public class AnalyticsMetricsService {
                 daily.computeIfAbsent(date, ignored -> new long[6])[index] = ((Number) row[2]).longValue();
             }
         }
+        for (Object[] row : eventRepository.findDailyMemberSignupCounts(from, to)) {
+            LocalDate date = toLocalDate(row[0]);
+            daily.computeIfAbsent(date, ignored -> new long[6])[1] = ((Number) row[2]).longValue();
+        }
         return daily.entrySet().stream()
                 .map(entry -> new AnalyticsTrendView(
                         entry.getKey(),
@@ -108,8 +112,7 @@ public class AnalyticsMetricsService {
     @Transactional(readOnly = true)
     public AnalyticsFunnelView funnel(Instant from, Instant to) {
         List<AnalyticsFunnelView.Step> steps = new ArrayList<>();
-        addFunnelStep(steps, "가입", eventRepository.countDistinctMembers(
-                AnalyticsEventType.MEMBER_SIGNED_UP, from, to));
+        addFunnelStep(steps, "가입", eventRepository.countMembersCreatedAt(from, to));
         addFunnelStep(steps, "커플 연결", eventRepository.countDistinctMembers(
                 AnalyticsEventType.COUPLE_CONNECTED, from, to));
         addFunnelStep(steps, "장소 조회", eventRepository.countDistinctMembers(

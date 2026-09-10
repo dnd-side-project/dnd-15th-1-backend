@@ -36,12 +36,10 @@ class AnalyticsMetricsServiceTest {
         when(repository.countReturnedWithinFourteenDays(from, to)).thenReturn(2L);
         when(repository.countIdleActiveMembers(any(), eq(to))).thenReturn(1L);
         when(repository.countActiveMembers(to)).thenReturn(2L);
+        when(repository.countMembersCreatedAt(from, to)).thenReturn(3L);
         when(repository.countByEventTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
                 eq(AnalyticsEventType.DOWNLOAD_PAGE_VISITED), eq(from), eq(to)
         )).thenReturn(10L);
-        when(repository.countByEventTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
-                eq(AnalyticsEventType.MEMBER_SIGNED_UP), eq(from), eq(to)
-        )).thenReturn(3L);
         when(repository.countByEventTypeAndOccurredAtGreaterThanEqualAndOccurredAtLessThan(
                 eq(AnalyticsEventType.PLACE_SAVED), eq(from), eq(to)
         )).thenReturn(10L);
@@ -54,6 +52,7 @@ class AnalyticsMetricsServiceTest {
         var result = service.overview(from, to);
 
         assertThat(result.downloads()).isEqualTo(10L);
+        assertThat(result.newMembers()).isEqualTo(3L);
         assertThat(result.activeMembers()).isEqualTo(5L);
         assertThat(result.activeCouples()).isEqualTo(4L);
         assertThat(result.sharedPlacesUsedInCourses()).isEqualTo(3L);
@@ -73,12 +72,16 @@ class AnalyticsMetricsServiceTest {
                 new Object[]{Date.valueOf("2026-09-01"), "PLACE_SAVED", 3L},
                 new Object[]{Date.valueOf("2026-09-03"), "DOWNLOAD_PAGE_VISITED", 2L}
         ));
+        when(repository.findDailyMemberSignupCounts(from, to)).thenReturn(List.<Object[]>of(
+                new Object[]{Date.valueOf("2026-09-02"), "MEMBER_SIGNED_UP", 1L}
+        ));
 
         var result = service.trends(from, to);
 
         assertThat(result).hasSize(3);
         assertThat(result.get(0).savedPlaces()).isEqualTo(3L);
         assertThat(result.get(1).downloads()).isZero();
+        assertThat(result.get(1).newMembers()).isEqualTo(1L);
         assertThat(result.get(2).downloads()).isEqualTo(2L);
     }
 
@@ -86,8 +89,7 @@ class AnalyticsMetricsServiceTest {
     void buildsFunnelWithPreviousStepConversion() {
         Instant from = Instant.parse("2026-09-01T00:00:00Z");
         Instant to = Instant.parse("2026-10-01T00:00:00Z");
-        when(repository.countDistinctMembers(eq(AnalyticsEventType.MEMBER_SIGNED_UP), eq(from), eq(to)))
-                .thenReturn(10L);
+        when(repository.countMembersCreatedAt(from, to)).thenReturn(10L);
         when(repository.countDistinctMembers(eq(AnalyticsEventType.COUPLE_CONNECTED), eq(from), eq(to)))
                 .thenReturn(5L);
         when(repository.countDistinctMembers(eq(AnalyticsEventType.PLACE_VIEWED), eq(from), eq(to)))
