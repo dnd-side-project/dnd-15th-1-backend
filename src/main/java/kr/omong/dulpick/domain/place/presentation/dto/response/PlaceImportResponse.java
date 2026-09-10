@@ -43,7 +43,7 @@ public record PlaceImportResponse(
         )
         ContentSourceType sourceType,
         @Schema(
-                description = "분석 작업의 현재 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나이며 상태에 따라 nextAction을 수행합니다.",
+                description = "분석 작업의 현재 상태입니다. REVIEW_REQUIRED는 분석 결과와 후보가 저장되었고 사용자 후보 선택을 기다리는 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나입니다.",
                 allowableValues = {"RECEIVED", "PROCESSING", "REVIEW_REQUIRED", "COMPLETED", "FAILED"},
                 example = "REVIEW_REQUIRED",
                 requiredMode = Schema.RequiredMode.REQUIRED

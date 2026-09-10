@@ -21,7 +21,9 @@ public record KakaoMapPhotoProperties(
             timeoutSeconds = 2;
         }
         if (maxImages <= 0) {
-            maxImages = 5;
+            maxImages = 10;
+        } else if (maxImages > 10) {
+            maxImages = 10;
         }
         if (appVersion == null || appVersion.isBlank()) {
             appVersion = "6.6.0";
