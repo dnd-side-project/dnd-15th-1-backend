@@ -9,8 +9,9 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.Mockito.mock;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class PublicPageControllerTest {
@@ -28,10 +29,12 @@ class PublicPageControllerTest {
     }
 
     @Test
-    void downloadRedirectsToAppStore() throws Exception {
+    void downloadServesTrackedDownloadPage() throws Exception {
         mockMvc.perform(get("/download"))
-                .andExpect(status().isFound())
-                .andExpect(redirectedUrl(APP_STORE_URL));
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith("text/html"))
+                .andExpect(content().string(containsString("G-91V1WZ1N46")))
+                .andExpect(content().string(containsString(APP_STORE_URL)));
     }
 
     @Test
@@ -39,10 +42,35 @@ class PublicPageControllerTest {
         PublicPageController controller = new PublicPageController(mock(CsrfTokenRepository.class));
 
         Resource history = controller.privacyHistory();
-        Resource versionOne = controller.privacyHistoryV1();
+        Resource versionOne = controller.privacyHistoryV1_0();
+        Resource versionOnePointOne = controller.privacyHistoryV1_1();
 
         assertThat(history.getFilename()).isEqualTo("privacy-history.html");
         assertThat(versionOne.getFilename()).isEqualTo("privacy-v1.0.html");
+        assertThat(versionOnePointOne.getFilename()).isEqualTo("privacy-v1.1.html");
+    }
+
+    @Test
+    void exposesTermsAndMarketingHistoryPages() {
+        PublicPageController controller = new PublicPageController(mock(CsrfTokenRepository.class));
+
+        assertThat(controller.termsHistory().getFilename()).isEqualTo("terms-history.html");
+        assertThat(controller.termsHistoryV1_0().getFilename()).isEqualTo("terms-v1.0.html");
+        assertThat(controller.marketingHistory().getFilename()).isEqualTo("marketing-history.html");
+        assertThat(controller.marketingHistoryV1_0().getFilename()).isEqualTo("marketing-v1.0.html");
+    }
+
+    @Test
+    void servesLegalVersionHistoryPages() throws Exception {
+        mockMvc.perform(get("/privacy/history/v1.1"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("버전 1.1")));
+        mockMvc.perform(get("/terms/history"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("서비스 이용약관 버전 이력")));
+        mockMvc.perform(get("/marketing/history"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("마케팅 알림 약관 버전 이력")));
     }
 
 }
