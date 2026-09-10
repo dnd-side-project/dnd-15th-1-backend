@@ -231,7 +231,7 @@ public class PlaceCommandService {
                 selections,
                 candidates
         );
-        validateImportStatus(placeImport, selections, candidates, existingMemberPlaces);
+        validateImportStatus(placeImport);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
@@ -345,22 +345,12 @@ public class PlaceCommandService {
                 ));
     }
 
-    private void validateImportStatus(
-            PlaceImport placeImport,
-            List<PlaceSelection> selections,
-            Map<Long, PlaceCandidate> candidates,
-            Map<Long, MemberPlace> existingMemberPlaces
-    ) {
-        if (placeImport.getStatus() == PlaceImportStatus.REVIEW_REQUIRED) {
+    private void validateImportStatus(PlaceImport placeImport) {
+        if (placeImport.getStatus() == PlaceImportStatus.REVIEW_REQUIRED
+                || placeImport.getStatus() == PlaceImportStatus.COMPLETED) {
             return;
         }
-        boolean completedReplay = placeImport.getStatus() == PlaceImportStatus.COMPLETED
-                && selections.stream()
-                .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
-                .allMatch(existingMemberPlaces::containsKey);
-        if (!completedReplay) {
-            throw new InvalidPlaceCandidateException();
-        }
+        throw new InvalidPlaceCandidateException();
     }
 
     private MemberPlaceView toView(

@@ -96,7 +96,7 @@ public class PlaceImportContentWriter {
                         place.getAddress(), null, null, clock.instant()))
                 .toList());
         requireClaim(importId, claimToken).complete(displayTitle(metadata), metadata.caption(),
-                metadata.thumbnailUrl(), metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant());
+                metadata.thumbnailUrl(), metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), false);
         return true;
     }
 
@@ -137,7 +137,7 @@ public class PlaceImportContentWriter {
                     .ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
-                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant());
+                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), preserveExistingLinks);
         recordSourceMetadata(placeImport, metadata);
     }
 
