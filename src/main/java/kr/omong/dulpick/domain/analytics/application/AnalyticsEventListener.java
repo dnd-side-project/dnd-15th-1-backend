@@ -28,10 +28,18 @@ public class AnalyticsEventListener {
             fallbackExecution = true
     )
     public void record(CoupleConnectedEvent event) {
+        recordMemberConnection(event, event.firstMemberId());
+        recordMemberConnection(event, event.secondMemberId());
+    }
+
+    private void recordMemberConnection(CoupleConnectedEvent event, Long memberId) {
+        if (memberId == null) {
+            return;
+        }
         record(new AnalyticsActionEvent(
-                "COUPLE_CONNECTED:%d".formatted(event.coupleId()),
+                "COUPLE_CONNECTED:%d:%d".formatted(event.coupleId(), memberId),
                 kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType.COUPLE_CONNECTED,
-                null,
+                memberId,
                 event.coupleId(),
                 "COUPLE",
                 event.coupleId(),

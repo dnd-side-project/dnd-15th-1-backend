@@ -20,11 +20,18 @@ public record AnalyticsFunnelResponse(
             @Schema(example = "20")
             long count,
             @Schema(example = "0.6", nullable = true)
-            Double conversionFromPrevious
+            Double conversionFromPrevious,
+            @Schema(example = "0.4", nullable = true)
+            Double dropoutFromPrevious
     ) {
 
         private static Step from(AnalyticsFunnelView.Step step) {
-            return new Step(step.name(), step.count(), step.conversionFromPrevious());
+            return new Step(
+                    step.name(),
+                    step.count(),
+                    step.conversionFromPrevious(),
+                    step.dropoutFromPrevious()
+            );
         }
     }
 }

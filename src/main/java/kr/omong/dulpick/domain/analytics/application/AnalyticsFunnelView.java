@@ -7,7 +7,8 @@ public record AnalyticsFunnelView(List<Step> steps) {
     public record Step(
             String name,
             long count,
-            Double conversionFromPrevious
+            Double conversionFromPrevious,
+            Double dropoutFromPrevious
     ) {
     }
 }

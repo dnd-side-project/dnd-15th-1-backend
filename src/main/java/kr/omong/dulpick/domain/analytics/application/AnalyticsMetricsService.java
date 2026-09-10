@@ -34,6 +34,10 @@ public class AnalyticsMetricsService {
         long connectedCouples = eventRepository.countDistinctCouples(
                 AnalyticsEventType.COUPLE_CONNECTED, from, to
         );
+        long connectedMembers = eventRepository.countDistinctMembers(
+                AnalyticsEventType.COUPLE_CONNECTED, from, to
+        );
+        long totalActiveMembers = eventRepository.countActiveMembers(to);
         long savedPlaces = count(AnalyticsEventType.PLACE_SAVED, from, to);
         long createdDateCourses = count(AnalyticsEventType.DATE_COURSE_CREATED, from, to);
         long sharedPlacesUsed = eventRepository.countDistinctSharedPlaceCouples(from, to);
@@ -51,10 +55,13 @@ public class AnalyticsMetricsService {
                 coreActiveCouples,
                 newMembers,
                 connectedCouples,
+                connectedMembers,
+                totalActiveMembers,
                 savedPlaces,
                 createdDateCourses,
                 sharedPlacesUsed,
                 ratio(eventRepository.countActivatedNewMembers(from, to), newMembers),
+                ratio(connectedMembers, totalActiveMembers),
                 ratio(courseCouples, activeCouples),
                 ratio(eventRepository.countSaveToCourseCouples(from, to), savedCouples),
                 ratio(eventRepository.countRepeatCourseCouples(from, to), courseCouples),
@@ -63,7 +70,10 @@ public class AnalyticsMetricsService {
                 ratio(eventRepository.countRetainedMembers(from, to, 14), firstCoreMembers),
                 ratio(eventRepository.countRetainedMembers(from, to, 28), firstCoreMembers),
                 ratio(eventRepository.countIdleActiveMembers(idleSince, to),
-                        eventRepository.countActiveMembers(to))
+                        totalActiveMembers),
+                ratio(savedPlaces, activeMembers),
+                ratio(savedPlaces, activeCouples),
+                ratio(createdDateCourses, activeCouples)
         );
     }
 
@@ -100,7 +110,7 @@ public class AnalyticsMetricsService {
         List<AnalyticsFunnelView.Step> steps = new ArrayList<>();
         addFunnelStep(steps, "가입", eventRepository.countDistinctMembers(
                 AnalyticsEventType.MEMBER_SIGNED_UP, from, to));
-        addFunnelStep(steps, "커플 연결", eventRepository.countDistinctCouples(
+        addFunnelStep(steps, "커플 연결", eventRepository.countDistinctMembers(
                 AnalyticsEventType.COUPLE_CONNECTED, from, to));
         addFunnelStep(steps, "장소 조회", eventRepository.countDistinctMembers(
                 AnalyticsEventType.PLACE_VIEWED, from, to));
@@ -135,10 +145,12 @@ public class AnalyticsMetricsService {
 
     private void addFunnelStep(List<AnalyticsFunnelView.Step> steps, String name, long count) {
         long previous = steps.isEmpty() ? 0 : steps.getLast().count();
+        Double conversion = steps.isEmpty() ? null : ratio(count, previous);
         steps.add(new AnalyticsFunnelView.Step(
                 name,
                 count,
-                steps.isEmpty() ? null : ratio(count, previous)
+                conversion,
+                conversion == null ? null : Math.max(0, 1 - conversion)
         ));
     }
 

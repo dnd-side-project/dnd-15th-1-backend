@@ -11,10 +11,13 @@ public record AnalyticsMetricsView(
         long coreActiveCouples,
         long newMembers,
         long connectedCouples,
+        long connectedMembers,
+        long totalActiveMembers,
         long savedPlaces,
         long createdDateCourses,
         long sharedPlacesUsedInCourses,
         Double activationRate,
+        Double connectionRate,
         Double courseUsageRate,
         Double saveToCourseRate,
         Double repeatCourseRate,
@@ -22,6 +25,9 @@ public record AnalyticsMetricsView(
         Double w1RetentionRate,
         Double w2RetentionRate,
         Double w4RetentionRate,
-        Double idleMemberRate
+        Double idleMemberRate,
+        Double averagePlacesPerActiveMember,
+        Double averagePlacesPerActiveCouple,
+        Double averageCoursesPerActiveCouple
 ) {
 }

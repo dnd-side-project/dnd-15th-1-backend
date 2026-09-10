@@ -88,7 +88,7 @@ class AnalyticsMetricsServiceTest {
         Instant to = Instant.parse("2026-10-01T00:00:00Z");
         when(repository.countDistinctMembers(eq(AnalyticsEventType.MEMBER_SIGNED_UP), eq(from), eq(to)))
                 .thenReturn(10L);
-        when(repository.countDistinctCouples(eq(AnalyticsEventType.COUPLE_CONNECTED), eq(from), eq(to)))
+        when(repository.countDistinctMembers(eq(AnalyticsEventType.COUPLE_CONNECTED), eq(from), eq(to)))
                 .thenReturn(5L);
         when(repository.countDistinctMembers(eq(AnalyticsEventType.PLACE_VIEWED), eq(from), eq(to)))
                 .thenReturn(4L);
@@ -102,6 +102,7 @@ class AnalyticsMetricsServiceTest {
         assertThat(result.steps()).hasSize(5);
         assertThat(result.steps().get(0).conversionFromPrevious()).isNull();
         assertThat(result.steps().get(1).conversionFromPrevious()).isEqualTo(0.5);
+        assertThat(result.steps().get(1).dropoutFromPrevious()).isEqualTo(0.5);
         assertThat(result.steps().get(4).count()).isEqualTo(1L);
     }
 
