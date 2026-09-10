@@ -4,6 +4,7 @@ import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.member.domain.Member;
+import kr.omong.dulpick.domain.member.domain.MemberStatus;
 import kr.omong.dulpick.domain.notification.application.command.NotificationSettingsCommand;
 import kr.omong.dulpick.domain.notification.application.command.NotificationSettingsService;
 import kr.omong.dulpick.domain.notification.domain.MarketingNotificationCampaignRepository;
@@ -60,6 +61,7 @@ class MarketingNotificationAdminIntegrationTest {
                 true,
                 "2026-08-07"
         ));
+        long expectedTargetCount = settingsRepository.countMembersWithMarketingEnabled(MemberStatus.ACTIVE);
 
         mockMvc.perform(post("/api/v1/admin/notifications/marketing")
                         .with(httpBasic(opsAccessProperties.username(), opsAccessProperties.password()))
@@ -70,7 +72,7 @@ class MarketingNotificationAdminIntegrationTest {
                                 """))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("PENDING"))
-                .andExpect(jsonPath("$.targetCount").value(1))
+                .andExpect(jsonPath("$.targetCount").value(expectedTargetCount))
                 .andExpect(jsonPath("$.queuedCount").value(0));
 
         assertThat(settingsRepository.findById(member.getId())).isPresent();

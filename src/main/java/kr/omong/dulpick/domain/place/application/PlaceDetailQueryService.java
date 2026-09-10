@@ -1,14 +1,19 @@
 package kr.omong.dulpick.domain.place.application;
 
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -18,13 +23,15 @@ public class PlaceDetailQueryService {
     private final PlaceQueryService placeQueryService;
     private final PlaceSearchService placeSearchService;
     private final PlaceCategoryWriteThroughService categoryWriteThroughService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final Clock clock;
 
     public PlaceDetailQueryService(
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService
     ) {
-        this(placeRepository, placeQueryService, placeSearchService, null);
+        this(placeRepository, placeQueryService, placeSearchService, null, null, Clock.systemUTC());
     }
 
     @Autowired
@@ -32,19 +39,53 @@ public class PlaceDetailQueryService {
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService,
             PlaceSearchService placeSearchService,
-            PlaceCategoryWriteThroughService categoryWriteThroughService
+            PlaceCategoryWriteThroughService categoryWriteThroughService,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock
     ) {
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
         this.categoryWriteThroughService = categoryWriteThroughService;
+        this.eventPublisher = eventPublisher;
+        this.clock = clock;
+    }
+
+    public PlaceDetailQueryService(
+            PlaceRepository placeRepository,
+            PlaceQueryService placeQueryService,
+            PlaceSearchService placeSearchService,
+            PlaceCategoryWriteThroughService categoryWriteThroughService
+    ) {
+        this(placeRepository, placeQueryService, placeSearchService,
+                categoryWriteThroughService, null, Clock.systemUTC());
     }
 
     @Transactional(readOnly = true)
     public PlaceDetailView get(Long memberId, Long placeId) {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(PlaceNotFoundException::new);
+        publishPlaceViewed(memberId, place.getId());
         return toView(memberId, place, null);
+    }
+
+    private void publishPlaceViewed(Long memberId, Long placeId) {
+        if (eventPublisher == null || memberId == null || placeId == null) {
+            return;
+        }
+        Instant occurredAt = clock.instant();
+        String day = occurredAt.atZone(kr.omong.dulpick.global.time.ServiceTime.ZONE_ID)
+                .toLocalDate()
+                .toString();
+        eventPublisher.publishEvent(new AnalyticsActionEvent(
+                "PLACE_VIEWED:%d:%d:%s".formatted(memberId, placeId, day),
+                AnalyticsEventType.PLACE_VIEWED,
+                memberId,
+                null,
+                "PLACE",
+                placeId,
+                occurredAt
+        ));
     }
 
     @Transactional(readOnly = true)
@@ -55,6 +96,9 @@ public class PlaceDetailQueryService {
     ) {
         PlaceSearchResult kakao = placeSearchService.resolve(query.strip(), kakaoPlaceId);
         Place place = placeRepository.findByKakaoPlaceId(kakaoPlaceId).orElse(null);
+        if (place != null) {
+            publishPlaceViewed(memberId, place.getId());
+        }
         return toView(memberId, place, kakao);
     }
 
@@ -142,15 +186,16 @@ public class PlaceDetailQueryService {
     }
 
     private void fillMissingCategory(Place place, PlaceSearchResult kakao) {
-        if (categoryWriteThroughService == null || place == null || kakao == null) {
+        if (categoryWriteThroughService == null || place == null) {
             return;
         }
         categoryWriteThroughService.fillIfMissing(
                 place.getId(),
                 place.getCategoryGroupCode(),
                 place.getCategory(),
-                kakao.categoryGroupCode(),
-                kakao.category()
+                kakao == null ? null : kakao.categoryGroupCode(),
+                kakao == null ? null : kakao.category(),
+                place.getStoredDulpickCategoryCode()
         );
     }
 }

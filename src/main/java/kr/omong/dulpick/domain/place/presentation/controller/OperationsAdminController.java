@@ -6,6 +6,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import kr.omong.dulpick.domain.analytics.application.AnalyticsMetricsService;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsMetricsResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsComparisonResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsFunnelResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsRetentionResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsTrendResponse;
+import kr.omong.dulpick.domain.analytics.application.InvalidMetricPeriodException;
 import kr.omong.dulpick.domain.place.application.OperationsAdminService;
 import kr.omong.dulpick.domain.place.application.OperationsAdminView;
 import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
@@ -36,6 +43,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -43,16 +54,112 @@ import java.time.Instant;
 @RequestMapping("/api/v1/admin")
 public class OperationsAdminController {
 
-    private final OperationsAdminService adminService;
+    private static final int MAX_METRIC_PERIOD_DAYS = 366;
 
-    public OperationsAdminController(OperationsAdminService adminService) {
+    private final OperationsAdminService adminService;
+    private final AnalyticsMetricsService analyticsMetricsService;
+
+    public OperationsAdminController(
+            OperationsAdminService adminService,
+            AnalyticsMetricsService analyticsMetricsService
+    ) {
         this.adminService = adminService;
+        this.analyticsMetricsService = analyticsMetricsService;
     }
 
     @Operation(summary = "운영 대시보드 요약 조회")
     @GetMapping("/overview")
     public ResponseEntity<OperationsAdminView.Dashboard> overview() {
         return ResponseEntity.ok(adminService.dashboard());
+    }
+
+    @Operation(summary = "성과 지표 요약 조회")
+    @GetMapping("/metrics/overview")
+    public ResponseEntity<AnalyticsMetricsResponse> metricsOverview(
+            @Parameter(description = "조회 시작일(포함). 생략하면 이번 달 1일입니다.", example = "2026-09-01")
+            @RequestParam(required = false) LocalDate from,
+            @Parameter(description = "조회 종료일(미포함). 생략하면 다음 달 1일입니다.", example = "2026-10-01")
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsMetricsResponse.from(
+                analyticsMetricsService.overview(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 기간 비교 조회")
+    @GetMapping("/metrics/comparison")
+    public ResponseEntity<AnalyticsComparisonResponse> metricsComparison(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate startDate = from == null ? today.withDayOfMonth(1) : from;
+        LocalDate endDate = to == null ? startDate.plusMonths(1) : to;
+        MetricPeriod current = metricPeriod(startDate, endDate);
+        long periodDays = ChronoUnit.DAYS.between(startDate, endDate);
+        MetricPeriod previous = metricPeriod(
+                startDate.minusDays(periodDays),
+                startDate
+        );
+        return ResponseEntity.ok(AnalyticsComparisonResponse.from(
+                analyticsMetricsService.overview(current.from(), current.to()),
+                analyticsMetricsService.overview(previous.from(), previous.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 일별 추이 조회")
+    @GetMapping("/metrics/trends")
+    public ResponseEntity<AnalyticsTrendResponse> metricsTrends(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsTrendResponse.from(
+                analyticsMetricsService.trends(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 퍼널 조회")
+    @GetMapping("/metrics/funnel")
+    public ResponseEntity<AnalyticsFunnelResponse> metricsFunnel(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsFunnelResponse.from(
+                analyticsMetricsService.funnel(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 리텐션 조회")
+    @GetMapping("/metrics/retention")
+    public ResponseEntity<AnalyticsRetentionResponse> metricsRetention(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsRetentionResponse.from(
+                analyticsMetricsService.retention(period.from(), period.to())
+        ));
+    }
+
+    private MetricPeriod metricPeriod(LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate startDate = from == null ? today.withDayOfMonth(1) : from;
+        LocalDate endDate = to == null ? startDate.plusMonths(1) : to;
+        if (!startDate.isBefore(endDate)
+                || startDate.plusDays(MAX_METRIC_PERIOD_DAYS).isBefore(endDate)) {
+            throw new InvalidMetricPeriodException();
+        }
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        return new MetricPeriod(
+                startDate.atStartOfDay(zone).toInstant(),
+                endDate.atStartOfDay(zone).toInstant()
+        );
+    }
+
+    private record MetricPeriod(Instant from, Instant to) {
     }
 
     @Operation(
@@ -280,6 +387,21 @@ public class OperationsAdminController {
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
         return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+    }
+
+    @Operation(summary = "카카오맵 장소 검색")
+    @GetMapping("/places/kakao-search")
+    public ResponseEntity<OperationsAdminView.KakaoPlaceSearchPage> searchKakaoPlaces(
+            @Parameter(example = "도원반점")
+            @RequestParam @Schema(example = "도원반점") String query
+    ) {
+        return ResponseEntity.ok(adminService.searchKakaoPlaces(query));
+    }
+
+    @Operation(summary = "Kakao 장소 카테고리 그룹 코드 목록 조회")
+    @GetMapping("/places/category-groups")
+    public ResponseEntity<List<OperationsAdminView.PlaceCategoryGroupOption>> placeCategoryGroups() {
+        return ResponseEntity.ok(adminService.placeCategoryGroups());
     }
 
     @Operation(

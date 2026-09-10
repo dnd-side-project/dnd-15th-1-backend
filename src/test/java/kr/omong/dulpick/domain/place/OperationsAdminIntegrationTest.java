@@ -9,6 +9,7 @@ import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
@@ -74,6 +75,62 @@ class OperationsAdminIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsKakaoPlaceSearchWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/places/kakao-search")
+                        .param("query", "도원반점"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void exposesSupportedKakaoCategoryGroupsToOperators() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/places/category-groups")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("FD6"))
+                .andExpect(jsonPath("$[0].name").value("음식점"))
+                .andExpect(jsonPath("$[1].code").value("CE7"));
+    }
+
+    @Test
+    void rejectsUnsupportedKakaoCategoryGroupWhenUpdatingPlace() throws Exception {
+        Place place = createPlace();
+
+        mockMvc.perform(patch("/api/v1/admin/places/{placeId}", place.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryGroupCode": "ZZ9",
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getUpdatedAt())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void normalizesCategoryGroupAndRefreshesDulpickCategoryWhenUpdatingPlace() throws Exception {
+        Place place = createPlace();
+
+        mockMvc.perform(patch("/api/v1/admin/places/{placeId}", place.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryGroupCode": " ce7 ",
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getUpdatedAt())))
+                .andExpect(status().isOk());
+
+        Place updated = placeRepository.findById(place.getId()).orElseThrow();
+        assertThat(updated.getCategoryGroupCode()).isEqualTo("CE7");
+        assertThat(updated.getStoredDulpickCategoryCode()).isEqualTo(DulpickPlaceCategory.CAFE);
     }
 
     @Test
@@ -221,6 +278,60 @@ class OperationsAdminIntegrationTest {
     }
 
     @Test
+    void exposesAnalyticsMetricsToAuthenticatedOperator() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").exists());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/trends")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/funnel")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/retention")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.periods").isArray());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsForAnInvalidOrExcessivelyLargePeriod() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-03")
+                        .param("to", "2026-09-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2025-01-01")
+                        .param("to", "2027-01-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
     void createsAdminPlaceIdempotently() throws Exception {
         String kakaoPlaceId = "ops-create-" + UUID.randomUUID();
         String body = """
@@ -292,6 +403,12 @@ class OperationsAdminIntegrationTest {
 
         assertThat(response).contains("\"importId\":" + partialImport.getId());
         assertThat(response).doesNotContain("\"importId\":" + cleanImport.getId());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", partialImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.canonicalUrl").value(partialContent.getCanonicalUrl()))
+                .andExpect(jsonPath("$.summary.failedPlaceNames").value("미검증 후보"));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {

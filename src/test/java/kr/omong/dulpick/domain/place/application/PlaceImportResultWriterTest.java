@@ -202,6 +202,7 @@ class PlaceImportResultWriterTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
         );
         verify(candidateRepository).saveAll(argThat(candidates -> {

@@ -14,8 +14,15 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
+
+import java.time.Clock;
+import java.time.Instant;
 
 @Component
 public class SocialLoginHandler {
@@ -26,6 +33,29 @@ public class SocialLoginHandler {
     private final SocialAccountService socialAccountService;
     private final MemberProfileRepository memberProfileRepository;
     private final TokenService tokenService;
+    private final ApplicationEventPublisher eventPublisher;
+    private final Clock clock;
+
+    @Autowired
+    public SocialLoginHandler(
+            SocialIdentityVerifierRegistry verifierRegistry,
+            LoginNonceService loginNonceService,
+            AppleAuthorizationService appleAuthorizationService,
+            SocialAccountService socialAccountService,
+            MemberProfileRepository memberProfileRepository,
+            TokenService tokenService,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock
+    ) {
+        this.verifierRegistry = verifierRegistry;
+        this.loginNonceService = loginNonceService;
+        this.appleAuthorizationService = appleAuthorizationService;
+        this.socialAccountService = socialAccountService;
+        this.memberProfileRepository = memberProfileRepository;
+        this.tokenService = tokenService;
+        this.eventPublisher = eventPublisher;
+        this.clock = clock;
+    }
 
     public SocialLoginHandler(
             SocialIdentityVerifierRegistry verifierRegistry,
@@ -35,12 +65,16 @@ public class SocialLoginHandler {
             MemberProfileRepository memberProfileRepository,
             TokenService tokenService
     ) {
-        this.verifierRegistry = verifierRegistry;
-        this.loginNonceService = loginNonceService;
-        this.appleAuthorizationService = appleAuthorizationService;
-        this.socialAccountService = socialAccountService;
-        this.memberProfileRepository = memberProfileRepository;
-        this.tokenService = tokenService;
+        this(
+                verifierRegistry,
+                loginNonceService,
+                appleAuthorizationService,
+                socialAccountService,
+                memberProfileRepository,
+                tokenService,
+                null,
+                Clock.systemUTC()
+        );
     }
 
     public SocialLoginResult handle(SocialLoginCommand command) {
@@ -53,6 +87,7 @@ public class SocialLoginHandler {
                 identity,
                 providerAuthorization
         );
+        publishSignupEvent(authenticatedMember);
         IssuedTokens tokens = tokenService.issue(authenticatedMember.member());
         return new SocialLoginResult(
                 authenticatedMember.member().getId(),
@@ -60,6 +95,25 @@ public class SocialLoginHandler {
                 isOnboardingCompleted(authenticatedMember),
                 tokens
         );
+    }
+
+    private void publishSignupEvent(AuthenticatedMember authenticatedMember) {
+        if (!authenticatedMember.newMember() || eventPublisher == null) {
+            return;
+        }
+        Long memberId = authenticatedMember.member().getId();
+        if (memberId == null) {
+            return;
+        }
+        eventPublisher.publishEvent(new AnalyticsActionEvent(
+                "MEMBER_SIGNED_UP:%d".formatted(memberId),
+                AnalyticsEventType.MEMBER_SIGNED_UP,
+                memberId,
+                null,
+                "MEMBER",
+                memberId,
+                clock.instant()
+        ));
     }
 
     private boolean isOnboardingCompleted(AuthenticatedMember authenticatedMember) {

@@ -5,6 +5,7 @@ import kr.omong.dulpick.domain.place.domain.ContentPublicationStatus;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -102,7 +103,9 @@ public final class OperationsAdminView {
             @Schema(example = "3")
             long candidateCount,
             @Schema(example = "1")
-            long unverifiedCount
+            long unverifiedCount,
+            @Schema(example = "도원반점, 성수 카페", nullable = true)
+            String failedPlaceNames
     ) {
     }
 
@@ -273,6 +276,45 @@ public final class OperationsAdminView {
             int totalPages,
             @Schema(example = "true")
             boolean hasNext
+    ) {
+    }
+
+    public record KakaoPlaceSearchPage(
+            List<KakaoPlace> places
+    ) {
+    }
+
+    public record PlaceCategoryGroupOption(
+            @Schema(example = "CE7")
+            String code,
+            @Schema(example = "카페")
+            String name
+    ) {
+    }
+
+    public record KakaoPlace(
+            @Schema(example = "27190838")
+            String kakaoPlaceId,
+            @Schema(example = "도원반점")
+            String name,
+            @Schema(example = "서울특별시 중구 세종대로")
+            String address,
+            @Schema(example = "서울특별시 중구 세종대로 10")
+            String roadAddress,
+            @Schema(example = "37.5665")
+            BigDecimal latitude,
+            @Schema(example = "126.9780")
+            BigDecimal longitude,
+            @Schema(example = "FD6")
+            String categoryGroupCode,
+            @Schema(example = "음식점 > 중식")
+            String category,
+            @Schema(example = "02-1234-5678")
+            String phone,
+            @Schema(example = "https://place.map.kakao.com/27190838")
+            String kakaoPlaceUrl,
+            @Schema(example = "https://example.com/place.jpg", nullable = true)
+            String thumbnailUrl
     ) {
     }
 

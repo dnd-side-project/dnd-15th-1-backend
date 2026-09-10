@@ -18,6 +18,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImage;
 import kr.omong.dulpick.domain.place.domain.PlaceImageRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
@@ -44,11 +45,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 
 @Service
 public class OperationsAdminService {
@@ -58,7 +60,11 @@ public class OperationsAdminService {
     private static final String CANDIDATE_COUNT_COLUMNS =
             "(SELECT COUNT(*) FROM place_candidates pc WHERE pc.import_id = place_imports.id) AS candidate_count, "
             + "(SELECT COUNT(*) FROM place_candidates pc2 WHERE pc2.import_id = place_imports.id "
-            + "AND pc2.verification_status = 'EXTRACTED') AS unverified_count";
+            + "AND pc2.verification_status = 'EXTRACTED') AS unverified_count, "
+            + "(SELECT GROUP_CONCAT(DISTINCT pc3.extracted_name ORDER BY pc3.id SEPARATOR ', ') "
+            + "FROM place_candidates pc3 WHERE pc3.import_id = place_imports.id "
+            + "AND pc3.place_id IS NULL AND pc3.verification_status IN ('EXTRACTED', 'REVIEW_REQUIRED', 'REJECTED')) "
+            + "AS failed_place_names";
 
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
@@ -75,6 +81,7 @@ public class OperationsAdminService {
     private final PlaceImageRepository placeImageRepository;
     private final PlaceImageStorageService placeImageStorageService;
     private final PlaceAnalysisProperties analysisProperties;
+    private final PlaceSearcher placeSearcher;
 
     public OperationsAdminService(
             JdbcTemplate jdbcTemplate,
@@ -91,7 +98,8 @@ public class OperationsAdminService {
             PlaceCandidateRepository placeCandidateRepository,
             PlaceImageRepository placeImageRepository,
             PlaceImageStorageService placeImageStorageService,
-            PlaceAnalysisProperties analysisProperties
+            PlaceAnalysisProperties analysisProperties,
+            PlaceSearcher placeSearcher
     ) {
         this.jdbcTemplate = jdbcTemplate;
         this.clock = clock;
@@ -108,6 +116,7 @@ public class OperationsAdminService {
         this.placeImageRepository = placeImageRepository;
         this.placeImageStorageService = placeImageStorageService;
         this.analysisProperties = analysisProperties;
+        this.placeSearcher = placeSearcher;
     }
 
     @Transactional(readOnly = true)
@@ -434,6 +443,7 @@ public class OperationsAdminService {
                 .filter(candidate -> candidate.getContentId().equals(contentId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE));
         if (!contentImageStorageService.hasStoredFile(image)) {
+            contentImageStorageService.refreshIfMissing(image);
             throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
         }
         content.updateThumbnail(contentImageStorageService.publicUrl(imageKey), clock.instant());
@@ -460,6 +470,9 @@ public class OperationsAdminService {
         Place place = placeRepository.findByIdForUpdate(placeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
         ensureFresh(request.expectedUpdatedAt(), place.getUpdatedAt());
+        if (!DulpickPlaceCategory.isSupportedGroupCode(request.categoryGroupCode())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
         place.updateDetails(
                 request.name(),
                 request.address(),
@@ -621,8 +634,46 @@ public class OperationsAdminService {
         );
     }
 
+    @Transactional(readOnly = true)
+    public OperationsAdminView.KakaoPlaceSearchPage searchKakaoPlaces(String query) {
+        String keyword = query == null ? "" : query.strip();
+        if (keyword.isBlank()) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+        List<OperationsAdminView.KakaoPlace> places = placeSearcher.search(keyword, 1).results()
+                .stream()
+                .map(result -> new OperationsAdminView.KakaoPlace(
+                        result.kakaoPlaceId(),
+                        result.name(),
+                        result.address(),
+                        result.roadAddress(),
+                        result.latitude(),
+                        result.longitude(),
+                        result.categoryGroupCode(),
+                        result.category(),
+                        result.phone(),
+                        result.kakaoPlaceUrl(),
+                        result.thumbnailUrl()
+                ))
+                .toList();
+        return new OperationsAdminView.KakaoPlaceSearchPage(places);
+    }
+
+    @Transactional(readOnly = true)
+    public List<OperationsAdminView.PlaceCategoryGroupOption> placeCategoryGroups() {
+        return DulpickPlaceCategory.kakaoCategoryGroups().stream()
+                .map(group -> new OperationsAdminView.PlaceCategoryGroupOption(
+                        group.code(), group.displayName()
+                ))
+                .toList();
+    }
+
     @Transactional
     public OperationsAdminView.PlaceSummary createPlace(CreateAdminPlaceRequest request) {
+        String categoryGroupCode = normalizeCategoryGroupCode(request.categoryGroupCode());
+        if (!DulpickPlaceCategory.isSupportedGroupCode(categoryGroupCode)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
         Instant now = clock.instant();
         placeRepository.insertIfAbsent(
                 request.kakaoPlaceId(),
@@ -632,15 +683,22 @@ public class OperationsAdminService {
                 request.latitude(),
                 request.longitude(),
                 request.category(),
-                request.categoryGroupCode(),
+                categoryGroupCode,
                 request.phone(),
                 request.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(categoryGroupCode, request.category()).name(),
                 null,
                 now
         );
         Place place = placeRepository.findByKakaoPlaceId(request.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
         return placeSummary(place);
+    }
+
+    private String normalizeCategoryGroupCode(String categoryGroupCode) {
+        return categoryGroupCode == null
+                ? null
+                : categoryGroupCode.strip().toUpperCase(Locale.ROOT);
     }
 
     @Transactional
@@ -865,7 +923,8 @@ public class OperationsAdminService {
                 instant(rs, "updated_at"),
                 instant(rs, "completed_at"),
                 rs.getLong("candidate_count"),
-                rs.getLong("unverified_count")
+                rs.getLong("unverified_count"),
+                rs.getString("failed_place_names")
         );
     }
 

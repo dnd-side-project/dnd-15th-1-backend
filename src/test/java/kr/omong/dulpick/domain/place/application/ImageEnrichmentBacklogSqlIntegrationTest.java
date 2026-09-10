@@ -65,6 +65,10 @@ class ImageEnrichmentBacklogSqlIntegrationTest {
         assertThat(contentBacklogRepository.existsByContentIdAndStatusIn(
                 contentId, List.of("PENDING"))).isFalse();
 
+        contentBacklogRepository.enqueueForRecovery(contentId, "[\"u4\"]", now.plusSeconds(5), now);
+        assertThat(contentBacklogRepository.existsByContentIdAndStatusIn(
+                contentId, List.of("PENDING", "PROCESSING"))).isFalse();
+
         contentBacklogRepository.enqueue(contentId, "[\"u3\"]", now.plusSeconds(5), now);
         assertThat(contentBacklogRepository.existsByContentIdAndStatusIn(
                 contentId, List.of("PENDING", "PROCESSING"))).isTrue();

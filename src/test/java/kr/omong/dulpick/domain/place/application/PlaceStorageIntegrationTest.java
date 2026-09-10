@@ -10,6 +10,7 @@ import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
@@ -106,6 +107,7 @@ class PlaceStorageIntegrationTest {
                 .hasSize(1);
         assertThat(storedPlace.getCategory()).isEqualTo("음식점 > 한식 > 육류,고기");
         assertThat(storedPlace.getCategoryGroupCode()).isEqualTo("FD6");
+        assertThat(storedPlace.getStoredDulpickCategoryCode()).isEqualTo(DulpickPlaceCategory.RESTAURANT);
         assertThat(storedPlace.getCategoryName()).isEqualTo("맛집");
     }
 
