@@ -727,8 +727,8 @@ public class OperationsAdminService {
         content.updatePlaceCount(contentPlaceRepository.findAllByContentId(contentId).size(), clock.instant());
         if (request.publish()) {
             content.publish(clock.instant());
-            placeImport.adminComplete(clock.instant());
         }
+        placeImport.adminComplete(clock.instant());
         return contentDetail(content);
     }
 

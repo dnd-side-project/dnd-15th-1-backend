@@ -50,6 +50,14 @@
     @media(max-width:1000px){.chart-grid{grid-template-columns:1fr 1fr}.chart-card:first-child{grid-column:1/-1}}
     @media(max-width:700px){.chart-grid{grid-template-columns:1fr;padding:12px 14px}.chart-card:first-child{grid-column:auto}.horizontal-row,.comparison-row{grid-template-columns:minmax(82px,.8fr) minmax(0,1.5fr) auto}.kakao-place-picker{grid-template-columns:minmax(0,1fr)}.kakao-place-picker .detail-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto}.kakao-place-picker>button{grid-column:1/-1;width:100%}.form-grid{padding:14px}.dialog-body{padding-left:14px;padding-right:14px}}
   </style>
+  <style>
+    .dashboard-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px;padding:5px;border:1px solid var(--line);border-radius:12px;background:#fff}
+    .dashboard-tab{flex:1 1 150px;border:0;background:transparent;color:var(--muted);font-weight:750}
+    .dashboard-tab[aria-selected="true"]{background:var(--soft);color:var(--coral-dark);box-shadow:0 2px 8px #35232610}
+    .dashboard-view-panel.is-hidden{display:none}
+    .comparison-period{padding:10px 18px;border-bottom:1px solid var(--line);background:#fffafb;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+    @media(max-width:700px){.dashboard-tab{flex-basis:100%}}
+  </style>
 </head>
 <body>
   <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">게시글·장소·이미지 상태를 한 화면에서 관리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><a href="/ops/notices">공지사항</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
@@ -216,6 +224,48 @@
     async function openPlace(id){try{await loadCategoryGroupOptions();const data=await api(`/api/v1/admin/places/${id}`);renderPlaceEditor(data);enhanceImageControls("place",id,data.images,data.place.updatedAt)}catch(e){setStatus(e.message,"error")}}
     async function loadMarketing(){const [preview,history]=await Promise.all([api("/api/v1/admin/notifications/marketing/preview"),api("/api/v1/admin/notifications/marketing?page=0&size=10")]);$("marketing-target").textContent=`현재 대상 ${preview.targetCount}명`;const tbody=$("marketing-history");if(!history.campaigns.length)return empty(tbody,5,"발송 이력이 없습니다.");tbody.replaceChildren();history.campaigns.forEach(c=>{const tr=document.createElement("tr");tr.append(cell(c.campaignId),(()=>{const td=document.createElement("td");td.appendChild(badge(c.status));return td})(),cell(c.targetCount),cell(c.queuedCount),cell(c.queuedAt));tbody.appendChild(tr)})}
     async function sendMarketing(event){event.preventDefault();const title=$("marketing-title").value.trim(),body=$("marketing-body").value.trim();if(!confirm("마케팅 수신 동의 회원에게 발송 등록할까요?"))return;await once("marketing-send",async()=>{try{const preview=await api("/api/v1/admin/notifications/marketing/preview");if(!confirm(`현재 대상 ${preview.targetCount}명에게 발송합니다.`))return;const data=await api("/api/v1/admin/notifications/marketing",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,body})});setStatus(`발송 등록 완료 · 대상 ${data.targetCount}명`,"ok");event.target.reset();loadMarketing()}catch(e){setStatus(e.message,"error")}})}
+    function formatMetricDate(value){return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(value)).replace(/\s/g,"")}
+    function renderComparisonPeriod(data){const body=$("metrics-comparison"),section=body.closest("section");if(!section||!data.currentPeriod||!data.previousPeriod)return;let notice=section.querySelector(".comparison-period");if(!notice){notice=document.createElement("p");notice.className="comparison-period";section.querySelector(".section-head").after(notice)}const currentDays=Math.round((new Date(data.currentPeriod.to)-new Date(data.currentPeriod.from))/86400000);notice.textContent=`현재 기간 ${formatMetricDate(data.currentPeriod.from)} ~ ${formatMetricDate(data.currentPeriod.to)} · 이전 기간 ${formatMetricDate(data.previousPeriod.from)} ~ ${formatMetricDate(data.previousPeriod.to)} (종료일 미포함, 현재 기간과 동일한 ${currentDays}일의 바로 앞 연속 기간)`}
+    const originalRenderMetricComparison=renderMetricComparison;renderMetricComparison=data=>{originalRenderMetricComparison(data);renderComparisonPeriod(data)};
+    function setupDashboardViews(){
+      const main=document.querySelector("main"),cards=$("cards"),managementTabs=document.querySelector(".tabs");
+      if(!main||!cards||!managementTabs)return;
+      const managementPanels=[...main.querySelectorAll(".panel")];
+      const viewPanels=[...main.children].filter(element=>{
+        const heading=element.querySelector("h2")?.textContent?.trim();
+        return ["성과 지표 요약","성과 지표 그래프","기간 비교","성과 지표 추이","핵심 행동 퍼널","일별 추이"].includes(heading);
+      });
+      viewPanels.forEach(element=>{
+        element.classList.add("dashboard-view-panel");
+        const heading=element.querySelector("h2")?.textContent?.trim();
+        element.dataset.dashboardView=heading==="성과 지표 요약"||heading==="기간 비교"?"metrics":"trends";
+      });
+      const viewTabs=document.createElement("div");
+      viewTabs.className="dashboard-tabs";
+      viewTabs.setAttribute("role","tablist");
+      [["operations","운영 관리"],["metrics","성과 지표"],["trends","성과 추이"]].forEach(([view,label])=>{
+        const tab=document.createElement("button");
+        tab.type="button";
+        tab.className="dashboard-tab";
+        tab.dataset.view=view;
+        tab.setAttribute("role","tab");
+        tab.textContent=label;
+        tab.addEventListener("click",()=>activateDashboardView(view));
+        viewTabs.appendChild(tab);
+      });
+      const firstPanel=viewPanels[0]||null;
+      main.insertBefore(viewTabs,firstPanel);
+      main.insertBefore(managementTabs,firstPanel);
+      function activateDashboardView(view){
+        viewTabs.querySelectorAll(".dashboard-tab").forEach(tab=>tab.setAttribute("aria-selected",String(tab.dataset.view===view)));
+        managementTabs.hidden=view!=="operations";
+        managementPanels.forEach(panel=>panel.hidden=view!=="operations");
+        viewPanels.forEach(panel=>panel.classList.toggle("is-hidden",view==="operations"||panel.dataset.dashboardView!==view));
+        managementTabs.querySelectorAll(".tab").forEach(tab=>view==="operations"?tab.removeAttribute("tabindex"):tab.setAttribute("tabindex","-1"));
+      }
+      window.activateDashboardView=activateDashboardView;
+      activateDashboardView("operations");
+    }
     const loaders={contents:loadContents,imports:loadImports,places:loadPlaces,images:loadImages,marketing:loadMarketing,email:loadEmail};
     function bindPager(kind,load){const reload=()=>safeLoad(kind,load);$(kind+"-prev").onclick=()=>{if(state[kind].page>0){state[kind].page--;reload()}};$(kind+"-next").onclick=()=>{if(state[kind].hasNext){state[kind].page++;reload()}};$(kind+"-refresh").onclick=reload}
     function bindEnterSearch(ids,kind,load){ids.forEach(id=>$(id).addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();state[kind].page=0;safeLoad(kind,load)}}))}
@@ -252,6 +302,7 @@
     async function loadDailyStatsInit(){await loadDailyStats()}
     document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>$(b.dataset.close).close());
     document.querySelectorAll('form[action="/ops/logout"] input[name="_csrf"]').forEach(input=>input.value=csrfToken());
+    setupDashboardViews();
     safeLoad("overview",loadOverview);safeLoad("metrics",loadMetrics);safeLoad("contents",loadContents);
     loadDailyStats();
   </script>
