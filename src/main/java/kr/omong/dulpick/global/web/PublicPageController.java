@@ -2,23 +2,19 @@ package kr.omong.dulpick.global.web;
 
 import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
 import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
-import java.net.URI;
-import java.time.Clock;
-import java.util.UUID;
-
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.time.Clock;
+import java.util.UUID;
 
 @RestController
 public class PublicPageController {
@@ -62,8 +58,13 @@ public class PublicPageController {
     }
 
     @GetMapping(value = "/privacy/history/v1.0", produces = HTML_UTF_8)
-    public Resource privacyHistoryV1() {
+    public Resource privacyHistoryV1_0() {
         return page("privacy-v1.0.html");
+    }
+
+    @GetMapping(value = "/privacy/history/v1.1", produces = HTML_UTF_8)
+    public Resource privacyHistoryV1_1() {
+        return page("privacy-v1.1.html");
     }
 
     @GetMapping(value = "/terms", produces = HTML_UTF_8)
@@ -71,9 +72,29 @@ public class PublicPageController {
         return page("terms.html");
     }
 
+    @GetMapping(value = "/terms/history", produces = HTML_UTF_8)
+    public Resource termsHistory() {
+        return page("terms-history.html");
+    }
+
+    @GetMapping(value = "/terms/history/v1.0", produces = HTML_UTF_8)
+    public Resource termsHistoryV1_0() {
+        return page("terms-v1.0.html");
+    }
+
     @GetMapping(value = "/marketing", produces = HTML_UTF_8)
     public Resource marketing() {
         return page("marketing.html");
+    }
+
+    @GetMapping(value = "/marketing/history", produces = HTML_UTF_8)
+    public Resource marketingHistory() {
+        return page("marketing-history.html");
+    }
+
+    @GetMapping(value = "/marketing/history/v1.0", produces = HTML_UTF_8)
+    public Resource marketingHistoryV1_0() {
+        return page("marketing-v1.0.html");
     }
 
     @GetMapping(value = "/connect", produces = HTML_UTF_8)
@@ -81,8 +102,8 @@ public class PublicPageController {
         return page("connect.html");
     }
 
-    @GetMapping("/download")
-    public ResponseEntity<Void> download() {
+    @GetMapping(value = "/download", produces = HTML_UTF_8)
+    public Resource download() {
         if (eventPublisher != null) {
             eventPublisher.publishEvent(new AnalyticsActionEvent(
                     "DOWNLOAD_PAGE_VISITED:%s".formatted(UUID.randomUUID()),
@@ -94,9 +115,7 @@ public class PublicPageController {
                     clock.instant()
             ));
         }
-        return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create("https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877"))
-                .build();
+        return page("download.html");
     }
 
     @GetMapping(value = "/ops/login", produces = HTML_UTF_8)
