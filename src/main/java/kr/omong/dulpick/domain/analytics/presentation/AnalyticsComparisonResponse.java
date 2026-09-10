@@ -81,10 +81,18 @@ public record AnalyticsComparisonResponse(
 
         private static Metric of(String key, String label, Double current, Double previous) {
             Double difference = current == null || previous == null ? null : current - previous;
-            Double changeRate = difference == null
-                    ? null
-                    : previous == 0 ? (difference == 0 ? 0.0 : null) : difference / Math.abs(previous);
+            Double changeRate = changeRate(difference, previous);
             return new Metric(key, label, current, previous, difference, changeRate);
+        }
+
+        private static Double changeRate(Double difference, Double previous) {
+            if (difference == null || previous == null) {
+                return null;
+            }
+            if (Double.compare(previous, 0.0) == 0) {
+                return Double.compare(difference, 0.0) == 0 ? 0.0 : null;
+            }
+            return difference / Math.abs(previous);
         }
     }
 }
