@@ -86,6 +86,40 @@ class OperationsAdminIntegrationTest {
     }
 
     @Test
+    void filtersPlacesByCategoryGroupAndThumbnailStatus() throws Exception {
+        Place classified = createPlace();
+        Place unclassified = placeRepository.save(Place.create(
+                "ops-unclassified-" + UUID.randomUUID(),
+                "운영자 미분류 장소",
+                "서울특별시 강남구",
+                "서울특별시 강남구 테헤란로",
+                new BigDecimal("37.5046000"),
+                new BigDecimal("127.0496000"),
+                "음식점",
+                null,
+                null,
+                Instant.now()
+        ));
+
+        String categoryResponse = mockMvc.perform(get("/api/v1/admin/places/search")
+                        .param("categoryGroupCode", " ce7 ")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(categoryResponse).contains("\"placeId\":" + classified.getId());
+        assertThat(categoryResponse).doesNotContain("\"placeId\":" + unclassified.getId());
+
+        String missingResponse = mockMvc.perform(get("/api/v1/admin/places/search")
+                        .param("categoryGroupCode", "MISSING")
+                        .param("thumbnailStatus", "MISSING")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(missingResponse).contains("\"placeId\":" + unclassified.getId());
+        assertThat(missingResponse).doesNotContain("\"placeId\":" + classified.getId());
+    }
+
+    @Test
     void returnsHistoricalMetricComparisonWhenPreviousPeriodHasNoActivity() throws Exception {
         mockMvc.perform(get("/api/v1/admin/metrics/comparison")
                         .with(operator())

@@ -596,46 +596,108 @@ public class OperationsAdminService {
     }
 
     @Transactional(readOnly = true)
-    public OperationsAdminView.PlaceSearchPage searchPlaces(String query, int page, int size) {
+    public OperationsAdminView.PlaceSearchPage searchPlaces(
+            String query,
+            String categoryGroupCode,
+            String thumbnailStatus,
+            int page,
+            int size
+    ) {
         PageBounds bounds = bounds(page, size);
         String keyword = query == null ? "" : query.strip();
-        List<OperationsAdminView.PlaceSummary> places = jdbcTemplate.query(
+        List<Object> parameters = new ArrayList<>();
+        StringBuilder where = new StringBuilder(" WHERE (name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ?)");
+        String keywordPattern = "%" + keyword + "%";
+        parameters.add(keywordPattern);
+        parameters.add(keywordPattern);
+        parameters.add(keywordPattern);
+        appendPlaceFilters(where, parameters, categoryGroupCode);
+        String normalizedThumbnailStatus = normalizeFilter(thumbnailStatus);
+        validateThumbnailStatus(normalizedThumbnailStatus);
+        List<PlaceSearchRow> matchedPlaces = jdbcTemplate.query(
                 "SELECT id, kakao_place_id, name, address, road_address, category, "
-                        + "category_group_code, phone, kakao_place_url, thumbnail_url, updated_at FROM places "
-                        + "WHERE name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ? "
-                        + "ORDER BY id DESC LIMIT ? OFFSET ?",
-                (rs, rowNum) -> new OperationsAdminView.PlaceSummary(
-                        rs.getLong("id"),
-                        rs.getString("kakao_place_id"),
-                        rs.getString("name"),
-                        rs.getString("address"),
-                        rs.getString("road_address"),
-                        rs.getString("category"),
-                        rs.getString("category_group_code"),
-                        rs.getString("phone"),
-                        rs.getString("kakao_place_url"),
-                        rs.getString("thumbnail_url"),
-                        instant(rs, "updated_at")
-                ),
-                "%" + keyword + "%",
-                "%" + keyword + "%",
-                "%" + keyword + "%",
-                bounds.size() + 1,
-                bounds.offset()
+                        + "category_group_code, phone, kakao_place_url, thumbnail_url, "
+                        + "(SELECT image.storage_key FROM place_images image "
+                        + "WHERE image.place_id = places.id AND image.image_url = places.thumbnail_url "
+                        + "ORDER BY image.id DESC LIMIT 1) AS thumbnail_storage_key, updated_at FROM places "
+                        + where + " ORDER BY id DESC",
+                ps -> setParameters(ps, parameters),
+                (rs, rowNum) -> {
+                    String thumbnailStorageKey = rs.getString("thumbnail_storage_key");
+                    boolean thumbnailStored = placeImageStorageService.isStored(thumbnailStorageKey);
+                    return new PlaceSearchRow(
+                            new OperationsAdminView.PlaceSummary(
+                                    rs.getLong("id"),
+                                    rs.getString("kakao_place_id"),
+                                    rs.getString("name"),
+                                    rs.getString("address"),
+                                    rs.getString("road_address"),
+                                    rs.getString("category"),
+                                    rs.getString("category_group_code"),
+                                    rs.getString("phone"),
+                                    rs.getString("kakao_place_url"),
+                                    rs.getString("thumbnail_url"),
+                                    thumbnailStored,
+                                    instant(rs, "updated_at")
+                            ),
+                            thumbnailStored
+                    );
+                }
         );
-        boolean hasNext = places.size() > bounds.size();
-        long total = count(
-                "SELECT COUNT(*) FROM places WHERE name LIKE ? OR address LIKE ? OR kakao_place_id LIKE ?",
-                "%" + keyword + "%", "%" + keyword + "%", "%" + keyword + "%"
-        );
+        List<PlaceSearchRow> filteredPlaces = matchedPlaces.stream()
+                .filter(place -> matchesThumbnailStatus(place.thumbnailStored(), normalizedThumbnailStatus))
+                .toList();
+        long total = filteredPlaces.size();
+        int fromIndex = Math.min(bounds.offset(), filteredPlaces.size());
+        int toIndex = Math.min(fromIndex + bounds.size(), filteredPlaces.size());
+        List<OperationsAdminView.PlaceSummary> places = filteredPlaces.subList(fromIndex, toIndex).stream()
+                .map(PlaceSearchRow::summary)
+                .toList();
         return new OperationsAdminView.PlaceSearchPage(
-                hasNext ? places.subList(0, bounds.size()) : places,
+                places,
                 bounds.page(),
                 bounds.size(),
                 total,
                 totalPages(total, bounds.size()),
-                hasNext
+                toIndex < total
         );
+    }
+
+    private void appendPlaceFilters(
+            StringBuilder where,
+            List<Object> parameters,
+            String categoryGroupCode
+    ) {
+        String category = normalizeFilter(categoryGroupCode);
+        if ("MISSING".equals(category)) {
+            where.append(" AND NULLIF(TRIM(category_group_code), '') IS NULL");
+        } else if (!category.isBlank()) {
+            if (!DulpickPlaceCategory.isSupportedGroupCode(category)) {
+                throw new BusinessException(ErrorCode.INVALID_INPUT);
+            }
+            where.append(" AND UPPER(TRIM(category_group_code)) = ?");
+            parameters.add(category);
+        }
+    }
+
+    private void validateThumbnailStatus(String thumbnailStatus) {
+        if (!thumbnailStatus.isBlank()
+                && !"ALL".equals(thumbnailStatus)
+                && !"MISSING".equals(thumbnailStatus)
+                && !"AVAILABLE".equals(thumbnailStatus)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
+    private boolean matchesThumbnailStatus(boolean stored, String thumbnailStatus) {
+        return thumbnailStatus.isBlank()
+                || "ALL".equals(thumbnailStatus)
+                || ("AVAILABLE".equals(thumbnailStatus) && stored)
+                || ("MISSING".equals(thumbnailStatus) && !stored);
+    }
+
+    private String normalizeFilter(String value) {
+        return value == null ? "" : value.strip().toUpperCase(Locale.ROOT);
     }
 
     @Transactional(readOnly = true)
@@ -878,6 +940,12 @@ public class OperationsAdminService {
                 place.getPhone(),
                 place.getKakaoPlaceUrl(),
                 place.getThumbnailUrl(),
+                placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(place.getId()).stream()
+                        .filter(image -> java.util.Objects.equals(place.getThumbnailUrl(), image.getImageUrl()))
+                        .findFirst()
+                        .map(PlaceImage::getStorageKey)
+                        .map(placeImageStorageService::isStored)
+                        .orElse(false),
                 place.getUpdatedAt()
         );
     }
@@ -1103,6 +1171,12 @@ public class OperationsAdminService {
     }
 
     private record PageBounds(int page, int size, int offset) {
+    }
+
+    private record PlaceSearchRow(
+            OperationsAdminView.PlaceSummary summary,
+            boolean thumbnailStored
+    ) {
     }
 
     private record QueryParts(String sql, String countSql, List<Object> parameters) {

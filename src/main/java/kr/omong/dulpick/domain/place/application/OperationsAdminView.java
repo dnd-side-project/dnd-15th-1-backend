@@ -237,6 +237,8 @@ public final class OperationsAdminView {
             String kakaoPlaceUrl,
             @Schema(example = "https://example.com/place.jpg")
             String thumbnailUrl,
+            @Schema(example = "true")
+            boolean thumbnailStored,
             @Schema(example = "2026-08-24T10:00:05Z")
             Instant updatedAt
     ) {

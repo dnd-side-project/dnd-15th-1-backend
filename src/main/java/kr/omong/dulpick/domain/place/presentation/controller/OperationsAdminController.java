@@ -385,10 +385,14 @@ public class OperationsAdminController {
     @GetMapping("/places/search")
     public ResponseEntity<OperationsAdminView.PlaceSearchPage> searchPlaces(
             @Parameter(example = "카페") @RequestParam(defaultValue = "") @Schema(example = "카페") String query,
+            @Parameter(description = "카카오 그룹 코드 또는 MISSING")
+            @RequestParam(required = false) @Schema(example = "CE7") String categoryGroupCode,
+            @Parameter(description = "대표 이미지 상태: AVAILABLE 또는 MISSING")
+            @RequestParam(required = false) @Schema(example = "MISSING") String thumbnailStatus,
             @Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
-        return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+        return ResponseEntity.ok(adminService.searchPlaces(query, categoryGroupCode, thumbnailStatus, page, size));
     }
 
     @Operation(summary = "카카오맵 장소 검색")
