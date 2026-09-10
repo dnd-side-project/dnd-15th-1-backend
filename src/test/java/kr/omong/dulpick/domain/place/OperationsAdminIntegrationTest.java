@@ -221,6 +221,60 @@ class OperationsAdminIntegrationTest {
     }
 
     @Test
+    void exposesAnalyticsMetricsToAuthenticatedOperator() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").exists());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/trends")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/funnel")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/retention")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.periods").isArray());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsForAnInvalidOrExcessivelyLargePeriod() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-03")
+                        .param("to", "2026-09-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2025-01-01")
+                        .param("to", "2027-01-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
     void createsAdminPlaceIdempotently() throws Exception {
         String kakaoPlaceId = "ops-create-" + UUID.randomUUID();
         String body = """

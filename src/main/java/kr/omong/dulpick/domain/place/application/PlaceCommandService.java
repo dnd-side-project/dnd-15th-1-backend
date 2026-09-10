@@ -6,6 +6,8 @@ import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundExcept
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.notification.application.event.ContentSavedEvent;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
@@ -151,6 +153,10 @@ public class PlaceCommandService {
                 searchResult.categoryGroupCode(),
                 searchResult.phone(),
                 searchResult.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(
+                        searchResult.categoryGroupCode(),
+                        searchResult.category()
+                ).name(),
                 null,
                 now
         );
@@ -171,6 +177,7 @@ public class PlaceCommandService {
                             now
                     ));
                     publishSavedEvent(membership, memberId, partnerId, placeForSave.getId(), now);
+                    publishAnalyticsEvent(memberId, membership, placeForSave.getId(), created.getId(), now);
                     return created;
                 });
         if (imageEnrichmentDispatcher != null) {
@@ -278,6 +285,7 @@ public class PlaceCommandService {
                 now
         ));
         publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
+        publishAnalyticsEvent(memberId, membership, place.getId(), created.getId(), now);
         return new PlaceConfirmationView.SavedPlaceView(
                 toView(created, place, ownershipStatus(partnerId, place.getId())),
                 true
@@ -401,6 +409,28 @@ public class PlaceCommandService {
                 partnerId,
                 placeId,
                 now
+        ));
+    }
+
+    private void publishAnalyticsEvent(
+            Long memberId,
+            ActiveCoupleMember membership,
+            Long placeId,
+            Long memberPlaceId,
+            Instant occurredAt
+    ) {
+        if (memberPlaceId == null) {
+            return;
+        }
+        Long coupleId = membership == null ? null : membership.getCouple().getId();
+        eventPublisher.publishEvent(new AnalyticsActionEvent(
+                "PLACE_SAVED:%d".formatted(memberPlaceId),
+                AnalyticsEventType.PLACE_SAVED,
+                memberId,
+                coupleId,
+                "PLACE",
+                placeId,
+                occurredAt
         ));
     }
 

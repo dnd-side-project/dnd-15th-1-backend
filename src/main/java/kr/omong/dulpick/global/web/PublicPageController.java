@@ -1,6 +1,10 @@
 package kr.omong.dulpick.global.web;
 
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import java.net.URI;
+import java.time.Clock;
+import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.ClassPathResource;
@@ -9,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,11 +26,24 @@ public class PublicPageController {
     private static final String HTML_UTF_8 = MediaType.TEXT_HTML_VALUE + ";charset=UTF-8";
     private static final String AASA_RESOURCE = "universal-link/apple-app-site-association";
     private final CsrfTokenRepository csrfTokenRepository;
+    private final ApplicationEventPublisher eventPublisher;
+    private final Clock clock;
 
+    @org.springframework.beans.factory.annotation.Autowired
     public PublicPageController(
-            @Qualifier("opsCsrfTokenRepository") CsrfTokenRepository csrfTokenRepository
+            @Qualifier("opsCsrfTokenRepository") CsrfTokenRepository csrfTokenRepository,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock
     ) {
         this.csrfTokenRepository = csrfTokenRepository;
+        this.eventPublisher = eventPublisher;
+        this.clock = clock;
+    }
+
+    public PublicPageController(
+            CsrfTokenRepository csrfTokenRepository
+    ) {
+        this(csrfTokenRepository, null, Clock.systemUTC());
     }
 
     @GetMapping(value = "/", produces = HTML_UTF_8)
@@ -65,6 +83,17 @@ public class PublicPageController {
 
     @GetMapping("/download")
     public ResponseEntity<Void> download() {
+        if (eventPublisher != null) {
+            eventPublisher.publishEvent(new AnalyticsActionEvent(
+                    "DOWNLOAD_PAGE_VISITED:%s".formatted(UUID.randomUUID()),
+                    AnalyticsEventType.DOWNLOAD_PAGE_VISITED,
+                    null,
+                    null,
+                    "DOWNLOAD_PAGE",
+                    null,
+                    clock.instant()
+            ));
+        }
         return ResponseEntity.status(HttpStatus.FOUND)
                 .location(URI.create("https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877"))
                 .build();
