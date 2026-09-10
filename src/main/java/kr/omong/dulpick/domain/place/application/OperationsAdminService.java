@@ -383,6 +383,7 @@ public class OperationsAdminService {
         content.updatePlaceCount(placeIds.size(), clock.instant());
         if (request.publish()) {
             content.publish(clock.instant());
+            dispatchImageEnrichment(content);
         }
         return contentDetail(content);
     }
