@@ -138,7 +138,8 @@ class PlaceDetailQueryServiceTest {
                 null,
                 null,
                 "CE7",
-                "음식점 > 카페"
+                "음식점 > 카페",
+                null
         );
     }
 

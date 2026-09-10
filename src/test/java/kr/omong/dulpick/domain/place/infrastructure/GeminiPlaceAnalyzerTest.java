@@ -43,7 +43,7 @@ class GeminiPlaceAnalyzerTest {
                         org.hamcrest.Matchers.containsString("inlineData")
                 )))
                 .andRespond(withSuccess("""
-                        {"candidates":[{"content":{"parts":[{"text":"{\"candidates\":[{\"name\":\"서울숲 카페\"}]}"}]}}]}
+                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[{\\\"name\\\":\\\"서울숲 카페\\\"}]}"}]}}]}
                         """, MediaType.APPLICATION_JSON));
 
         var result = analyzer.analyze(new ContentMetadata(
@@ -90,14 +90,14 @@ class GeminiPlaceAnalyzerTest {
                         org.hamcrest.Matchers.containsString("inlineData")
                 )))
                 .andRespond(withSuccess("""
-                        {"candidates":[{"content":{"parts":[{"text":"{\\"candidates\\":[]}"}]}}]}
+                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[]}"}]}}]}
                         """, MediaType.APPLICATION_JSON));
         server.expect(once(), requestTo(
                         "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent"
                 ))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("inlineData")))
                 .andRespond(withSuccess("""
-                        {"candidates":[{"content":{"parts":[{"text":"{\"candidates\":[]}"}]}}]}
+                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[]}"}]}}]}
                         """, MediaType.APPLICATION_JSON));
 
         var result = analyzer.analyze(new ContentMetadata(
