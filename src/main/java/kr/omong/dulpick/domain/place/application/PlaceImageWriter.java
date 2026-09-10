@@ -13,7 +13,9 @@ import org.springframework.transaction.support.TransactionTemplate;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 @Service
@@ -66,7 +68,7 @@ public class PlaceImageWriter {
                     return PlaceImage.createStored(
                             placeId,
                             storageService.publicUrl(stored.image().storageKey()),
-                            Sha256.hex(stored.sourceUrl()),
+                            imageHash(stored),
                             stored.image().storageKey(),
                             stored.image().contentType().toString(),
                             index,
@@ -90,10 +92,29 @@ public class PlaceImageWriter {
     }
 
     private List<StoredPlaceImage> downloadAll(List<String> imageUrls) {
+        Set<String> contentHashes = new HashSet<>();
         return imageUrls.stream()
                 .map(this::store)
                 .flatMap(java.util.Optional::stream)
+                .filter(stored -> keepUniqueImage(stored, contentHashes))
                 .toList();
+    }
+
+    private boolean keepUniqueImage(StoredPlaceImage stored, Set<String> contentHashes) {
+        String contentHash = stored.image().contentHash();
+        if (contentHash == null || contentHashes.add(contentHash)) {
+            return true;
+        }
+        deleteStoredFile(stored.image().storageKey());
+        logger.info("place_image_duplicate_skipped sourceHash={} contentHash={}",
+                Sha256.hex(stored.sourceUrl()), contentHash);
+        return false;
+    }
+
+    private String imageHash(StoredPlaceImage stored) {
+        return stored.image().contentHash() == null
+                ? Sha256.hex(stored.sourceUrl())
+                : stored.image().contentHash();
     }
 
     private void replaceRows(

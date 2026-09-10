@@ -120,4 +120,28 @@ class PlaceImageWriterTest {
         inOrder.verify(storageService).delete("old-storage");
         verify(storageService, org.mockito.Mockito.never()).delete("new-storage");
     }
+
+    @Test
+    void skipsDuplicateDownloadedImagesByContentHash() {
+        when(storageService.store(anyString()))
+                .thenAnswer(invocation -> new PlaceImageStorageService.StoredImage(
+                        "storage-" + invocation.getArgument(0).hashCode(),
+                        org.springframework.http.MediaType.IMAGE_JPEG,
+                        null,
+                        "same-content"
+                ));
+        when(storageService.publicUrl(anyString()))
+                .thenAnswer(invocation -> "https://dulpick.omong.kr/api/v1/place-images/"
+                        + invocation.getArgument(0));
+
+        writer.replace(20L, List.of(
+                "https://t1.kakaocdn.net/image-1",
+                "https://t1.kakaocdn.net/image-2"
+        ));
+
+        ArgumentCaptor<Iterable<PlaceImage>> imagesCaptor = ArgumentCaptor.forClass(Iterable.class);
+        verify(imageRepository).saveAll(imagesCaptor.capture());
+        assertThat(imagesCaptor.getValue()).hasSize(1);
+        verify(storageService).delete("storage-" + "https://t1.kakaocdn.net/image-2".hashCode());
+    }
 }
