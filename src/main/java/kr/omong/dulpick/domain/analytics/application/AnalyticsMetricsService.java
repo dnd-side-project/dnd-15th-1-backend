@@ -113,15 +113,27 @@ public class AnalyticsMetricsService {
     public AnalyticsFunnelView funnel(Instant from, Instant to) {
         List<AnalyticsFunnelView.Step> steps = new ArrayList<>();
         addFunnelStep(steps, "가입", eventRepository.countMembersCreatedAt(from, to));
-        addFunnelStep(steps, "커플 연결", eventRepository.countDistinctMembers(
-                AnalyticsEventType.COUPLE_CONNECTED, from, to));
-        addFunnelStep(steps, "장소 조회", eventRepository.countDistinctMembers(
-                AnalyticsEventType.PLACE_VIEWED, from, to));
-        addFunnelStep(steps, "장소 저장", eventRepository.countDistinctMembers(
-                AnalyticsEventType.PLACE_SAVED, from, to));
-        addFunnelStep(steps, "데이트 코스 생성", eventRepository.countDistinctMembers(
-                AnalyticsEventType.DATE_COURSE_CREATED, from, to));
+        addFunnelStep(steps, "커플 연결", eventRepository.countNewCohortMembersWithEvent(
+                "COUPLE_CONNECTED", from, to));
+        addFunnelStep(steps, "장소 조회", countAfter(AnalyticsEventType.PLACE_VIEWED,
+                List.of("COUPLE_CONNECTED"), from, to));
+        addFunnelStep(steps, "장소 저장", countAfter(AnalyticsEventType.PLACE_SAVED,
+                List.of("COUPLE_CONNECTED", "PLACE_VIEWED"), from, to));
+        addFunnelStep(steps, "데이트 코스 생성", countAfter(
+                AnalyticsEventType.DATE_COURSE_CREATED,
+                List.of("COUPLE_CONNECTED", "PLACE_VIEWED", "PLACE_SAVED"), from, to));
         return new AnalyticsFunnelView(steps);
+    }
+
+    private long countAfter(
+            AnalyticsEventType target,
+            List<String> priorEventTypes,
+            Instant from,
+            Instant to
+    ) {
+        return eventRepository.countNewCohortMembersAfterEvents(
+                target.name(), priorEventTypes, priorEventTypes.size(), from, to
+        );
     }
 
     @Transactional(readOnly = true)

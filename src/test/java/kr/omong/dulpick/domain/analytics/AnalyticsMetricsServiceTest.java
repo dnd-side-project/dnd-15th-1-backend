@@ -12,6 +12,8 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -90,13 +92,19 @@ class AnalyticsMetricsServiceTest {
         Instant from = Instant.parse("2026-09-01T00:00:00Z");
         Instant to = Instant.parse("2026-10-01T00:00:00Z");
         when(repository.countMembersCreatedAt(from, to)).thenReturn(10L);
-        when(repository.countDistinctMembers(eq(AnalyticsEventType.COUPLE_CONNECTED), eq(from), eq(to)))
+        when(repository.countNewCohortMembersWithEvent("COUPLE_CONNECTED", from, to))
                 .thenReturn(5L);
-        when(repository.countDistinctMembers(eq(AnalyticsEventType.PLACE_VIEWED), eq(from), eq(to)))
+        when(repository.countNewCohortMembersAfterEvents(
+                eq("PLACE_VIEWED"), anyList(), anyInt(), eq(from), eq(to)
+        ))
                 .thenReturn(4L);
-        when(repository.countDistinctMembers(eq(AnalyticsEventType.PLACE_SAVED), eq(from), eq(to)))
+        when(repository.countNewCohortMembersAfterEvents(
+                eq("PLACE_SAVED"), anyList(), anyInt(), eq(from), eq(to)
+        ))
                 .thenReturn(2L);
-        when(repository.countDistinctMembers(eq(AnalyticsEventType.DATE_COURSE_CREATED), eq(from), eq(to)))
+        when(repository.countNewCohortMembersAfterEvents(
+                eq("DATE_COURSE_CREATED"), anyList(), anyInt(), eq(from), eq(to)
+        ))
                 .thenReturn(1L);
 
         var result = service.funnel(from, to);

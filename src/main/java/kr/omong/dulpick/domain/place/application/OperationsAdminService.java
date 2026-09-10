@@ -45,11 +45,12 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.HashSet;
 
 @Service
 public class OperationsAdminService {
@@ -469,6 +470,9 @@ public class OperationsAdminService {
         Place place = placeRepository.findByIdForUpdate(placeId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PLACE_NOT_FOUND));
         ensureFresh(request.expectedUpdatedAt(), place.getUpdatedAt());
+        if (!DulpickPlaceCategory.isSupportedGroupCode(request.categoryGroupCode())) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
         place.updateDetails(
                 request.name(),
                 request.address(),
@@ -655,8 +659,21 @@ public class OperationsAdminService {
         return new OperationsAdminView.KakaoPlaceSearchPage(places);
     }
 
+    @Transactional(readOnly = true)
+    public List<OperationsAdminView.PlaceCategoryGroupOption> placeCategoryGroups() {
+        return DulpickPlaceCategory.kakaoCategoryGroups().stream()
+                .map(group -> new OperationsAdminView.PlaceCategoryGroupOption(
+                        group.code(), group.displayName()
+                ))
+                .toList();
+    }
+
     @Transactional
     public OperationsAdminView.PlaceSummary createPlace(CreateAdminPlaceRequest request) {
+        String categoryGroupCode = normalizeCategoryGroupCode(request.categoryGroupCode());
+        if (!DulpickPlaceCategory.isSupportedGroupCode(categoryGroupCode)) {
+            throw new BusinessException(ErrorCode.INVALID_INPUT);
+        }
         Instant now = clock.instant();
         placeRepository.insertIfAbsent(
                 request.kakaoPlaceId(),
@@ -666,16 +683,22 @@ public class OperationsAdminService {
                 request.latitude(),
                 request.longitude(),
                 request.category(),
-                request.categoryGroupCode(),
+                categoryGroupCode,
                 request.phone(),
                 request.kakaoPlaceUrl(),
-                DulpickPlaceCategory.fromKakao(request.categoryGroupCode(), request.category()).name(),
+                DulpickPlaceCategory.fromKakao(categoryGroupCode, request.category()).name(),
                 null,
                 now
         );
         Place place = placeRepository.findByKakaoPlaceId(request.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);
         return placeSummary(place);
+    }
+
+    private String normalizeCategoryGroupCode(String categoryGroupCode) {
+        return categoryGroupCode == null
+                ? null
+                : categoryGroupCode.strip().toUpperCase(Locale.ROOT);
     }
 
     @Transactional

@@ -46,6 +46,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -395,6 +396,12 @@ public class OperationsAdminController {
             @RequestParam @Schema(example = "도원반점") String query
     ) {
         return ResponseEntity.ok(adminService.searchKakaoPlaces(query));
+    }
+
+    @Operation(summary = "Kakao 장소 카테고리 그룹 코드 목록 조회")
+    @GetMapping("/places/category-groups")
+    public ResponseEntity<List<OperationsAdminView.PlaceCategoryGroupOption>> placeCategoryGroups() {
+        return ResponseEntity.ok(adminService.placeCategoryGroups());
     }
 
     @Operation(

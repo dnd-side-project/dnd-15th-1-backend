@@ -284,6 +284,14 @@ public final class OperationsAdminView {
     ) {
     }
 
+    public record PlaceCategoryGroupOption(
+            @Schema(example = "CE7")
+            String code,
+            @Schema(example = "카페")
+            String name
+    ) {
+    }
+
     public record KakaoPlace(
             @Schema(example = "27190838")
             String kakaoPlaceId,

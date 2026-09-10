@@ -270,6 +270,56 @@ public interface AnalyticsEventRepository extends JpaRepository<AnalyticsEvent, 
     );
 
     @Query(value = """
+            SELECT COUNT(DISTINCT member.id)
+            FROM members member
+            JOIN analytics_events target_event
+              ON target_event.member_id = member.id
+             AND target_event.event_type = :targetEventType
+             AND target_event.occurred_at >= :from
+             AND target_event.occurred_at < :to
+             AND target_event.occurred_at >= member.created_at
+            WHERE member.created_at >= :from
+              AND member.created_at < :to
+            """, nativeQuery = true)
+    long countNewCohortMembersWithEvent(
+            @Param("targetEventType") String targetEventType,
+            @Param("from") Instant from,
+            @Param("to") Instant to
+    );
+
+    @Query(value = """
+            SELECT COUNT(DISTINCT funnel_members.id)
+            FROM (
+                SELECT member.id
+                FROM members member
+                JOIN analytics_events target_event
+                  ON target_event.member_id = member.id
+                 AND target_event.event_type = :targetEventType
+                 AND target_event.occurred_at >= :from
+                 AND target_event.occurred_at < :to
+                 AND target_event.occurred_at >= member.created_at
+                JOIN analytics_events prior_event
+                  ON prior_event.member_id = member.id
+                 AND prior_event.event_type IN (:priorEventTypes)
+                 AND prior_event.occurred_at >= :from
+                 AND prior_event.occurred_at < :to
+                 AND prior_event.occurred_at >= member.created_at
+                 AND prior_event.occurred_at < target_event.occurred_at
+                WHERE member.created_at >= :from
+                  AND member.created_at < :to
+                GROUP BY member.id, target_event.id
+                HAVING COUNT(DISTINCT prior_event.event_type) = :requiredPriorEventCount
+            ) funnel_members
+            """, nativeQuery = true)
+    long countNewCohortMembersAfterEvents(
+            @Param("targetEventType") String targetEventType,
+            @Param("priorEventTypes") List<String> priorEventTypes,
+            @Param("requiredPriorEventCount") int requiredPriorEventCount,
+            @Param("from") Instant from,
+            @Param("to") Instant to
+    );
+
+    @Query(value = """
             SELECT DATE(occurred_at) AS occurred_date, event_type, COUNT(*) AS event_count
             FROM analytics_events
             WHERE occurred_at >= :from

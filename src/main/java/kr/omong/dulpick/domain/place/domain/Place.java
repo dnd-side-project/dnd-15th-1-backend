@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 @Entity
 @Table(name = "places")
@@ -238,7 +239,14 @@ public class Place {
         this.address = required(address, this.address);
         this.roadAddress = optional(roadAddress, this.roadAddress);
         this.category = optional(category, this.category);
-        this.categoryGroupCode = optional(categoryGroupCode, this.categoryGroupCode);
+        this.categoryGroupCode = optional(
+                normalizeCategoryGroupCode(categoryGroupCode),
+                this.categoryGroupCode
+        );
+        this.dulpickCategoryCode = DulpickPlaceCategory.fromKakao(
+                this.categoryGroupCode,
+                this.category
+        );
         this.phone = optional(phone, this.phone);
         this.kakaoPlaceUrl = optional(kakaoPlaceUrl, this.kakaoPlaceUrl);
         this.updatedAt = now;
@@ -250,6 +258,12 @@ public class Place {
 
     private String optional(String requested, String current) {
         return requested == null ? current : requested.strip().isEmpty() ? null : requested.strip();
+    }
+
+    private String normalizeCategoryGroupCode(String categoryGroupCode) {
+        return categoryGroupCode == null
+                ? null
+                : categoryGroupCode.strip().toUpperCase(Locale.ROOT);
     }
 
     public String getPhone() {
