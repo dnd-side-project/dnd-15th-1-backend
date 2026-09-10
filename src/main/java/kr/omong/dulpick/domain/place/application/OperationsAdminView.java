@@ -102,7 +102,9 @@ public final class OperationsAdminView {
             @Schema(example = "3")
             long candidateCount,
             @Schema(example = "1")
-            long unverifiedCount
+            long unverifiedCount,
+            @Schema(example = "도원반점, 성수 카페", nullable = true)
+            String failedPlaceNames
     ) {
     }
 

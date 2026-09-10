@@ -18,6 +18,7 @@ import kr.omong.dulpick.domain.place.domain.PlaceImage;
 import kr.omong.dulpick.domain.place.domain.PlaceImageRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
@@ -58,7 +59,11 @@ public class OperationsAdminService {
     private static final String CANDIDATE_COUNT_COLUMNS =
             "(SELECT COUNT(*) FROM place_candidates pc WHERE pc.import_id = place_imports.id) AS candidate_count, "
             + "(SELECT COUNT(*) FROM place_candidates pc2 WHERE pc2.import_id = place_imports.id "
-            + "AND pc2.verification_status = 'EXTRACTED') AS unverified_count";
+            + "AND pc2.verification_status = 'EXTRACTED') AS unverified_count, "
+            + "(SELECT GROUP_CONCAT(DISTINCT pc3.extracted_name ORDER BY pc3.id SEPARATOR ', ') "
+            + "FROM place_candidates pc3 WHERE pc3.import_id = place_imports.id "
+            + "AND pc3.place_id IS NULL AND pc3.verification_status IN ('EXTRACTED', 'REVIEW_REQUIRED', 'REJECTED')) "
+            + "AS failed_place_names";
 
     private final JdbcTemplate jdbcTemplate;
     private final Clock clock;
@@ -434,6 +439,7 @@ public class OperationsAdminService {
                 .filter(candidate -> candidate.getContentId().equals(contentId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE));
         if (!contentImageStorageService.hasStoredFile(image)) {
+            contentImageStorageService.refreshIfMissing(image);
             throw new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
         }
         content.updateThumbnail(contentImageStorageService.publicUrl(imageKey), clock.instant());
@@ -635,6 +641,7 @@ public class OperationsAdminService {
                 request.categoryGroupCode(),
                 request.phone(),
                 request.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(request.categoryGroupCode(), request.category()).name(),
                 null,
                 now
         );
@@ -865,7 +872,8 @@ public class OperationsAdminService {
                 instant(rs, "updated_at"),
                 instant(rs, "completed_at"),
                 rs.getLong("candidate_count"),
-                rs.getLong("unverified_count")
+                rs.getLong("unverified_count"),
+                rs.getString("failed_place_names")
         );
     }
 
