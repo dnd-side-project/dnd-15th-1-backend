@@ -38,7 +38,7 @@
     .image-unavailable{display:flex;min-height:120px;align-items:center;justify-content:center;background:#f1e9eb}
     .image-fallback{display:flex;min-height:120px;align-items:center;justify-content:center;padding:12px;color:var(--muted);font-size:11px;line-height:1.4;text-align:center}
     .image-fallback.compact{min-width:42px;min-height:42px;padding:2px;font-size:9px}
-    .detail-grid>section,.chart-grid>*{min-width:0}
+    .detail-grid>section,.chart-grid>*{min-width:0}.image-section-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}.image-section-title>div:first-child{min-width:0}.section-title-actions{display:flex;flex:0 0 auto;flex-wrap:wrap;gap:6px;justify-content:flex-end}
     .field{min-width:0}.field input,.field textarea,.field select{max-width:100%}
     .kakao-place-picker{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;min-width:0}
     .kakao-place-picker .detail-toolbar{grid-column:1/-1;min-width:0;margin:0;padding:0;border:0;background:transparent}
@@ -47,6 +47,11 @@
     .kakao-place-picker>button{min-width:0;white-space:nowrap}
     .form-grid .field select{width:100%}
     .place-chip{min-width:0;overflow-wrap:anywhere}
+    .image-grid{grid-template-columns:repeat(auto-fill,minmax(145px,1fr))}
+    .image-card .image-foot{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+    .image-card .image-foot span{flex:1 1 100%;min-width:0}
+    .image-card .image-foot button{flex:0 0 auto;min-width:28px}
+    .table-wrap td.actions{min-width:150px;white-space:normal}.table-wrap td.actions button{margin-bottom:4px}
     @media(max-width:1000px){.chart-grid{grid-template-columns:1fr 1fr}.chart-card:first-child{grid-column:1/-1}}
     @media(max-width:700px){.chart-grid{grid-template-columns:1fr;padding:12px 14px}.chart-card:first-child{grid-column:auto}.horizontal-row,.comparison-row{grid-template-columns:minmax(82px,.8fr) minmax(0,1.5fr) auto}.kakao-place-picker{grid-template-columns:minmax(0,1fr)}.kakao-place-picker .detail-toolbar{display:grid;grid-template-columns:minmax(0,1fr) auto}.kakao-place-picker>button{grid-column:1/-1;width:100%}.form-grid{padding:14px}.dialog-body{padding-left:14px;padding-right:14px}}
   </style>
@@ -54,7 +59,7 @@
     .dashboard-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px;padding:5px;border:1px solid var(--line);border-radius:12px;background:#fff}
     .dashboard-tab{flex:1 1 150px;border:0;background:transparent;color:var(--muted);font-weight:750}
     .dashboard-tab[aria-selected="true"]{background:var(--soft);color:var(--coral-dark);box-shadow:0 2px 8px #35232610}
-    .dashboard-view-panel.is-hidden{display:none}
+    .dashboard-view-panel.is-hidden{display:none}.management-hidden{display:none!important}
     .comparison-period{padding:10px 18px;border-bottom:1px solid var(--line);background:#fffafb;color:var(--muted);font-size:12px;line-height:1.5;overflow-wrap:anywhere}
     #metric-charts .chart-grid{grid-template-columns:minmax(0,1.35fr) minmax(300px,.85fr);align-items:stretch}
     #metric-charts .chart-card{display:flex;min-height:300px;flex-direction:column;padding:18px;background:linear-gradient(180deg,#fffafb 0%,#fff 100%)}
@@ -77,6 +82,178 @@
     @media(max-width:1000px){#metric-charts .chart-grid{grid-template-columns:1fr}.chart-card:first-child{grid-row:auto}}
     @media(max-width:700px){.dashboard-tab{flex-basis:100%}}
   </style>
+  <style>
+    /* Operational layout: keep dense data readable at a glance. */
+    :root{--content-width:1240px;--section-gap:18px}
+    html{scroll-behavior:smooth}
+    body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    .header-inner,main{max-width:var(--content-width)}
+    .header-inner{padding-top:16px;padding-bottom:16px}
+    .brand{flex:1;min-width:0}
+    .brand>div:last-child{min-width:0}
+    .brand h1,.brand .sub{overflow-wrap:anywhere}
+    nav{flex:0 0 auto}
+    main{padding-top:32px}
+    .topline{align-items:center;margin-bottom:16px}
+    .topline>div{min-width:0}
+    .topline h2{font-size:22px}
+    .topline .hint{max-width:680px;margin-top:6px}
+    #status{min-height:20px;margin:0 0 14px}
+    .cards{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:24px}
+    .card{min-height:106px;padding:16px 17px;display:flex;flex-direction:column;justify-content:space-between}
+    .card .label{line-height:1.4;overflow-wrap:anywhere}
+    .card .value{margin-top:12px;font-size:28px;line-height:1}
+    .dashboard-tabs{position:sticky;top:73px;z-index:4;box-shadow:0 4px 14px #3523260b}
+    .dashboard-tab{min-height:40px}
+    .tabs{padding:5px;gap:6px}
+    .tabs .tab{min-height:39px}
+    section{box-shadow:0 8px 26px #35232608}
+    .section-head{padding:19px 20px}
+    .section-head h2{font-size:18px}
+    .section-head .hint{max-width:760px}
+    .toolbar{gap:9px;padding:15px 20px}
+    .toolbar input,.toolbar select{min-width:190px}
+    .toolbar button{min-width:72px}
+    .table-wrap{border-radius:0 0 16px 16px;scrollbar-color:#d9c8cc transparent}
+    table{min-width:900px}
+    th,td{padding:13px 14px;line-height:1.45}
+    tbody tr:last-child td{border-bottom:0}
+    tbody tr:hover{background:#fff8f9}
+    th:first-child,td:first-child{width:68px;white-space:nowrap;word-break:normal;overflow-wrap:normal}
+    td.actions{min-width:164px;white-space:normal}
+    td.actions button{margin:0 4px 4px 0}
+    #panel-contents th:nth-child(3),#panel-contents td:nth-child(3){min-width:260px;max-width:420px}
+    #panel-imports th:nth-child(4),#panel-imports td:nth-child(4){min-width:270px}
+    #panel-imports th:nth-child(6),#panel-imports td:nth-child(6){min-width:170px;max-width:260px}
+    #panel-places th:nth-child(2),#panel-places td:nth-child(2){min-width:270px;max-width:390px}
+    #panel-places th:nth-child(3),#panel-places td:nth-child(3){min-width:230px;max-width:330px}
+    #panel-places th:nth-child(7),#panel-places td:nth-child(7){min-width:170px}
+    .pager{min-height:60px;border-top:1px solid #f2eaec}
+    .pager button{min-width:56px}
+    .pager span{font-variant-numeric:tabular-nums}
+    .detail-grid{gap:18px}
+    dialog{width:min(960px,calc(100% - 28px))}
+    .dialog-head{padding:18px 22px}
+    .dialog-head>div{min-width:0}
+    .dialog-head h2,.dialog-head .hint{overflow-wrap:anywhere}
+    .dialog-body{padding:20px 22px 26px}
+    .dialog-body section{box-shadow:none}
+    .dialog-actions{position:sticky;bottom:-1px;margin-left:-22px;margin-right:-22px;padding:14px 22px 0;background:linear-gradient(180deg,#fff0,white 25%)}
+    .image-card{box-shadow:0 3px 10px #35232608}
+    .image-card img{min-height:96px}
+    .image-card .image-foot button{min-width:42px}
+    .notice{border:1px solid #f1dfbc}
+    @media(max-width:1100px){
+      .cards{grid-template-columns:repeat(2,minmax(0,1fr))}
+      .dashboard-tabs{top:72px}
+    }
+    @media(max-width:700px){
+      .header-inner{padding-top:12px;padding-bottom:12px}
+      .header-inner,main{padding-left:14px;padding-right:14px}
+      .topline h2{font-size:20px}
+      .topline>button{width:auto;align-self:stretch}
+      .dashboard-tabs{position:static;box-shadow:none}
+      .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+      .card{min-height:88px;padding:13px}
+      .card .value{font-size:24px}
+      .section-head{padding:16px 14px}
+      .section-head>button{width:auto}
+      .toolbar{padding:12px 14px}
+      .toolbar input,.toolbar select,.toolbar button{width:100%;min-width:0}
+      .tabs{margin-left:0;margin-right:0}
+      .tabs .tab{min-width:120px}
+      .table-wrap{margin:0;max-width:100%;}
+      th,td{padding:11px 12px}
+      .dialog-head{padding:16px}
+      .dialog-body{padding:16px 14px 22px}
+      .dialog-actions{margin-left:-14px;margin-right:-14px;padding-left:14px;padding-right:14px}
+      .dialog-actions button{width:100%}
+    }
+    @media(max-width:420px){
+      .cards{grid-template-columns:1fr}
+      .card{min-height:76px;flex-direction:row;align-items:center}
+      .card .value{margin-top:0}
+      nav a,nav .logout{padding:7px 9px}
+    }
+  </style>
+    <style>
+      /* Keep dense management controls readable when labels and buttons wrap. */
+      #panel-imports th:nth-child(3),#panel-imports td:nth-child(3),
+      #panel-imports th:nth-child(7),#panel-imports td:nth-child(7){
+        min-width:140px;
+        max-width:220px;
+        white-space:normal;
+        overflow-wrap:anywhere;
+        word-break:keep-all;
+        line-height:1.5;
+      }
+      #panel-places th:last-child,#panel-places td:last-child{
+        min-width:205px;
+        white-space:normal;
+      }
+      #panel-places td:last-child button{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        margin:0 7px 6px 0;
+        vertical-align:middle;
+      }
+      .dialog-body .detail-actions{
+        position:static;
+        display:flex;
+        align-items:center;
+        flex-wrap:wrap;
+        gap:8px;
+        margin:16px 18px 0;
+        padding:14px 0 0;
+        background:none;
+      }
+      .dialog-body .detail-actions button{
+        flex:0 1 auto;
+        min-width:140px;
+        min-height:40px;
+        white-space:normal;
+        line-height:1.35;
+      }
+      #import-dialog .dialog-body{padding-top:24px;padding-bottom:30px}
+      #import-dialog .import-review-notice{margin-bottom:18px}
+      #import-dialog .section-title{padding-top:8px}
+      #import-dialog .candidate{padding:16px 0;row-gap:12px}
+      #import-dialog .candidate .candidate-name,#import-dialog .candidate .candidate-meta{
+        overflow-wrap:anywhere;
+        word-break:keep-all;
+        line-height:1.5;
+      }
+      #import-dialog .kakao-place-picker{margin-top:2px}
+      #import-dialog a[data-source-link]{display:inline-block;margin-top:8px;color:var(--coral-dark);font-weight:800;text-decoration:underline;text-underline-offset:3px}
+      #place-dialog .image-grid{padding-top:20px;padding-bottom:24px}
+      #place-dialog .image-card .image-foot{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:stretch;gap:6px;min-height:76px}
+      #place-dialog .image-card .image-foot span{grid-column:1/-1;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
+      #place-dialog .image-card .image-foot button{width:100%;min-width:0;margin:0}
+      @media(max-width:700px){
+        #panel-imports th:nth-child(3),#panel-imports td:nth-child(3),
+        #panel-imports th:nth-child(7),#panel-imports td:nth-child(7){max-width:none}
+        #panel-places td:last-child button{width:auto;min-width:92px}
+        .dialog-body .detail-actions{margin-left:14px;margin-right:14px}
+        .dialog-body .detail-actions button{width:100%;min-width:0}
+        #import-dialog .dialog-body{padding-top:20px}
+      }
+    </style>
+    <style>
+      #panel-contents table{min-width:980px}
+      #panel-contents th:nth-child(3),#panel-contents td:nth-child(3){width:82px;min-width:82px;max-width:82px}
+      #panel-contents th:nth-child(4),#panel-contents td:nth-child(4){min-width:260px;max-width:420px}
+      .content-thumbnail-cell{width:82px;min-width:82px;padding:9px 14px!important}
+      .content-thumbnail{width:54px;height:54px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--line);border-radius:9px;background:#f1e9eb;color:var(--muted);font-size:9px;line-height:1.25;text-align:center}
+      .content-thumbnail img{width:100%;height:100%;display:block;object-fit:cover}
+      .content-thumbnail .image-fallback.compact{width:100%;height:100%;min-width:0;min-height:0}
+      @media(max-width:700px){
+        #panel-contents table{min-width:940px}
+        #panel-contents th:nth-child(3),#panel-contents td:nth-child(3){width:70px;min-width:70px;max-width:70px}
+        .content-thumbnail-cell{width:70px;min-width:70px;padding:8px 10px!important}
+        .content-thumbnail{width:50px;height:50px}
+      }
+    </style>
 </head>
 <body>
   <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">게시글·장소·이미지 상태를 한 화면에서 관리합니다.</p></div></div><nav><a class="active" href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><a href="/ops/notices">공지사항</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
@@ -89,7 +266,7 @@
     <section style="margin-bottom:22px"><div class="section-head"><div><h2>성과 지표 추이</h2><p class="hint">선택한 기간의 일별 사용자 행동을 확인합니다.</p></div><button id="metrics-trends-refresh" class="soft small" type="button">새로고침</button></div><div class="table-wrap"><table><thead><tr><th>날짜</th><th>다운로드</th><th>가입</th><th>커플 연결</th><th>장소 조회</th><th>장소 저장</th><th>코스 생성</th></tr></thead><tbody id="metrics-trends"></tbody></table></div></section>
     <div class="detail-grid" style="margin-bottom:22px"><section><div class="section-head"><div><h2>핵심 행동 퍼널</h2><p class="hint">기간 내 각 단계에 도달한 회원 수와 단계별 이탈 추정치입니다.</p></div><button id="metrics-funnel-refresh" class="soft small" type="button">새로고침</button></div><div class="table-wrap"><table><thead><tr><th>단계</th><th>도달 수</th><th>도달률</th><th>이탈 추정</th></tr></thead><tbody id="metrics-funnel"></tbody></table></div></section><section><div class="section-head"><div><h2>리텐션</h2><p class="hint">첫 핵심 행동을 수행한 회원의 재방문 비율입니다.</p></div><button id="metrics-retention-refresh" class="soft small" type="button">새로고침</button></div><div class="table-wrap"><table><thead><tr><th>기간</th><th>코호트</th><th>재방문</th><th>비율</th></tr></thead><tbody id="metrics-retention"></tbody></table></div></section></div>
     <section style="margin-bottom:22px"><div class="section-head"><div><h2>일별 추이</h2><p class="hint">최근 14일 장소 추출 완료율과 평균 처리 시간입니다.</p></div><button id="trend-refresh" class="soft small" type="button">새로고침</button></div><div class="table-wrap"><table><thead><tr><th>날짜</th><th>요청</th><th>완료</th><th>후보 확인</th><th>실패</th><th>완료율</th><th>평균 처리</th></tr></thead><tbody id="trend"></tbody></table></div></section><div class="tabs"><button class="tab active" data-tab="contents">게시글 관리</button><button class="tab" data-tab="imports">장소 추출</button><button class="tab" data-tab="places">장소 관리</button><button class="tab" data-tab="images">이미지 백로그</button><button class="tab" data-tab="marketing">마케팅 알림</button><button class="tab" data-tab="email">이메일 공지</button></div>
-    <div id="panel-contents" class="panel active"><section><div class="section-head"><div><h2>게시글 관리</h2><p class="hint">제목·내용·연결 장소를 수정하고 이미지를 서버에 직접 업로드합니다.</p></div><button id="contents-refresh">새로고침</button></div><div class="toolbar"><select id="content-status"><option value="">전체 상태</option><option selected>PENDING</option><option>PUBLIC</option><option>HIDDEN</option></select><input id="content-query" placeholder="제목 또는 원본 URL"><button id="contents-search" class="soft">검색</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>상태</th><th>제목</th><th>장소</th><th>생성 시각</th><th></th></tr></thead><tbody id="contents"></tbody></table></div><div class="pager"><button id="contents-prev">이전</button><span id="contents-page">-</span><button id="contents-next">다음</button></div></section></div>
+    <div id="panel-contents" class="panel active"><section><div class="section-head"><div><h2>게시글 관리</h2><p class="hint">제목·내용·연결 장소를 수정하고 이미지를 서버에 직접 업로드합니다.</p></div><button id="contents-refresh">새로고침</button></div><div class="toolbar"><select id="content-status"><option value="">전체 상태</option><option selected>PENDING</option><option>PUBLIC</option><option>HIDDEN</option></select><input id="content-query" placeholder="제목 또는 원본 URL"><button id="contents-search" class="soft">검색</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>상태</th><th>대표 이미지</th><th>제목</th><th>장소</th><th>생성 시각</th><th></th></tr></thead><tbody id="contents"></tbody></table></div><div class="pager"><button id="contents-prev">이전</button><span id="contents-page">-</span><button id="contents-next">다음</button></div></section></div>
     <div id="panel-imports" class="panel"><section><div class="section-head"><div><h2>장소 추출 작업</h2><p class="hint">실패·장기 처리 작업을 재시도하거나 장소를 직접 연결해 공개 처리합니다.</p></div><button id="imports-refresh">새로고침</button></div><div class="toolbar"><select id="import-status"><option value="">전체 상태</option><option>RECEIVED</option><option>PROCESSING</option><option selected>REVIEW_REQUIRED</option><option>COMPLETED</option><option>FAILED</option></select><input id="import-failure" placeholder="실패 코드"><input id="import-query" placeholder="URL 또는 제목"><label class="filter-toggle"><input id="import-unverified" type="checkbox"><span>미검증 후보 있음</span></label><label class="filter-toggle"><input id="import-auto" type="checkbox"><span>30초 자동 새로고침</span></label><button id="imports-search" class="soft">검색</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>상태</th><th>유형</th><th>원본 URL</th><th>실패 코드</th><th>실패 장소</th><th>후보</th><th>생성 시각</th><th></th></tr></thead><tbody id="imports"></tbody></table></div><div class="pager"><button id="imports-prev">이전</button><span id="imports-page">-</span><button id="imports-next">다음</button></div></section></div>
     <div id="panel-places" class="panel"><section><div class="section-head"><div><h2>장소 관리</h2><p class="hint">장소명·주소·카카오 정보와 장소 이미지를 수정합니다.</p></div><button id="places-refresh">새로고침</button></div><div class="toolbar"><input id="place-query" placeholder="장소명·주소·카카오 ID 검색"><select id="place-category-group" aria-label="카카오 그룹 코드"><option value="">전체 그룹 코드</option><option value="MISSING">그룹 코드 미지정</option></select><select id="place-thumbnail-status" aria-label="대표 이미지 상태"><option value="">전체 이미지</option><option value="AVAILABLE">대표 이미지 있음</option><option value="MISSING">대표 이미지 없음</option></select><button id="places-search" class="primary">장소 검색</button></div><div class="table-wrap"><table><thead><tr><th>ID</th><th>장소명</th><th>주소</th><th>카테고리</th><th>그룹 코드</th><th>대표 이미지</th><th></th></tr></thead><tbody id="places"></tbody></table></div><div class="pager"><button id="places-prev">이전</button><span id="places-page">-</span><button id="places-next">다음</button></div></section></div>
     <div id="panel-images" class="panel"><section><div class="section-head"><div><h2>이미지 처리 백로그</h2><p class="hint">자동 저장에 실패한 게시글·장소를 열어 파일을 직접 업로드할 수 있습니다.</p></div><button id="images-refresh">새로고침</button></div><div class="toolbar"><select id="image-kind"><option>ALL</option><option>CONTENT</option><option>PLACE</option></select></div><div class="table-wrap"><table><thead><tr><th>유형</th><th>대상</th><th>실패 사유</th><th>시도</th><th>마지막 시각</th><th></th></tr></thead><tbody id="images"></tbody></table></div><div class="pager"><button id="images-prev">이전</button><span id="images-page">-</span><button id="images-next">다음</button></div></section></div>
@@ -126,7 +303,8 @@
     function metricQuery(){const from=$("metrics-from").value,to=$("metrics-to").value;if(from&&to&&from>=to)throw new Error("시작일은 종료일보다 이전이어야 합니다.");const query=new URLSearchParams();if(from)query.set("from",from);if(to)query.set("to",to);return query}
     async function loadMetrics(){const query=metricQuery(),suffix=query.toString()?"?"+query:"";const [overview,trends,funnel,retention,comparison]=await Promise.all([api("/api/v1/admin/metrics/overview"+suffix),api("/api/v1/admin/metrics/trends"+suffix),api("/api/v1/admin/metrics/funnel"+suffix),api("/api/v1/admin/metrics/retention"+suffix),api("/api/v1/admin/metrics/comparison"+suffix)]);renderMetrics(overview);renderMetricTrends(trends);renderMetricFunnel(funnel);renderMetricRetention(retention);renderMetricComparison(comparison);renderMetricCharts(trends,funnel,comparison)}
     async function loadOverview(){renderCards(await api("/api/v1/admin/overview"))}
-    async function loadContents(){const p=params("contents"),status=$("content-status").value,query=$("content-query").value.trim();if(status)p.set("status",status);if(query)p.set("query",query);const data=await api("/api/v1/admin/contents?"+p),tbody=$("contents");if(!data.contents.length)empty(tbody,6,"게시글이 없습니다.");else{tbody.replaceChildren();data.contents.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.contentId),(()=>{const td=document.createElement("td");td.appendChild(badge(item.publicationStatus));return td})(),cell(item.title),cell(`${item.placeCount}곳`),cell(item.createdAt),(()=>{const td=document.createElement("td");td.className="actions";td.appendChild(button("편집",()=>openContent(item.contentId),"soft small"));const select=document.createElement("select");["PENDING","PUBLIC","HIDDEN"].forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;o.selected=v===item.publicationStatus;select.appendChild(o)});td.append(select,button("상태 저장",()=>updatePublication(item.contentId,select.value,item.updatedAt),"small"));return td})());tbody.appendChild(tr)})}page("contents",data)}
+    function contentThumbnailCell(url){const td=document.createElement("td");td.className="content-thumbnail-cell";const frame=document.createElement("div");frame.className="content-thumbnail";if(!url){frame.textContent="이미지 없음";td.appendChild(frame);return td}const image=document.createElement("img");image.src=url;image.alt="게시글 대표 이미지";image.addEventListener("error",()=>{image.remove();frame.textContent="이미지 없음"},{once:true});frame.appendChild(image);td.appendChild(frame);return td}
+    async function loadContents(){const p=params("contents"),status=$("content-status").value,query=$("content-query").value.trim();if(status)p.set("status",status);if(query)p.set("query",query);const data=await api("/api/v1/admin/contents?"+p),tbody=$("contents");if(!data.contents.length)empty(tbody,7,"게시글이 없습니다.");else{tbody.replaceChildren();data.contents.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.contentId),(()=>{const td=document.createElement("td");td.appendChild(badge(item.publicationStatus));return td})(),contentThumbnailCell(item.thumbnailUrl),cell(item.title),cell(`${item.placeCount}곳`),cell(item.createdAt),(()=>{const td=document.createElement("td");td.className="actions";td.appendChild(button("편집",()=>openContent(item.contentId),"soft small"));const select=document.createElement("select");["PENDING","PUBLIC","HIDDEN"].forEach(v=>{const o=document.createElement("option");o.value=v;o.textContent=v;o.selected=v===item.publicationStatus;select.appendChild(o)});td.append(select,button("상태 저장",()=>updatePublication(item.contentId,select.value,item.updatedAt),"small"));return td})());tbody.appendChild(tr)})}page("contents",data)}
     async function updatePublication(id,status,updatedAt){if(!confirm(`게시글 ${id}을 ${status} 상태로 변경할까요?`))return;await once(`publication-${id}`,async()=>{try{await api(`/api/v1/admin/contents/${id}/publication-status`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({publicationStatus:status,expectedUpdatedAt:updatedAt})});setStatus("게시글 공개 상태를 변경했습니다.","ok");await loadOverview();await loadContents()}catch(e){setStatus(e.message,"error");if(e.message.includes("변경"))openContent(id)}})}
     function imageUploadForm(kind,id,updatedAt){const form=document.createElement("form");form.className="toolbar detail-toolbar";const file=document.createElement("input");file.type="file";file.accept="image/jpeg,image/png,image/webp,image/gif";const label=document.createElement("label");label.className="detail-toggle";const thumbnail=document.createElement("input");thumbnail.type="checkbox";const labelText=document.createElement("span");labelText.textContent="대표 이미지로 설정";label.append(thumbnail,labelText);const upload=button("업로드",async()=>{if(!file.files[0])return setStatus("업로드할 이미지 파일을 선택해 주세요.","error");const data=new FormData();data.append("file",file.files[0]);await once(`upload-${kind}-${id}`,async()=>{try{const path=kind==="content"?`/api/v1/admin/contents/${id}/images`:`/api/v1/admin/places/${id}/images`;const query=new URLSearchParams({thumbnail:String(thumbnail.checked),expectedUpdatedAt});await api(path+`?${query}`,{method:"POST",body:data});setStatus("이미지를 저장했습니다.","ok");kind==="content"?openContent(id):openPlace(id);loadOverview();loadImages()}catch(e){setStatus(e.message,"error")}})},"primary");form.append(file,label,upload);return form}
     const fallbackCategoryGroups=[{code:"FD6",name:"음식점"},{code:"CE7",name:"카페"},{code:"CT1",name:"문화시설"},{code:"MT1",name:"대형마트"},{code:"CS2",name:"편의점"},{code:"AT4",name:"관광명소"},{code:"AD5",name:"숙박"},{code:"PS3",name:"어린이집"},{code:"SC4",name:"학교"},{code:"AC5",name:"학원"},{code:"PK6",name:"주차장"},{code:"OL7",name:"주유소"},{code:"SW8",name:"지하철역"},{code:"BK9",name:"은행"},{code:"AG2",name:"관공서"},{code:"PO3",name:"병원"},{code:"PM9",name:"약국"}];let categoryGroupOptions=fallbackCategoryGroups;let categoryGroupOptionsLoaded=false;
@@ -143,16 +321,26 @@
     function enhanceImageControls(kind,id,items,updatedAt){const cards=$(kind==="content"?"content-dialog-body":"place-dialog-body").querySelectorAll(".image-card");cards.forEach((card,index)=>{const foot=card.querySelector(".image-foot");const item=items[index];const promote=button("대표",async()=>{try{const key=kind==="content"?item.imageKey:item.imageId;const path=kind==="content"?`/api/v1/admin/contents/${id}/images/${key}/thumbnail`:`/api/v1/admin/places/${id}/images/${key}/thumbnail`;await api(`${path}?expectedUpdatedAt=${encodeURIComponent(updatedAt)}`,{method:"PATCH"});kind==="content"?openContent(id):openPlace(id)}catch(e){setStatus(e.message,"error")}},"soft small");const up=button("↑",()=>reorderImages(kind,id,items,index,-1,updatedAt),"small");const down=button("↓",()=>reorderImages(kind,id,items,index,1,updatedAt),"small");foot.append(promote,up,down)})}
     async function ensureKakaoPlace(place){return api("/api/v1/admin/places",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kakaoPlaceId:place.kakaoPlaceId,name:place.name,address:place.address||place.roadAddress,roadAddress:place.roadAddress,latitude:place.latitude,longitude:place.longitude,category:place.category,categoryGroupCode:place.categoryGroupCode,phone:place.phone,kakaoPlaceUrl:place.kakaoPlaceUrl})})}
     function enhanceContentKakaoPicker(data){const root=$("content-dialog-body"),section=[...root.querySelectorAll("section")].find(item=>item.querySelector("h3")?.textContent.trim()==="연결된 장소");if(!section)return;const existing=section.querySelector(".detail-toolbar");if(!existing)return;if(!section.querySelector("[data-kakao-content-picker]")){const picker=document.createElement("div");picker.className="detail-toolbar";picker.dataset.kakaoContentPicker="true";const query=document.createElement("input");query.placeholder="카카오맵에서 장소 검색";const results=document.createElement("select");const search=button("카카오맵 검색",async()=>{const keyword=query.value.trim();if(!keyword)return setStatus("검색할 장소명을 입력해 주세요.","error");try{const data=await api("/api/v1/admin/places/kakao-search?query="+encodeURIComponent(keyword));results.replaceChildren();data.places.forEach(place=>{const option=document.createElement("option");option.value=place.kakaoPlaceId;option.textContent=place.name+" · "+text(place.roadAddress||place.address);option.dataset.place=JSON.stringify(place);results.appendChild(option)});if(!data.places.length)setStatus("카카오맵 검색 결과가 없습니다.","error")}catch(error){setStatus(error.message,"error")}},"soft small");query.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();search.click()}});const add=button("카카오 장소 연결",async()=>{const option=results.selectedOptions[0];if(!option)return setStatus("연결할 카카오맵 장소를 선택해 주세요.","error");try{const saved=await ensureKakaoPlace(JSON.parse(option.dataset.place));const internalResults=existing.querySelector("select");const internalAdd=[...existing.querySelectorAll("button")].find(item=>item.textContent.trim()==="장소 추가");const internalOption=document.createElement("option");internalOption.value=saved.placeId;internalOption.textContent="#"+saved.placeId+" "+saved.name;internalOption.dataset.name=saved.name;internalResults.appendChild(internalOption);internalResults.value=String(saved.placeId);internalAdd.click();setStatus("카카오맵 장소를 연결 목록에 추가했습니다.","ok")}catch(error){setStatus(error.message,"error")}},"primary small");picker.append(query,search,results,add);existing.before(picker)}const actions=section.querySelector(".detail-actions");if(actions&&!actions.querySelector("[data-publish-content]")){const publish=button(data.publicationStatus==="PUBLIC"?"연결 장소 저장":"연결 장소 저장 및 공개",async()=>{const placeIds=[...section.querySelectorAll(".place-chip")].map(chip=>Number(chip.textContent.match(/^#(\d+)/)?.[1])).filter(Number.isInteger);if(!placeIds.length)return setStatus("연결할 장소를 하나 이상 추가해 주세요.","error");try{const current=await api("/api/v1/admin/contents/"+data.contentId);await api("/api/v1/admin/contents/"+data.contentId+"/places",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({placeIds,expectedUpdatedAt:current.updatedAt,publish:true})});setStatus("장소를 저장하고 게시글을 공개했습니다.","ok");closeDialog("content-dialog");loadContents()}catch(error){setStatus(error.message,"error")}} ,"primary");publish.dataset.publishContent="true";actions.appendChild(publish)}}
-    const baseRenderContentEditor=renderContentEditor;renderContentEditor=data=>{baseRenderContentEditor(data);enhanceContentKakaoPicker(data)};
+    function addContentPlaceChip(section,place){const chips=section.querySelector(".place-chips"),existing=[...chips.querySelectorAll(".place-chip")].some(chip=>chip.textContent.startsWith("#"+place.placeId+" "));if(existing)return;const chip=document.createElement("div");chip.className="place-chip";chip.append(document.createTextNode("#"+place.placeId+" "+place.name),button("삭제",()=>chip.remove(),"small"));chips.appendChild(chip)}
+    function enhanceContentKakaoPickerV2(data){const root=$("content-dialog-body"),section=[...root.querySelectorAll("section")].find(item=>item.querySelector("h3")?.textContent.trim()==="연결된 장소");if(!section)return;section.querySelector(".section-title .hint").textContent="카카오맵에서 장소를 검색해 연결합니다.";section.querySelector(".detail-toolbar")?.remove();if(!section.querySelector("[data-kakao-content-picker]")){const picker=document.createElement("div");picker.className="detail-toolbar";picker.dataset.kakaoContentPicker="true";const query=document.createElement("input");query.placeholder="카카오맵에서 장소 검색";const results=document.createElement("select");const search=button("카카오맵 검색",async()=>{const keyword=query.value.trim();if(!keyword)return setStatus("검색할 장소명을 입력해 주세요.","error");try{const result=await api("/api/v1/admin/places/kakao-search?query="+encodeURIComponent(keyword));results.replaceChildren();result.places.forEach(place=>{const option=document.createElement("option");option.value=place.kakaoPlaceId;option.textContent=place.name+" · "+text(place.roadAddress||place.address);option.dataset.place=JSON.stringify(place);results.appendChild(option)});if(!result.places.length)setStatus("카카오맵 검색 결과가 없습니다.","error")}catch(error){setStatus(error.message,"error")}},"soft small");query.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();search.click()}});const add=button("카카오 장소 연결",async()=>{const option=results.selectedOptions[0];if(!option)return setStatus("연결할 카카오맵 장소를 선택해 주세요.","error");try{const saved=await ensureKakaoPlace(JSON.parse(option.dataset.place));addContentPlaceChip(section,{placeId:saved.placeId,name:saved.name});setStatus("카카오맵 장소를 연결 목록에 추가했습니다.","ok")}catch(error){setStatus(error.message,"error")}},"primary small");picker.append(query,search,results,add);const actions=section.querySelector(".detail-actions");actions?actions.before(picker):section.appendChild(picker)}}
+    function addSectionActions(title){if(!title)return null;let actions=title.querySelector(".section-title-actions");if(actions)return actions;title.classList.add("image-section-title");const heading=document.createElement("div");[...title.children].forEach(child=>heading.appendChild(child));actions=document.createElement("div");actions.className="section-title-actions";title.append(heading,actions);return actions}
+    function enhanceContentOriginalLink(data){const sub=$("content-dialog-sub");if(sub&&!sub.querySelector("[data-source-link]")){const link=document.createElement("a");link.href=data.canonicalUrl;link.target="_blank";link.rel="noopener noreferrer";link.dataset.sourceLink="true";link.textContent="원본 게시물 열기";sub.append(" · ",link)}const root=$("content-dialog-body"),section=[...root.querySelectorAll("section")].find(item=>item.querySelector("h3")?.textContent.trim()==="게시글 이미지"),actions=addSectionActions(section?.querySelector(".section-title"));if(actions&&!actions.querySelector("[data-refresh-content-images]")){const refresh=button("원본 이미지 재추출",async()=>{await once("refresh-content-images-"+data.contentId,async()=>{try{await api("/api/v1/admin/content-images/"+data.contentId+"/retry",{method:"POST"});setStatus("게시글 원본 이미지 재추출을 요청했습니다.","ok");loadImages()}catch(error){setStatus(error.message,"error")}})},"soft small");refresh.dataset.refreshContentImages="true";actions.appendChild(refresh)}}
+    const baseRenderContentEditor=renderContentEditor;renderContentEditor=data=>{baseRenderContentEditor(data);enhanceContentKakaoPickerV2(data);enhanceContentOriginalLink(data)};
     async function openContent(id){try{const data=await api(`/api/v1/admin/contents/${id}`);renderContentEditor(data);enhanceImageControls("content",id,data.images,data.updatedAt)}catch(e){setStatus(e.message,"error")}}
     async function loadImports(){const p=params("imports"),status=$("import-status").value,failure=$("import-failure").value.trim(),query=$("import-query").value.trim();const unv=$("import-unverified").checked;if(status)p.set("status",status);if(failure)p.set("failureCode",failure);if(query)p.set("query",query);if(unv)p.set("hasUnverified","true");const data=await api("/api/v1/admin/place-imports?"+p),tbody=$("imports");if(!data.imports.length)empty(tbody,9,"장소 추출 작업이 없습니다.");else{tbody.replaceChildren();data.imports.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.importId),(()=>{const td=document.createElement("td");td.appendChild(badge(item.status));return td})(),cell(item.sourceType),cell(item.canonicalUrl,"url"),cell(item.failureCode),cell(item.failedPlaceNames),(()=>{const cd=document.createElement("td");cd.textContent=String(item.candidateCount??0)+(item.unverifiedCount>0?` · 미검증 ${item.unverifiedCount}`:"");if(item.unverifiedCount>0)cd.style.color="var(--warn)";return cd})(),cell(item.createdAt),(()=>{const td=document.createElement("td");td.className="actions";td.appendChild(button("상세",()=>openImport(item.importId),"soft small"));if(item.status==="FAILED"||item.status==="PROCESSING")td.appendChild(button("재시도",()=>retryImport(item.importId),"danger small"));return td})());tbody.appendChild(tr)})}page("imports",data)}async function retryImport(id){if(!confirm(`장소 추출 작업 ${id}을 재처리할까요?`))return;try{await api(`/api/v1/admin/place-imports/${id}/retry`,{method:"POST"});setStatus("재처리를 요청했습니다.","ok");loadOverview();loadImports()}catch(e){setStatus(e.message,"error")}}
     function createKakaoPlacePicker(onConfirm){const picker=document.createElement("div");picker.className="kakao-place-picker";const toolbar=document.createElement("div");toolbar.className="detail-toolbar";const query=document.createElement("input");query.placeholder="카카오맵 장소명·주소 검색";const results=document.createElement("select");const search=button("카카오맵 검색",async()=>{const keyword=query.value.trim();if(!keyword)return setStatus("검색할 장소명을 입력해 주세요.","error");try{const data=await api("/api/v1/admin/places/kakao-search?query="+encodeURIComponent(keyword));results.replaceChildren();data.places.forEach(place=>{const option=document.createElement("option");option.value=place.kakaoPlaceId;option.textContent=place.name+" · "+text(place.roadAddress||place.address);option.dataset.place=JSON.stringify(place);results.appendChild(option)});if(!data.places.length)setStatus("카카오맵 검색 결과가 없습니다.","error")}catch(e){setStatus(e.message,"error")}},"soft small");query.addEventListener("keydown",event=>{if(event.key==="Enter"){event.preventDefault();search.click()}});const confirm=button("선택 장소 확정",()=>{const option=results.selectedOptions[0];if(!option)return setStatus("연결할 카카오맵 장소를 선택해 주세요.","error");onConfirm(JSON.parse(option.dataset.place))},"primary small");toolbar.append(query,search);picker.append(toolbar,results,confirm);return picker}
     async function createAndLinkKakaoPlace(importId,candidateId,place,publish){await once("kakao-link-"+importId+"-"+(candidateId||"all"),async()=>{try{const saved=await api("/api/v1/admin/places",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({kakaoPlaceId:place.kakaoPlaceId,name:place.name,address:place.address||place.roadAddress,roadAddress:place.roadAddress,latitude:place.latitude,longitude:place.longitude,category:place.category,categoryGroupCode:place.categoryGroupCode,phone:place.phone,kakaoPlaceUrl:place.kakaoPlaceUrl})});await manualLink(importId,candidateId,{value:String(saved.placeId)},publish)}catch(e){setStatus(e.message,"error")}})}
     function renderImportDetail(data){const root=$("import-dialog-body");root.replaceChildren();$("import-dialog-sub").textContent="#"+data.summary.importId+" · "+data.summary.status+" · "+data.summary.canonicalUrl;const info=document.createElement("div");info.className="notice";info.textContent="원본 URL: "+text(data.summary.canonicalUrl)+" · 제목: "+text(data.title)+" · 실패 코드: "+text(data.summary.failureCode)+" · 실패 장소: "+text(data.summary.failedPlaceNames)+" · 본문: "+text(data.caption);root.appendChild(info);const heading=document.createElement("div");heading.className="section-title";heading.innerHTML="<h3>추출 후보와 수동 장소 연결</h3><p class='hint'>카카오맵에서 장소를 검색하고 결과를 확정해 연결합니다. 후보가 없어도 직접 연결할 수 있습니다.</p>";root.appendChild(heading);const publish=document.createElement("label");publish.className="detail-toggle";const publishCheck=document.createElement("input");publishCheck.type="checkbox";publishCheck.checked=true;const publishText=document.createElement("span");publishText.textContent="연결 후 공개";publish.append(publishCheck,publishText);const manual=document.createElement("div");manual.className="detail-toolbar";manual.append(createKakaoPlacePicker(place=>createAndLinkKakaoPlace(data.summary.importId,null,place,publishCheck)),publish);root.appendChild(manual);data.candidates.forEach(candidate=>{const row=document.createElement("div");row.className="candidate";const name=document.createElement("div");name.className="candidate-name";name.textContent=text(candidate.extractedName);const unverified=candidate.verificationStatus==="EXTRACTED";const meta=document.createElement("div");meta.className="candidate-meta";meta.textContent=(unverified?"미검증 · ":"")+text(candidate.verificationStatus)+" · "+text(candidate.placeAddress);const picker=createKakaoPlacePicker(place=>createAndLinkKakaoPlace(data.summary.importId,candidate.candidateId,place,publishCheck));picker.style.gridColumn="1 / -1";row.append(name,meta,picker);if(unverified){const form=document.createElement("div");form.className="detail-toolbar candidate-create-form";const kakao=document.createElement("input");kakao.placeholder="카카오 장소 ID (예: 27190838)";const newName=document.createElement("input");newName.placeholder="장소명";const address=document.createElement("input");address.placeholder="주소";form.append(kakao,newName,address,button("새 장소 등록 후 연결",()=>createAndLink(data.summary.importId,candidate.candidateId,kakao,newName,address,publishCheck),"primary small"));root.appendChild(form)}root.appendChild(row)});$("import-dialog").showModal()}
     async function completeImport(id){await once(`complete-import-${id}`,async()=>{try{const detail=await api(`/api/v1/admin/place-imports/${id}`);await api(`/api/v1/admin/place-imports/${id}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedUpdatedAt:detail.summary.updatedAt})});setStatus("모든 후보를 확인하고 게시글을 공개했습니다.","ok");$("import-dialog").close();loadOverview();loadImports();loadContents()}catch(e){setStatus(e.message,"error");openImport(id)}})}
-    async function rejectImportCandidate(importId,candidateId){await once(`reject-candidate-${importId}-${candidateId}`,async()=>{try{const detail=await api(`/api/v1/admin/place-imports/${importId}`);await api(`/api/v1/admin/place-imports/${importId}/candidates/${candidateId}`,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedUpdatedAt:detail.summary.updatedAt})});setStatus("후보를 제외했습니다.","ok");openImport(importId);loadImports()}catch(e){setStatus(e.message,"error")}})}
+    async function rejectImportCandidate(importId,candidateId){await once(`reject-candidate-${importId}-${candidateId}`,async()=>{try{const detail=await api(`/api/v1/admin/place-imports/${importId}`);await api(`/api/v1/admin/place-imports/${importId}/candidates/${candidateId}`,{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedUpdatedAt:detail.summary.updatedAt})});setStatus("후보를 제외했습니다.","ok");await openImport(importId);loadImports()}catch(e){setStatus(e.message,"error")}})}
     function enhanceImportDetail(data){const root=$("import-dialog-body"),unresolved=data.candidates.filter(candidate=>!["VERIFIED","REJECTED"].includes(candidate.verificationStatus));const notice=document.createElement("div");notice.className="notice import-review-notice";notice.textContent=`현재 상태 ${data.summary.status}: 분석 결과와 후보는 DB에 저장되어 있습니다. ${unresolved.length?`최종 확정 전 ${unresolved.length}개의 후보를 카카오맵으로 연결하거나 목록에서 제외해 주세요.`:"모든 후보가 처리되었습니다. 연결된 장소를 확인한 뒤 최종 확정할 수 있습니다."}`;if(data.summary.status==="REVIEW_REQUIRED"){notice.append(" ","후보를 확정하거나 제외하는 것만으로는 완료되지 않습니다. 아래 최종 확정 버튼을 눌러야 COMPLETED로 변경되고 게시글이 공개됩니다.")}root.prepend(notice);const publishToggle=root.querySelector(".detail-toggle");if(publishToggle)publishToggle.hidden=true;root.querySelectorAll(".candidate").forEach((row,index)=>{const candidate=data.candidates[index];row.dataset.candidateId=candidate.candidateId;const action=button(candidate.verificationStatus==="REJECTED"?"제외됨":"후보 제외",()=>rejectImportCandidate(data.summary.importId,candidate.candidateId),candidate.verificationStatus==="REJECTED"?"small":"danger small");action.disabled=candidate.verificationStatus==="REJECTED";row.appendChild(action)});const actions=document.createElement("div");actions.className="dialog-actions detail-actions";const complete=button("모든 후보 확인 후 공개",()=>completeImport(data.summary.importId),"primary");complete.disabled=unresolved.length>0;actions.appendChild(complete);root.appendChild(actions)}
     async function openImport(id){try{const data=await api(`/api/v1/admin/place-imports/${id}`);renderImportDetail(data);enhanceImportDetail(data)}catch(e){setStatus(e.message,"error")}}
+    function enhanceImportReviewControls(data){const root=$("import-dialog-body"),info=[...root.querySelectorAll(".notice")].find(item=>item.textContent.startsWith("원본 URL:"));if(info&&!info.querySelector("[data-source-link]")){const link=document.createElement("a");link.href=data.summary.canonicalUrl;link.target="_blank";link.rel="noopener noreferrer";link.dataset.sourceLink="true";link.textContent="원본 게시물 열기";info.append(" · ",link)}root.querySelectorAll(".candidate").forEach((row,index)=>{const candidate=data.candidates[index];if(!candidate)return;if(candidate.verificationStatus==="VERIFIED"){row.querySelector(".kakao-place-picker")?.remove();[...row.querySelectorAll("button")].filter(item=>item.textContent.trim()==="후보 제외").forEach(item=>item.remove())}if(candidate.verificationStatus==="REJECTED")row.querySelector(".kakao-place-picker")?.remove()})}
+    const baseOpenImport=openImport;openImport=async function(id){await baseOpenImport(id);try{const data=await api(`/api/v1/admin/place-imports/${id}`);enhanceImportReviewControls(data)}catch(error){setStatus(error.message,"error")}}
+    async function completeImportIfReady(id){const detail=await api(`/api/v1/admin/place-imports/${id}`);const unresolved=detail.candidates.some(candidate=>!['VERIFIED','REJECTED'].includes(candidate.verificationStatus));if(unresolved)return false;await api(`/api/v1/admin/place-imports/${id}/complete`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({expectedUpdatedAt:detail.summary.updatedAt})});return true}
+    const baseManualLink=manualLink;manualLink=async function(importId,candidateId,input,publish){await baseManualLink(importId,candidateId,input,publish);await openImport(importId)}
+    const baseRejectImportCandidate=rejectImportCandidate;rejectImportCandidate=async function(importId,candidateId){await baseRejectImportCandidate(importId,candidateId)}
+    const baseRenderImportDetailWithSource=renderImportDetail;renderImportDetail=data=>{baseRenderImportDetailWithSource(data);const info=[...$("import-dialog-body").querySelectorAll(".notice")].find(item=>item.textContent.startsWith("원본 URL:"));if(info&&!info.querySelector("[data-source-link]")){const link=document.createElement("a");link.href=data.summary.canonicalUrl;link.target="_blank";link.rel="noopener noreferrer";link.dataset.sourceLink="true";link.textContent="원본 게시물 열기";info.append(" ",link)}}
     function renderPlaceSearchFilters(){const select=$("place-category-group");if(!select)return;const selected=select.value;select.replaceChildren(new Option("전체 그룹 코드",""),new Option("그룹 코드 미지정","MISSING"));categoryGroupOptions.forEach(option=>select.appendChild(new Option(option.code+" · "+option.name,option.code)));select.value=selected}
     async function loadPlaces(){const p=params("places");p.set("query",$("place-query").value.trim());const category=$("place-category-group").value;const thumbnail=$("place-thumbnail-status").value;if(category)p.set("categoryGroupCode",category);if(thumbnail)p.set("thumbnailStatus",thumbnail);const data=await api("/api/v1/admin/places/search?"+p),tbody=$("places");if(!data.places.length)empty(tbody,7,"장소가 없습니다.");else{tbody.replaceChildren();data.places.forEach(item=>{const tr=document.createElement("tr");tr.append(cell(item.placeId),cell(item.name),cell(item.address),cell(item.category),cell(item.categoryGroupCode||"미지정",item.categoryGroupCode?"":"missing"),(()=>{const td=document.createElement("td");if(item.thumbnailUrl&&item.thumbnailStored){const img=document.createElement("img");img.src=item.thumbnailUrl;img.alt="대표 이미지";img.style.width="42px";img.style.height="42px";img.style.objectFit="cover";img.style.borderRadius="8px";td.appendChild(img)}else td.textContent="없음";return td})(),(()=>{const td=document.createElement("td");td.appendChild(button("편집",()=>openPlace(item.placeId),"soft small"));return td})());tbody.appendChild(tr)})}page("places",data);addPlaceRefreshButtons()}
 
@@ -173,6 +361,11 @@
       }
       const refresh = button("이미지 재추출", () => refreshPlaceImages(placeId), "soft small");
       refresh.dataset.refreshPlaceImages = "true";
+      const actions = target.querySelector(".section-title-actions");
+      if (actions) {
+        actions.appendChild(refresh);
+        return;
+      }
       target.appendChild(refresh);
     }
 
@@ -235,7 +428,7 @@
 
       const images = document.createElement("section");
       images.style.marginTop = "16px";
-      images.innerHTML = "<div class='section-title'><h3>장소 이미지</h3><p class='hint'>저장 상태·대표 이미지 여부를 확인하고 직접 업로드할 수 있습니다.</p></div>";
+      images.innerHTML = "<div class='section-title image-section-title'><div><h3>장소 이미지</h3><p class='hint'>저장 상태·대표 이미지 여부를 확인하고 직접 업로드할 수 있습니다.</p></div><div class='section-title-actions'></div></div>";
       images.appendChild(imageUploadForm("place", place.placeId, place.updatedAt));
       const imageGrid = document.createElement("div");
       imageGrid.className = "image-grid";
@@ -321,8 +514,10 @@
       main.insertBefore(managementTabs,firstPanel);
       function activateDashboardView(view){
         viewTabs.querySelectorAll(".dashboard-tab").forEach(tab=>tab.setAttribute("aria-selected",String(tab.dataset.view===view)));
-        managementTabs.hidden=view!=="operations";
-        managementPanels.forEach(panel=>panel.hidden=view!=="operations");
+        const managementHidden=view!=="operations";
+        managementTabs.hidden=managementHidden;
+        managementTabs.classList.toggle("management-hidden",managementHidden);
+        managementPanels.forEach(panel=>{panel.hidden=managementHidden;panel.classList.toggle("management-hidden",managementHidden)});
         viewPanels.forEach(panel=>panel.classList.toggle("is-hidden",view==="operations"||panel.dataset.dashboardView!==view));
         managementTabs.querySelectorAll(".tab").forEach(tab=>view==="operations"?tab.removeAttribute("tabindex"):tab.setAttribute("tabindex","-1"));
       }
@@ -340,6 +535,8 @@
     $("imports-search").onclick=()=>{state.imports.page=0;safeLoad("imports",loadImports)};
     $("places-search").onclick=()=>{state.places.page=0;safeLoad("places",loadPlaces)};
     bindEnterSearch(["content-query"],"contents",loadContents);bindEnterSearch(["import-failure","import-query"],"imports",loadImports);bindEnterSearch(["place-query"],"places",loadPlaces);
+    $("content-status").onchange=()=>{state.contents.page=0;safeLoad("contents",loadContents)};
+    $("import-status").onchange=()=>{state.imports.page=0;safeLoad("imports",loadImports)};
     $("image-kind").onchange=()=>{state.images.page=0;safeLoad("images",loadImages)};
     $("place-category-group").onchange=()=>{state.places.page=0;safeLoad("places",loadPlaces)};
     $("place-thumbnail-status").onchange=()=>{state.places.page=0;safeLoad("places",loadPlaces)};
@@ -372,6 +569,7 @@
     loadCategoryGroupOptions();
     safeLoad("overview",loadOverview);safeLoad("metrics",loadMetrics);safeLoad("contents",loadContents);
     loadDailyStats();
+    document.querySelectorAll(".mark").forEach(mark=>{const image=document.createElement("img");image.className=mark.className;image.src="/assets/logo_app.png";image.alt="";image.setAttribute("aria-hidden","true");mark.replaceWith(image)});
   </script>
 </body>
 </html>

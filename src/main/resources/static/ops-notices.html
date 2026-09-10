@@ -11,6 +11,55 @@
     main{max-width:1180px;margin:0 auto;padding:30px 24px 60px}.topline,.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.eyebrow{font-size:11px;font-weight:800;color:var(--coral);letter-spacing:.12em}.topline h2{margin:5px 0 0;font-size:24px}.section{background:var(--white);border:1px solid var(--line);border-radius:15px;padding:22px;margin-top:22px}.section h3{font-size:17px;margin:0}.section-head{align-items:center}.form-grid{display:grid;grid-template-columns:1fr 2fr;gap:15px;margin-top:18px}.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:13px;font-weight:700}.field input,.field textarea{border:1px solid #d9dce3;border-radius:9px;padding:11px 12px;font:inherit;color:var(--ink);background:#fff}.field textarea{min-height:170px;resize:vertical;line-height:1.6}.field input:focus,.field textarea:focus{outline:2px solid #ffd0d7;border-color:var(--coral)}.counter{font-size:12px;color:var(--muted);text-align:right}.check{display:flex;align-items:center;gap:8px;font-size:13px;color:#444b55}.check input{accent-color:var(--coral)}.form-actions{display:flex;align-items:center;gap:9px;margin-top:17px}.primary,.secondary{padding:10px 14px}.primary{cursor:pointer}.status{min-height:22px;margin:14px 0 0;color:var(--muted);font-size:13px}.status.error{color:#d9364f}.table-wrap{overflow:auto;margin-top:17px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{text-align:left;border-bottom:1px solid var(--line);padding:13px 10px;vertical-align:top;font-size:13px}.table th{color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}.table td:first-child{color:var(--muted);width:64px}.title-cell{font-weight:700;min-width:180px}.content-cell{max-width:390px;white-space:pre-wrap;word-break:break-word;color:#555d68;line-height:1.5}.edit{padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap}.pager{display:flex;align-items:center;justify-content:center;gap:12px;padding-top:17px;font-size:13px}.pager button:disabled{opacity:.4;cursor:not-allowed}.empty{text-align:center;color:var(--muted);padding:40px 0!important}.note{margin:12px 0 0;padding:11px 12px;background:#fff7f8;border-radius:8px;color:#8a4a55;font-size:12px;line-height:1.5}
     @media(max-width:720px){.header-inner,.topline,.section-head{align-items:flex-start;flex-direction:column}.header-inner{padding:16px}.header-inner nav{justify-content:flex-start}main{padding:24px 16px 50px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.topline h2{font-size:21px}}
   </style>
+  <style>
+    :root{--coral:#ff5a6f;--coral-dark:#d94158;--ink:#241e20;--muted:#766b70;--line:#eadfe2;--bg:#f8f4f5;--white:#fff;--soft:#fff3f5;--shadow:0 8px 26px #35232608}
+    html{scroll-behavior:smooth}
+    body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    header{position:sticky;top:0;z-index:5;background:#fffdfde8;backdrop-filter:blur(14px)}
+    .header-inner{max-width:1240px;padding:16px 24px}
+    .brand{min-width:0;flex:1}
+    .brand>div:last-child{min-width:0}
+    .brand h1{font-size:19px;letter-spacing:-.05em}
+    .brand .sub{line-height:1.55}
+    .mark{width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:url("/assets/logo_app.png") center/cover;box-shadow:0 5px 14px #ff5a6f33}
+    nav a.active,.primary{background:var(--coral);border-color:var(--coral)}
+    nav a,.logout,.secondary{min-height:37px;padding:8px 11px;border-radius:9px}
+    main{max-width:1240px;padding:32px 24px 60px}
+    .topline h2{font-size:22px;letter-spacing:-.04em}
+    .section{border-color:var(--line);border-radius:16px;padding:0;box-shadow:var(--shadow)}
+    .section:first-of-type{margin-top:22px}
+    .section-head{padding:18px 20px;border-bottom:1px solid var(--line)}
+    .section-head h3{font-size:18px;letter-spacing:-.04em}
+    .form-grid{padding:20px;gap:16px;margin-top:0}
+    .field input,.field textarea{border-color:var(--line);background:#fff}
+    .field input:focus,.field textarea:focus{outline:0;box-shadow:0 0 0 3px #ff5a6f18;border-color:var(--coral)}
+    .check{padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fffafb;line-height:1.45}
+    .form-actions{padding:0 20px 20px;margin-top:0;flex-wrap:wrap}
+    .status{line-height:1.5}
+    .table-wrap{margin-top:0;overflow:auto;scrollbar-color:#d9c8cc transparent}
+    .table{min-width:820px}
+    .table th,.table td{padding:13px 14px;line-height:1.45}
+    .table tbody tr:hover{background:#fff8f9}
+    .table td:first-child{width:68px;white-space:nowrap;word-break:normal;overflow-wrap:normal}
+    .table td.empty{width:auto;min-width:0;text-align:center;white-space:normal;padding:40px 20px!important}
+    .title-cell{min-width:220px;max-width:330px;overflow-wrap:anywhere;word-break:keep-all}
+    .content-cell{min-width:300px;max-width:440px;overflow-wrap:anywhere;word-break:keep-all}
+    .pager{min-height:60px;padding:12px 20px;border-top:1px solid #f2eaec}
+    .pager button{min-height:36px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer}
+    .note{border:1px solid #f1dfe3;background:var(--soft);line-height:1.55}
+    .form-actions .primary,.form-actions .secondary{min-height:40px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;font:inherit;line-height:1.2}
+    .form-actions .primary{border-color:var(--coral);background:var(--coral);color:#fff;font-weight:700}
+    @media(max-width:720px){
+      .header-inner{padding:12px 14px}
+      main{padding:24px 14px 48px}
+      .section-head{padding:16px 14px}
+      .form-grid{padding:14px;gap:14px}
+      .form-actions{padding:0 14px 14px}
+      .form-actions .primary,.form-actions .secondary{width:100%}
+      .table th,.table td{padding:11px 12px}
+      .pager{padding-left:14px;padding-right:14px}
+    }
+  </style>
 </head>
 <body>
   <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">공지사항을 작성하고 회원에게 공개합니다.</p></div></div><nav><a href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><a class="active" href="/ops/notices">공지사항</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
