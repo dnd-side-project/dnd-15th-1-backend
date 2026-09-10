@@ -237,6 +237,44 @@ class OperationsAdminIntegrationTest {
                 .getStatus().name()).isEqualTo("COMPLETED");
     }
 
+    @Test
+    void manuallyLinksPlaceWithoutPublishingAndCompletesImport() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-unpublished-" + UUID.randomUUID(),
+                "ops-import-unpublished@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport = placeImportRepository.save(placeImport);
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/manual-place", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeId": %d,
+                                  "publish": false,
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getId(), placeImport.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PENDING"));
+
+        assertThat(placeImportRepository.findById(placeImport.getId()).orElseThrow()
+                .getStatus().name()).isEqualTo("COMPLETED");
+    }
+
     private Content createContent() {
         Instant now = Instant.now();
         Content content = Content.create(
