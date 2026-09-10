@@ -165,7 +165,7 @@ final class InstagramThumbnailDownloader implements ContentThumbnailDownloader {
                 || contentType == null
                 || !"image".equalsIgnoreCase(contentType.getType())
                 || contentLength > properties.maxBytes()) {
-            logger.warn(
+            logger.debug(
                     "Instagram image response rejected: status={}, contentType={}, contentLength={}, urlHash={}",
                     status.value(),
                     contentType,
