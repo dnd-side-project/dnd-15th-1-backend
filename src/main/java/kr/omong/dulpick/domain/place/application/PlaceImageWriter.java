@@ -12,12 +12,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.IntStream;
 
 @Service
 public class PlaceImageWriter {
 
+    private static final int MAX_IMAGES = 10;
     private static final Logger logger = LoggerFactory.getLogger(PlaceImageWriter.class);
 
     private final PlaceImageRepository placeImageRepository;
@@ -47,7 +51,7 @@ public class PlaceImageWriter {
         List<String> limitedImageUrls = imageUrls.stream()
                 .filter(url -> url != null && !url.isBlank())
                 .distinct()
-                .limit(5)
+                .limit(MAX_IMAGES)
                 .toList();
         if (limitedImageUrls.isEmpty()) {
             return false;
@@ -64,16 +68,22 @@ public class PlaceImageWriter {
                     return PlaceImage.createStored(
                             placeId,
                             storageService.publicUrl(stored.image().storageKey()),
-                            Sha256.hex(stored.sourceUrl()),
+                            imageHash(stored),
                             stored.image().storageKey(),
                             stored.image().contentType().toString(),
                             index,
                             now
                     );
-                })
+        })
                 .toList();
         try {
-            transactionTemplate.executeWithoutResult(status -> replaceRows(placeId, images, now));
+            List<String> previousStorageKeys = new ArrayList<>();
+            transactionTemplate.executeWithoutResult(status -> replaceRows(
+                    placeId, images, now, previousStorageKeys
+            ));
+            previousStorageKeys.stream()
+                    .filter(storageKey -> !containsStorageKey(images, storageKey))
+                    .forEach(this::deleteStoredFile);
             return true;
         } catch (RuntimeException exception) {
             images.forEach(image -> deleteStoredFile(image.getStorageKey()));
@@ -82,16 +92,48 @@ public class PlaceImageWriter {
     }
 
     private List<StoredPlaceImage> downloadAll(List<String> imageUrls) {
+        Set<String> contentHashes = new HashSet<>();
         return imageUrls.stream()
                 .map(this::store)
                 .flatMap(java.util.Optional::stream)
+                .filter(stored -> keepUniqueImage(stored, contentHashes))
                 .toList();
     }
 
-    private void replaceRows(Long placeId, List<PlaceImage> images, Instant now) {
+    private boolean keepUniqueImage(StoredPlaceImage stored, Set<String> contentHashes) {
+        String contentHash = stored.image().contentHash();
+        if (contentHash == null || contentHashes.add(contentHash)) {
+            return true;
+        }
+        deleteStoredFile(stored.image().storageKey());
+        logger.info("place_image_duplicate_skipped sourceHash={} contentHash={}",
+                Sha256.hex(stored.sourceUrl()), contentHash);
+        return false;
+    }
+
+    private String imageHash(StoredPlaceImage stored) {
+        return stored.image().contentHash() == null
+                ? Sha256.hex(stored.sourceUrl())
+                : stored.image().contentHash();
+    }
+
+    private void replaceRows(
+            Long placeId,
+            List<PlaceImage> images,
+            Instant now,
+            List<String> previousStorageKeys
+    ) {
+        placeImageRepository.findAllByPlaceIdOrderByDisplayOrderAsc(placeId).stream()
+                .map(PlaceImage::getStorageKey)
+                .filter(storageKey -> storageKey != null && !storageKey.isBlank())
+                .forEach(previousStorageKeys::add);
         placeImageRepository.deleteAllByPlaceId(placeId);
         placeImageRepository.saveAll(images);
         placeRepository.updateThumbnail(placeId, images.getFirst().getImageUrl(), now);
+    }
+
+    private boolean containsStorageKey(List<PlaceImage> images, String storageKey) {
+        return images.stream().anyMatch(image -> storageKey.equals(image.getStorageKey()));
     }
 
     private java.util.Optional<StoredPlaceImage> store(String sourceUrl) {

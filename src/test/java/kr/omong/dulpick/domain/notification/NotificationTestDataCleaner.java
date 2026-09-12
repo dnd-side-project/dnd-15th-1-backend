@@ -24,7 +24,6 @@ final class NotificationTestDataCleaner {
         delete("DELETE FROM member_notification_settings WHERE member_id IN (:memberIds)", members);
         delete("DELETE FROM refresh_tokens WHERE member_id IN (:memberIds)", members);
         delete("DELETE FROM social_accounts WHERE member_id IN (:memberIds)", members);
-        delete("DELETE FROM member_feedbacks WHERE member_id IN (:memberIds)", members);
         delete("DELETE FROM member_profiles WHERE member_id IN (:memberIds)", members);
         delete("DELETE FROM connection_codes WHERE member_id IN (:memberIds)", members);
         delete("DELETE FROM connection_attempts WHERE member_id IN (:memberIds)", members);

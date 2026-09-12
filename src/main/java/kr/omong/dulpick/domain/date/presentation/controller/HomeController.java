@@ -69,20 +69,6 @@ public class HomeController {
     }
 
     @Operation(
-            summary = "홈 최근 저장 장소 전체보기",
-            description = "최근 저장 장소 전체 목록을 최신순으로 조회합니다."
-    )
-    @GetMapping("/recent-saved-places/all")
-    public ResponseEntity<List<MemberPlaceResponse>> allRecentSavedPlaces(
-            @AuthenticationPrincipal Jwt jwt
-    ) {
-        return ResponseEntity.ok(homeQueryService.getRecentSavedPlacesAll(memberId(jwt))
-                .stream()
-                .map(MemberPlaceResponse::from)
-                .toList());
-    }
-
-    @Operation(
             summary = "홈 지난 데이트 조회",
             description = "현재 시각 이전의 확정(CONFIRMED) 데이트를 최신순으로 조회합니다."
     )

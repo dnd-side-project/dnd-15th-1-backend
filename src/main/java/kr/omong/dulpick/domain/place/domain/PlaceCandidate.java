@@ -139,6 +139,11 @@ public class PlaceCandidate {
         this.verificationStatus = PlaceVerificationStatus.VERIFIED;
     }
 
+    public void adminReject() {
+        this.placeId = null;
+        this.verificationStatus = PlaceVerificationStatus.REJECTED;
+    }
+
     public Long getId() {
         return id;
     }

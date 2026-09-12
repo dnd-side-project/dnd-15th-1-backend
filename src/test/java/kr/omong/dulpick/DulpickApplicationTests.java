@@ -14,10 +14,10 @@ class DulpickApplicationTests {
     private Environment environment;
 
     @Test
-    void baselinesExistingSchemaBeforeFirstMigration() {
+    void runsFlywayFromTheInitialMigrationWithoutImplicitBaseline() {
         assertThat(environment.getProperty("spring.flyway.baseline-on-migrate"))
-                .isEqualTo("true");
+                .isEqualTo("false");
         assertThat(environment.getProperty("spring.flyway.baseline-version"))
-                .isEqualTo("0");
+                .isNull();
     }
 }

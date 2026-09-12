@@ -187,15 +187,16 @@ public class PlaceSearchService {
     }
 
     private void fillMissingCategory(Place place, PlaceSearchResult kakao) {
-        if (categoryWriteThroughService == null || place == null || kakao == null) {
+        if (categoryWriteThroughService == null || place == null) {
             return;
         }
         categoryWriteThroughService.fillIfMissing(
                 place.getId(),
                 place.getCategoryGroupCode(),
                 place.getCategory(),
-                kakao.categoryGroupCode(),
-                kakao.category()
+                kakao == null ? null : kakao.categoryGroupCode(),
+                kakao == null ? null : kakao.category(),
+                place.getStoredDulpickCategoryCode()
         );
     }
 

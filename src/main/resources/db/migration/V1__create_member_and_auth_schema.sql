@@ -1,3 +1,6 @@
+-- 둘픽 초기 스키마 V1: 회원·인증.
+-- 새 운영 DB에서만 실행하며 기존 운영 DB의 데이터 변경은 포함하지 않는다.
+
 CREATE TABLE members
 (
     id                 BIGINT      NOT NULL AUTO_INCREMENT,
@@ -9,7 +12,6 @@ CREATE TABLE members
     token_version      BIGINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (id)
 );
-
 CREATE TABLE member_profiles
 (
     member_id       BIGINT      NOT NULL,

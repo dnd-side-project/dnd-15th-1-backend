@@ -2,7 +2,6 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
@@ -104,10 +103,16 @@ class PlaceConfirmationConcurrencyIntegrationTest {
             assertThat(ready.await(5, TimeUnit.SECONDS)).isTrue();
             start.countDown();
 
-            List<Object> results = futures.stream().map(this::getResult).toList();
+            List<PlaceConfirmationView> results = futures.stream()
+                    .map(this::getResult)
+                    .map(PlaceConfirmationView.class::cast)
+                    .toList();
 
-            assertThat(results).filteredOn(PlaceConfirmationView.class::isInstance).hasSize(1);
-            assertThat(results).filteredOn(PlaceAlreadySavedException.class::isInstance).hasSize(1);
+            assertThat(results).hasSize(CONCURRENT_REQUESTS);
+            assertThat(results.stream()
+                    .map(result -> result.savedPlaces().get(0).newlySaved())
+                    .toList())
+                    .containsExactlyInAnyOrder(true, false);
             assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(memberId))
                     .hasSize(1);
         } finally {
@@ -162,21 +167,17 @@ class PlaceConfirmationConcurrencyIntegrationTest {
         return executor.submit(() -> {
             ready.countDown();
             start.await();
-            try {
-                return commandService.confirm(
-                        memberId,
-                        importId,
-                        List.of(new PlaceCommandService.PlaceSelection(candidateId, null))
-                );
-            } catch (PlaceAlreadySavedException exception) {
-                return exception;
-            }
+            return commandService.confirm(
+                    memberId,
+                    importId,
+                    List.of(new PlaceCommandService.PlaceSelection(candidateId, null))
+            );
         });
     }
 
-    private Object getResult(Future<Object> future) {
+    private PlaceConfirmationView getResult(Future<Object> future) {
         try {
-            return future.get(5, TimeUnit.SECONDS);
+            return (PlaceConfirmationView) future.get(5, TimeUnit.SECONDS);
         } catch (Exception exception) {
             throw new AssertionError(exception);
         }

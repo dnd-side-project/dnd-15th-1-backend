@@ -13,9 +13,7 @@ import jakarta.validation.Valid;
 import kr.omong.dulpick.domain.couple.application.command.ConnectCoupleCommand;
 import kr.omong.dulpick.domain.couple.application.command.CoupleCommandService;
 import kr.omong.dulpick.domain.couple.application.query.CoupleQueryService;
-import kr.omong.dulpick.domain.couple.application.query.view.ConnectionCodePreview;
 import kr.omong.dulpick.domain.couple.application.query.view.CoupleConnectionStatus;
-import kr.omong.dulpick.domain.couple.presentation.dto.ConnectionCodePreviewResponse;
 import kr.omong.dulpick.domain.couple.presentation.dto.ConnectionCodeRequest;
 import kr.omong.dulpick.domain.couple.presentation.dto.CoupleConnectionStatusResponse;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
@@ -49,62 +47,6 @@ public class CoupleController {
     ) {
         this.coupleCommandService = coupleCommandService;
         this.coupleQueryService = coupleQueryService;
-    }
-
-    @Operation(
-            summary = "연결 코드 상대방 미리보기",
-            description = """
-                    연결을 확정하기 전에 연결 코드 소유자의 닉네임과 프로필 아이콘을 조회합니다.
-                    현재 iOS 필수 연결 플로우에서는 사용하지 않지만 호환성을 위해 유지하는 선택 API입니다.
-                    요청 성공만으로 커플 연결이 완료되지는 않으며, 연결 확정은 POST /api/v1/couples로 별도 요청해야 합니다.
-                    connectionCode는 필수이며 영문 대문자 5자리입니다. 입력 시 앞뒤 공백을 제거하고 대문자로 정규화합니다.
-                    회원별 요청 제한은 분당 10회, 시간당 30회입니다.
-                    잘못된 코드가 회원별 10분간 15회 누적되면 10분간 차단됩니다.
-                    같은 IP에서 잘못된 코드가 시간당 100회 누적돼도 429를 반환합니다.
-                    """
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "200",
-                    description = "연결 코드 소유자 미리보기 조회 성공",
-                    content = @Content(
-                            mediaType = MediaType.APPLICATION_JSON_VALUE,
-                            schema = @Schema(implementation = ConnectionCodePreviewResponse.class)
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "연결 코드가 비어 있거나 영문 대문자 5자리 형식이 아닙니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "401",
-                    description = "Access Token이 없거나 유효하지 않습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "404",
-                    description = "연결 코드에 해당하는 회원을 찾을 수 없습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
-                    responseCode = "429",
-                    description = "연결 코드 조회 요청 횟수 제한을 초과했습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            )
-    })
-    @PostMapping("/couple-connections/preview")
-    public ResponseEntity<ConnectionCodePreviewResponse> preview(
-            @AuthenticationPrincipal Jwt jwt,
-            @Valid @RequestBody ConnectionCodeRequest request,
-            HttpServletRequest httpRequest
-    ) {
-        ConnectionCodePreview preview = coupleQueryService.preview(
-                memberId(jwt),
-                request.connectionCode(),
-                httpRequest.getRemoteAddr()
-        );
-        return ResponseEntity.ok(ConnectionCodePreviewResponse.from(preview));
     }
 
     @Operation(

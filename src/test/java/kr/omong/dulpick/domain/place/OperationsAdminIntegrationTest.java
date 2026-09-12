@@ -9,6 +9,7 @@ import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
@@ -32,6 +33,7 @@ import java.util.UUID;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -74,6 +76,108 @@ class OperationsAdminIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{}"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsKakaoPlaceSearchWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/places/kakao-search")
+                        .param("query", "도원반점"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void filtersPlacesByCategoryGroupAndThumbnailStatus() throws Exception {
+        Place classified = createPlace();
+        Place unclassified = placeRepository.save(Place.create(
+                "ops-unclassified-" + UUID.randomUUID(),
+                "운영자 미분류 장소",
+                "서울특별시 강남구",
+                "서울특별시 강남구 테헤란로",
+                new BigDecimal("37.5046000"),
+                new BigDecimal("127.0496000"),
+                "음식점",
+                null,
+                null,
+                Instant.now()
+        ));
+
+        String categoryResponse = mockMvc.perform(get("/api/v1/admin/places/search")
+                        .param("categoryGroupCode", " ce7 ")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(categoryResponse).contains("\"placeId\":" + classified.getId());
+        assertThat(categoryResponse).doesNotContain("\"placeId\":" + unclassified.getId());
+
+        String missingResponse = mockMvc.perform(get("/api/v1/admin/places/search")
+                        .param("categoryGroupCode", "MISSING")
+                        .param("thumbnailStatus", "MISSING")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertThat(missingResponse).contains("\"placeId\":" + unclassified.getId());
+        assertThat(missingResponse).doesNotContain("\"placeId\":" + classified.getId());
+    }
+
+    @Test
+    void returnsHistoricalMetricComparisonWhenPreviousPeriodHasNoActivity() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/comparison")
+                        .with(operator())
+                        .param("from", "2025-01-01")
+                        .param("to", "2025-01-08"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.currentPeriod").exists())
+                .andExpect(jsonPath("$.previousPeriod").exists())
+                .andExpect(jsonPath("$.metrics").isArray());
+    }
+
+    @Test
+    void exposesSupportedKakaoCategoryGroupsToOperators() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/places/category-groups")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].code").value("FD6"))
+                .andExpect(jsonPath("$[0].name").value("음식점"))
+                .andExpect(jsonPath("$[1].code").value("CE7"));
+    }
+
+    @Test
+    void rejectsUnsupportedKakaoCategoryGroupWhenUpdatingPlace() throws Exception {
+        Place place = createPlace();
+
+        mockMvc.perform(patch("/api/v1/admin/places/{placeId}", place.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryGroupCode": "ZZ9",
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getUpdatedAt())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+    }
+
+    @Test
+    void normalizesCategoryGroupAndRefreshesDulpickCategoryWhenUpdatingPlace() throws Exception {
+        Place place = createPlace();
+
+        mockMvc.perform(patch("/api/v1/admin/places/{placeId}", place.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "categoryGroupCode": " ce7 ",
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getUpdatedAt())))
+                .andExpect(status().isOk());
+
+        Place updated = placeRepository.findById(place.getId()).orElseThrow();
+        assertThat(updated.getCategoryGroupCode()).isEqualTo("CE7");
+        assertThat(updated.getStoredDulpickCategoryCode()).isEqualTo(DulpickPlaceCategory.CAFE);
     }
 
     @Test
@@ -180,6 +284,175 @@ class OperationsAdminIntegrationTest {
                 .getStatus().name()).isEqualTo("COMPLETED");
     }
 
+    @Test
+    void manuallyLinksPlaceWithoutPublishingAndCompletesImport() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-unpublished-" + UUID.randomUUID(),
+                "ops-import-unpublished@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport = placeImportRepository.save(placeImport);
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/manual-place", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeId": %d,
+                                  "publish": false,
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getId(), placeImport.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PENDING"));
+
+        assertThat(placeImportRepository.findById(placeImport.getId()).orElseThrow()
+                .getStatus().name()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void requiresEveryCandidateToBeReviewedBeforeFinalPublication() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-review-" + UUID.randomUUID(),
+                "ops-import-review@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport = placeImportRepository.save(placeImport);
+        PlaceCandidate candidate = placeCandidateRepository.save(PlaceCandidate.extracted(
+                placeImport.getId(), "확인할 장소", "서울", null, "EXPLICIT_VENUE", Instant.now()
+        ));
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/manual-place", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeId": %d,
+                                  "candidateId": %d,
+                                  "publish": false,
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getId(), candidate.getId(), placeImport.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PENDING"));
+
+        PlaceImport linked = placeImportRepository.findById(placeImport.getId()).orElseThrow();
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/complete", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedUpdatedAt": "%s"}
+                                """.formatted(linked.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PUBLIC"));
+    }
+
+    @Test
+    void canExcludeUnresolvedCandidateBeforeFinalPublication() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-reject-" + UUID.randomUUID(),
+                "ops-import-reject@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport = placeImportRepository.save(placeImport);
+        PlaceCandidate candidate = placeCandidateRepository.save(PlaceCandidate.extracted(
+                placeImport.getId(), "없는 장소", "서울", null, "EXPLICIT_VENUE", Instant.now()
+        ));
+
+        mockMvc.perform(delete("/api/v1/admin/place-imports/{importId}/candidates/{candidateId}",
+                        placeImport.getId(), candidate.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedUpdatedAt": "%s"}
+                                """.formatted(placeImport.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.candidates[0].verificationStatus").value("REJECTED"));
+
+        PlaceImport updated = placeImportRepository.findById(placeImport.getId()).orElseThrow();
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/manual-place", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeId": %d,
+                                  "publish": false,
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getId(), updated.getUpdatedAt())))
+                .andExpect(status().isOk());
+
+        PlaceImport linked = placeImportRepository.findById(placeImport.getId()).orElseThrow();
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/complete", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"expectedUpdatedAt": "%s"}
+                                """.formatted(linked.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PUBLIC"));
+    }
+
+    @Test
+    void canLinkPlaceAndPublishPendingContentInOneOperation() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+
+        mockMvc.perform(patch("/api/v1/admin/contents/{contentId}/places", content.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeIds": [%d],
+                                  "expectedUpdatedAt": "%s",
+                                  "publish": true
+                                }
+                                """.formatted(place.getId(), content.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.publicationStatus").value("PUBLIC"))
+                .andExpect(jsonPath("$.places[0].placeId").value(place.getId()));
+    }
+
     private Content createContent() {
         Instant now = Instant.now();
         Content content = Content.create(
@@ -218,6 +491,60 @@ class OperationsAdminIntegrationTest {
                         .with(operator()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.stats").isArray());
+    }
+
+    @Test
+    void exposesAnalyticsMetricsToAuthenticatedOperator() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.from").exists());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/trends")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.days").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/funnel")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.steps").isArray());
+
+        mockMvc.perform(get("/api/v1/admin/metrics/retention")
+                        .param("from", "2026-09-01")
+                        .param("to", "2026-09-03")
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.periods").isArray());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsWithoutAuthentication() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void rejectsAnalyticsMetricsForAnInvalidOrExcessivelyLargePeriod() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2026-09-03")
+                        .param("to", "2026-09-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+
+        mockMvc.perform(get("/api/v1/admin/metrics/overview")
+                        .param("from", "2025-01-01")
+                        .param("to", "2027-01-01")
+                        .with(operator()))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
     }
 
     @Test
@@ -292,6 +619,43 @@ class OperationsAdminIntegrationTest {
 
         assertThat(response).contains("\"importId\":" + partialImport.getId());
         assertThat(response).doesNotContain("\"importId\":" + cleanImport.getId());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", partialImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.canonicalUrl").value(partialContent.getCanonicalUrl()))
+                .andExpect(jsonPath("$.summary.failedPlaceNames").value("미검증 후보"));
+    }
+
+    @Test
+    void requeuesReviewRequiredImportForOperatorRetry() throws Exception {
+        Content content = createContent();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-retry-review-" + UUID.randomUUID(),
+                "ops-import-retry-review@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport.complete("제목", "본문", null, "hash", Instant.now(), Instant.now(), true);
+        placeImport = placeImportRepository.saveAndFlush(placeImport);
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/retry", placeImport.getId())
+                        .with(operator())
+                        .with(csrf()))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", placeImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.status").value("RECEIVED"));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {

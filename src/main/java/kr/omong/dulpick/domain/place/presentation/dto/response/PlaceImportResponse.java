@@ -43,7 +43,7 @@ public record PlaceImportResponse(
         )
         ContentSourceType sourceType,
         @Schema(
-                description = "분석 작업의 현재 상태입니다. RECEIVED, PROCESSING, REVIEW_REQUIRED, COMPLETED, FAILED 중 하나이며 상태에 따라 nextAction을 수행합니다.",
+                description = "분석 작업의 현재 상태입니다. 검증 실패 장소가 있으면 REVIEW_REQUIRED, 모든 검증이 끝나면 COMPLETED입니다. COMPLETED 상태에서도 후보 선택·저장이 가능합니다.",
                 allowableValues = {"RECEIVED", "PROCESSING", "REVIEW_REQUIRED", "COMPLETED", "FAILED"},
                 example = "REVIEW_REQUIRED",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -58,7 +58,7 @@ public record PlaceImportResponse(
         PlaceImportNextAction nextAction,
         @Schema(
                 description = "다음 상태 조회 또는 재시도까지 권장하는 대기 시간(초)입니다. 즉시 처리할 필요가 없으면 null입니다.",
-                example = "3",
+                example = "2",
                 nullable = true,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )

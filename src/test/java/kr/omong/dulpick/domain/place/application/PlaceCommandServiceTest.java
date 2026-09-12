@@ -3,7 +3,6 @@ package kr.omong.dulpick.domain.place.application;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceSaveNotFoundException;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
@@ -95,7 +94,7 @@ class PlaceCommandServiceTest {
     }
 
     @Test
-    void reportsAlreadySavedWhenCompletedImportIsConfirmedAgain() {
+    void reusesAlreadySavedPlaceWhenCompletedImportIsConfirmedAgain() {
         Instant now = Instant.parse("2026-08-10T00:00:00Z");
         PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
         PlaceCandidateRepository candidateRepository = mock(PlaceCandidateRepository.class);
@@ -132,11 +131,18 @@ class PlaceCommandServiceTest {
         when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(1L, List.of(20L)))
                 .thenReturn(List.of(existing));
 
-        assertThatThrownBy(() -> service.confirm(
+        PlaceConfirmationView result = service.confirm(
                 1L,
                 10L,
                 List.of(new PlaceCommandService.PlaceSelection(100L, null))
-        )).isInstanceOf(PlaceAlreadySavedException.class);
+        );
+
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.COMPLETED);
+        assertThat(result.savedPlaces()).singleElement().satisfies(saved -> {
+            assertThat(saved.newlySaved()).isFalse();
+            assertThat(saved.place().placeId()).isEqualTo(20L);
+        });
+        verify(memberPlaceRepository, never()).save(any(MemberPlace.class));
     }
 
     @Test
@@ -176,14 +182,17 @@ class PlaceCommandServiceTest {
     }
 
     @Test
-    void rejectsAllSelectionsBeforeSavingWhenOnePlaceAlreadyExists() {
+    void reusesExistingPlaceAndSavesOnlyNewSelections() {
         ConfirmFixture fixture = new ConfirmFixture();
         PlaceCandidate first = fixture.candidate(100L, 10L, 20L);
         PlaceCandidate second = fixture.candidate(101L, 10L, 21L);
+        Place newPlace = mock(Place.class);
         Place existingPlace = mock(Place.class);
         MemberPlace existing = mock(MemberPlace.class);
+        when(newPlace.getId()).thenReturn(20L);
         when(existingPlace.getId()).thenReturn(21L);
         when(existing.getPlace()).thenReturn(existingPlace);
+        when(fixture.placeRepository.findById(20L)).thenReturn(Optional.of(newPlace));
         when(fixture.candidateRepository.findAllById(List.of(100L, 101L)))
                 .thenReturn(List.of(first, second));
         when(fixture.memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(
@@ -191,16 +200,22 @@ class PlaceCommandServiceTest {
                 List.of(20L, 21L)
         )).thenReturn(List.of(existing));
 
-        assertThatThrownBy(() -> fixture.service.confirm(
+        when(fixture.memberPlaceRepository.save(any(MemberPlace.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        PlaceConfirmationView result = fixture.service.confirm(
                 1L,
                 10L,
                 List.of(
                         new PlaceCommandService.PlaceSelection(100L, null),
                         new PlaceCommandService.PlaceSelection(101L, null)
                 )
-        )).isInstanceOf(PlaceAlreadySavedException.class);
+        );
 
-        verify(fixture.memberPlaceRepository, never()).save(any(MemberPlace.class));
+        assertThat(result.savedPlaces())
+                .extracting(PlaceConfirmationView.SavedPlaceView::newlySaved)
+                .containsExactly(true, false);
+        verify(fixture.memberPlaceRepository).save(any(MemberPlace.class));
     }
 
     @Test
@@ -365,6 +380,7 @@ class PlaceCommandServiceTest {
         private final PlaceImportRepository importRepository = mock(PlaceImportRepository.class);
         private final PlaceCandidateRepository candidateRepository =
                 mock(PlaceCandidateRepository.class);
+        private final PlaceRepository placeRepository = mock(PlaceRepository.class);
         private final MemberPlaceRepository memberPlaceRepository =
                 mock(MemberPlaceRepository.class);
         private final PlaceCommandService service;
@@ -381,7 +397,7 @@ class PlaceCommandServiceTest {
             service = new PlaceCommandService(
                     importRepository,
                     candidateRepository,
-                    mock(PlaceRepository.class),
+                    placeRepository,
                     memberRepository,
                     memberPlaceRepository,
                     mock(ActiveCoupleMemberRepository.class),

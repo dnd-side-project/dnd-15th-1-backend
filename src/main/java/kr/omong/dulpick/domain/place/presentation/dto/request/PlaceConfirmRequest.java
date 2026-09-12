@@ -10,9 +10,9 @@ import java.util.List;
 
 public record PlaceConfirmRequest(
         @NotEmpty
-        @Size(max = 20)
+        @Size(max = 30)
         @Schema(
-                description = "필수 입력. 저장할 검증 완료 장소 후보 목록입니다. 최소 1개, 최대 20개를 선택할 수 있습니다.",
+                description = "필수 입력. 저장할 검증 완료 장소 후보 목록입니다. 최소 1개, 최대 30개를 선택할 수 있습니다.",
                 example = "[{\"candidateId\":101,\"alias\":\"주말 데이트 카페\"}]",
                 requiredMode = Schema.RequiredMode.REQUIRED
         )

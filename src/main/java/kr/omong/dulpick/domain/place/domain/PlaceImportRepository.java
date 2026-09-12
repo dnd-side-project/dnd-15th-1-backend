@@ -135,6 +135,7 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
                    placeImport.updatedAt = :now
              WHERE placeImport.id = :importId
                AND (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.FAILED
+                    OR placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.REVIEW_REQUIRED
                     OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
                         AND placeImport.updatedAt < :staleBefore))
             """)

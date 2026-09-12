@@ -108,6 +108,8 @@ public class PlaceImportController {
     @Operation(
             summary = "장소 분석 결과 조회",
             description = "본인이 요청한 장소 분석 작업의 상태와 Kakao 검증 완료 후보를 조회합니다. "
+                    + "분석 결과와 후보는 검증 결과와 관계없이 DB에 저장됩니다. 검증 실패 장소가 있으면 REVIEW_REQUIRED, "
+                    + "모든 장소 검증이 끝나면 COMPLETED이며, 사용자는 후보를 선택해 저장할 수 있습니다. "
                     + "status와 nextAction을 기준으로 대기·후보 선택·재시도 여부를 판단합니다."
     )
     @ApiResponses({
@@ -170,13 +172,8 @@ public class PlaceImportController {
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             ),
             @ApiResponse(
-                    responseCode = "409",
-                    description = "선택한 장소 중 현재 회원이 이미 저장한 장소가 있습니다",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
-            ),
-            @ApiResponse(
                     responseCode = "422",
-                    description = "현재 분석 작업에 속하지 않거나 검증 완료 상태가 아닌 후보입니다",
+                    description = "현재 분석 작업에 속하지 않거나 저장 가능한 상태가 아닌 후보입니다",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))
             )
     })

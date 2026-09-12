@@ -1,3 +1,5 @@
+-- 둘픽 스키마 V3: 장소·콘텐츠.
+
 CREATE TABLE places
 (
     id                  BIGINT         NOT NULL AUTO_INCREMENT,
@@ -16,7 +18,6 @@ CREATE TABLE places
     CONSTRAINT uk_places_kakao_place_id
         UNIQUE (kakao_place_id)
 );
-
 CREATE TABLE place_images
 (
     id              BIGINT        NOT NULL AUTO_INCREMENT,

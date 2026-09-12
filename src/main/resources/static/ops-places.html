@@ -121,16 +121,90 @@
       td::before { content: attr(data-label); display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
     }
   </style>
+  <style>
+    :root{--pink:#ff5a6f;--pink-dark:#d94158;--bg:#f8f4f5;--line:#eadfe2;--text:#241e20;--muted:#766b70;--ok:#178455;--card:#fff;--soft:#fff3f5;--shadow:0 8px 26px #35232608}
+    html{scroll-behavior:smooth}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard",sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    header{padding:0;background:#fffdfde8;backdrop-filter:blur(14px)}
+    .header-row{max-width:1240px;margin:0 auto;padding:16px 24px;align-items:center}
+    .header-brand{display:flex;align-items:center;gap:12px;min-width:0}
+    .header-brand>div:last-child{min-width:0}
+    .header-brand h1{font-size:19px;letter-spacing:-.05em}
+    .header-brand .sub{margin:3px 0 0;line-height:1.55}
+    .brand-mark{width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:url("/assets/logo_app.png") center/cover;box-shadow:0 5px 14px #ff5a6f33}
+    .header-nav{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap}
+    .header-nav .logout{padding:8px 11px;color:var(--muted);font-size:13px}
+    .header-nav a:nth-child(2){background:var(--pink);border-color:var(--pink);color:#fff;font-weight:700}
+    .header-nav a,.header-nav button{font:inherit;text-decoration:none}
+    header>.toolbar{max-width:1240px;margin:0 auto;padding:14px 24px;border-top:1px solid var(--line);align-items:center}
+    header>.toolbar input{min-width:240px;min-height:37px}
+    header>.toolbar>button{min-height:37px}
+    .status{max-width:1240px;margin:0 auto;padding:0 24px 14px;line-height:1.5}
+    main{max-width:1240px;margin:0 auto;padding:22px 24px 50px}
+    .classification-panel{overflow:hidden;border:1px solid var(--line);border-radius:16px;background:var(--card);box-shadow:var(--shadow)}
+    .classification-panel .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:18px 20px;border-bottom:1px solid var(--line)}
+    .classification-panel .panel-head h2{margin:0;font-size:18px;letter-spacing:-.04em}
+    .classification-panel .panel-head p{margin:5px 0 0;color:var(--muted);font-size:12px;line-height:1.55}
+    .classification-panel .table-wrap{overflow:auto;scrollbar-color:#d9c8cc transparent}
+    .classification-panel table{min-width:980px}
+    .classification-panel th,.classification-panel td{padding:13px 14px;line-height:1.45}
+    .classification-panel th{white-space:nowrap;background:#fdfafb;font-size:11px}
+    .classification-panel tbody tr:hover{background:#fff8f9}
+    .classification-panel td:first-child{min-width:245px;max-width:340px}
+    .classification-panel td:last-child{min-width:112px}
+    .place-info{display:grid;grid-template-columns:64px minmax(0,1fr);align-items:start;gap:10px}
+    .place-thumbnail{width:64px;height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid var(--line);border-radius:10px;background:#f6eff1;color:var(--muted);font-size:10px;text-align:center;line-height:1.25}
+    .place-thumbnail img{width:100%;height:100%;display:block;object-fit:cover}
+    .place-copy{min-width:0}
+    .name,.addr{overflow-wrap:anywhere;word-break:keep-all}
+    .addr{line-height:1.5}
+    .classification-panel td:not(:first-child):not(:last-child){width:166px;min-width:166px}
+    .classification-panel td.empty{width:auto;min-width:0;max-width:none;text-align:center;padding:42px 20px!important}
+    .chips{display:flex;align-items:center;gap:6px;min-height:40px}
+    button.chip{min-width:84px;min-height:38px;padding:8px 13px;text-align:center;font-size:12px;line-height:1.3}
+    button.save{min-height:36px;padding:8px 12px}
+    .pager{min-height:60px;border-top:1px solid #f2eaec;padding:12px}
+    .pager button{min-width:56px;min-height:36px}
+    @media(max-width:700px){
+      .header-row{padding:12px 14px;align-items:flex-start;flex-direction:column}
+      .header-nav{justify-content:flex-start;width:100%}
+      header>.toolbar{padding:12px 14px;align-items:stretch}
+      header>.toolbar input,header>.toolbar>button{width:100%;min-width:0}
+      .status{padding:0 14px 12px}
+      main{padding:16px 14px 40px}
+      .classification-panel .panel-head{padding:16px 14px}
+      .classification-panel table{min-width:0}
+      .classification-panel table,.classification-panel thead,.classification-panel tbody,.classification-panel th,.classification-panel td,.classification-panel tr{display:block}
+      .classification-panel thead{display:none}
+      .classification-panel tr{padding:14px;border-bottom:8px solid var(--bg)}
+      .classification-panel td{padding:8px 0;border:0;max-width:none;min-width:0}
+      .classification-panel td:not(:first-child):not(:last-child){width:auto;min-width:0;min-height:64px}
+      .classification-panel td.empty{min-height:0;padding:42px 20px!important}
+      .place-info{grid-template-columns:58px minmax(0,1fr);gap:9px}
+      .place-thumbnail{width:58px;height:58px}
+      .classification-panel td::before{content:attr(data-label);display:block;margin-bottom:6px;color:var(--muted);font-size:11px;font-weight:700}
+      .classification-panel td:last-child{min-width:0}
+      .classification-panel td:last-child::before{display:none}
+      .chips{width:100%}
+      button.chip{flex:0 0 auto}
+      button.save{width:100%}
+    }
+  </style>
 </head>
 <body>
   <header>
     <div class="header-row">
-      <div>
-        <h1>콘텐츠 장소 분류</h1>
-        <p class="sub">각 장소에서 네 가지를 고른 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p>
+      <div class="header-brand">
+        <div class="brand-mark" aria-hidden="true"></div>
+        <div>
+          <h1>둘픽 운영 콘솔</h1>
+          <p class="sub">콘텐츠 장소 분류를 관리합니다.</p>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; align-items:center;">
+      <div class="header-nav">
         <a class="logout" href="/ops" style="text-decoration:none;">대시보드</a>
+        <a class="logout" href="/ops/places" style="text-decoration:none;">장소 분류</a>
+        <a class="logout" href="/ops/notices" style="text-decoration:none;">공지사항</a>
         <form method="post" action="/ops/logout">
           <input type="hidden" name="_csrf">
           <button class="logout" type="submit">로그아웃</button>
@@ -147,7 +221,12 @@
     </div>
     <p id="status" class="status"></p>
   </header>
-  <table>
+  <main>
+  <section class="classification-panel">
+    <div class="panel-head">
+      <div><h2>콘텐츠 장소 분류</h2><p>각 장소에서 네 가지 기준을 선택한 뒤 <strong>분류 완료</strong>를 누르면 저장됩니다.</p></div>
+    </div>
+  <div class="table-wrap"><table>
     <thead>
       <tr>
         <th>장소</th>
@@ -159,12 +238,14 @@
       </tr>
     </thead>
     <tbody id="list"></tbody>
-  </table>
+  </table></div>
   <div class="pager">
     <button id="prev" type="button">이전</button>
     <span id="page-label">1 / 1</span>
     <button id="next" type="button">다음</button>
   </div>
+  </section>
+  </main>
 
   <script>
     const AXES = [
@@ -316,22 +397,43 @@
 
       const info = document.createElement("td");
       info.dataset.label = "장소";
+      const placeInfo = document.createElement("div");
+      placeInfo.className = "place-info";
+      const thumbnail = document.createElement("div");
+      thumbnail.className = "place-thumbnail";
+      if (place.thumbnailUrl) {
+        const image = document.createElement("img");
+        image.src = place.thumbnailUrl;
+        image.alt = "대표 이미지";
+        image.addEventListener("error", () => {
+          image.remove();
+          thumbnail.textContent = "이미지 없음";
+        }, {once: true});
+        thumbnail.appendChild(image);
+      } else {
+        thumbnail.textContent = "이미지 없음";
+      }
+      placeInfo.appendChild(thumbnail);
+      const placeCopy = document.createElement("div");
+      placeCopy.className = "place-copy";
       const name = document.createElement("div");
       name.className = "name";
       name.textContent = place.name || "";
       const addr = document.createElement("div");
       addr.className = "addr";
       addr.textContent = place.roadAddress || place.address || "";
-      info.appendChild(name);
-      info.appendChild(addr);
+      placeCopy.appendChild(name);
+      placeCopy.appendChild(addr);
       const requesters = document.createElement("div");
       requesters.className = "addr";
       requesters.textContent = "추출 요청자: " + ((place.requesterNicknames || []).join(", ") || "없음");
-      info.appendChild(requesters);
+      placeCopy.appendChild(requesters);
       const savers = document.createElement("div");
       savers.className = "addr";
       savers.textContent = "저장 사용자: " + ((place.saverNicknames || []).join(", ") || "없음");
-      info.appendChild(savers);
+      placeCopy.appendChild(savers);
+      placeInfo.appendChild(placeCopy);
+      info.appendChild(placeInfo);
       tr.appendChild(info);
       AXES.forEach((axis) => tr.appendChild(axisCell(place, axis)));
 

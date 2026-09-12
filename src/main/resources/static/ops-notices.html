@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공지사항 | 둘픽 운영 콘솔</title>
+  <style>
+    :root{--coral:#ff5a6f;--ink:#20242b;--muted:#727985;--line:#e7e9ee;--bg:#f7f8fa;--white:#fff}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}a{color:inherit}
+    header{background:var(--white);border-bottom:1px solid var(--line)}.header-inner{max-width:1180px;margin:auto;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px}.brand{display:flex;align-items:center;gap:11px}.mark{width:26px;height:26px;border-radius:9px;background:var(--coral);box-shadow:8px 0 0 -4px #ff9aa7}.brand h1{font-size:16px;margin:0}.sub,.hint{color:var(--muted);font-size:13px;line-height:1.5;margin:3px 0 0}nav{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}nav a,button{font:inherit}nav a,.logout,.secondary{padding:8px 11px;border:1px solid var(--line);border-radius:9px;background:var(--white);text-decoration:none;font-size:13px;cursor:pointer}nav a.active,.primary{background:var(--coral);border-color:var(--coral);color:#fff;font-weight:700}.logout{color:var(--ink)}
+    main{max-width:1180px;margin:0 auto;padding:30px 24px 60px}.topline,.section-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px}.eyebrow{font-size:11px;font-weight:800;color:var(--coral);letter-spacing:.12em}.topline h2{margin:5px 0 0;font-size:24px}.section{background:var(--white);border:1px solid var(--line);border-radius:15px;padding:22px;margin-top:22px}.section h3{font-size:17px;margin:0}.section-head{align-items:center}.form-grid{display:grid;grid-template-columns:1fr 2fr;gap:15px;margin-top:18px}.field{display:flex;flex-direction:column;gap:7px}.field.full{grid-column:1/-1}.field label{font-size:13px;font-weight:700}.field input,.field textarea{border:1px solid #d9dce3;border-radius:9px;padding:11px 12px;font:inherit;color:var(--ink);background:#fff}.field textarea{min-height:170px;resize:vertical;line-height:1.6}.field input:focus,.field textarea:focus{outline:2px solid #ffd0d7;border-color:var(--coral)}.counter{font-size:12px;color:var(--muted);text-align:right}.check{display:flex;align-items:center;gap:8px;font-size:13px;color:#444b55}.check input{accent-color:var(--coral)}.form-actions{display:flex;align-items:center;gap:9px;margin-top:17px}.primary,.secondary{padding:10px 14px}.primary{cursor:pointer}.status{min-height:22px;margin:14px 0 0;color:var(--muted);font-size:13px}.status.error{color:#d9364f}.table-wrap{overflow:auto;margin-top:17px}.table{width:100%;border-collapse:collapse;min-width:760px}.table th,.table td{text-align:left;border-bottom:1px solid var(--line);padding:13px 10px;vertical-align:top;font-size:13px}.table th{color:var(--muted);font-size:12px;font-weight:700;white-space:nowrap}.table td:first-child{color:var(--muted);width:64px}.title-cell{font-weight:700;min-width:180px}.content-cell{max-width:390px;white-space:pre-wrap;word-break:break-word;color:#555d68;line-height:1.5}.edit{padding:6px 9px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap}.pager{display:flex;align-items:center;justify-content:center;gap:12px;padding-top:17px;font-size:13px}.pager button:disabled{opacity:.4;cursor:not-allowed}.empty{text-align:center;color:var(--muted);padding:40px 0!important}.note{margin:12px 0 0;padding:11px 12px;background:#fff7f8;border-radius:8px;color:#8a4a55;font-size:12px;line-height:1.5}
+    @media(max-width:720px){.header-inner,.topline,.section-head{align-items:flex-start;flex-direction:column}.header-inner{padding:16px}.header-inner nav{justify-content:flex-start}main{padding:24px 16px 50px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.topline h2{font-size:21px}}
+  </style>
+  <style>
+    :root{--coral:#ff5a6f;--coral-dark:#d94158;--ink:#241e20;--muted:#766b70;--line:#eadfe2;--bg:#f8f4f5;--white:#fff;--soft:#fff3f5;--shadow:0 8px 26px #35232608}
+    html{scroll-behavior:smooth}
+    body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+    header{position:sticky;top:0;z-index:5;background:#fffdfde8;backdrop-filter:blur(14px)}
+    .header-inner{max-width:1240px;padding:16px 24px}
+    .brand{min-width:0;flex:1}
+    .brand>div:last-child{min-width:0}
+    .brand h1{font-size:19px;letter-spacing:-.05em}
+    .brand .sub{line-height:1.55}
+    .mark{width:40px;height:40px;flex:0 0 40px;border-radius:13px;background:url("/assets/logo_app.png") center/cover;box-shadow:0 5px 14px #ff5a6f33}
+    nav a.active,.primary{background:var(--coral);border-color:var(--coral)}
+    nav a,.logout,.secondary{min-height:37px;padding:8px 11px;border-radius:9px}
+    main{max-width:1240px;padding:32px 24px 60px}
+    .topline h2{font-size:22px;letter-spacing:-.04em}
+    .section{border-color:var(--line);border-radius:16px;padding:0;box-shadow:var(--shadow)}
+    .section:first-of-type{margin-top:22px}
+    .section-head{padding:18px 20px;border-bottom:1px solid var(--line)}
+    .section-head h3{font-size:18px;letter-spacing:-.04em}
+    .form-grid{padding:20px;gap:16px;margin-top:0}
+    .field input,.field textarea{border-color:var(--line);background:#fff}
+    .field input:focus,.field textarea:focus{outline:0;box-shadow:0 0 0 3px #ff5a6f18;border-color:var(--coral)}
+    .check{padding:10px 12px;border:1px solid var(--line);border-radius:9px;background:#fffafb;line-height:1.45}
+    .form-actions{padding:0 20px 20px;margin-top:0;flex-wrap:wrap}
+    .status{line-height:1.5}
+    .table-wrap{margin-top:0;overflow:auto;scrollbar-color:#d9c8cc transparent}
+    .table{min-width:820px}
+    .table th,.table td{padding:13px 14px;line-height:1.45}
+    .table tbody tr:hover{background:#fff8f9}
+    .table td:first-child{width:68px;white-space:nowrap;word-break:normal;overflow-wrap:normal}
+    .table td.empty{width:auto;min-width:0;text-align:center;white-space:normal;padding:40px 20px!important}
+    .title-cell{min-width:220px;max-width:330px;overflow-wrap:anywhere;word-break:keep-all}
+    .content-cell{min-width:300px;max-width:440px;overflow-wrap:anywhere;word-break:keep-all}
+    .pager{min-height:60px;padding:12px 20px;border-top:1px solid #f2eaec}
+    .pager button{min-height:36px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:#fff;cursor:pointer}
+    .note{border:1px solid #f1dfe3;background:var(--soft);line-height:1.55}
+    .form-actions .primary,.form-actions .secondary{min-height:40px;padding:10px 16px;border:1px solid var(--line);border-radius:10px;font:inherit;line-height:1.2}
+    .form-actions .primary{border-color:var(--coral);background:var(--coral);color:#fff;font-weight:700}
+    @media(max-width:720px){
+      .header-inner{padding:12px 14px}
+      main{padding:24px 14px 48px}
+      .section-head{padding:16px 14px}
+      .form-grid{padding:14px;gap:14px}
+      .form-actions{padding:0 14px 14px}
+      .form-actions .primary,.form-actions .secondary{width:100%}
+      .table th,.table td{padding:11px 12px}
+      .pager{padding-left:14px;padding-right:14px}
+    }
+  </style>
+</head>
+<body>
+  <header><div class="header-inner"><div class="brand"><div class="mark" aria-hidden="true"></div><div><h1>둘픽 운영 콘솔</h1><p class="sub">공지사항을 작성하고 회원에게 공개합니다.</p></div></div><nav><a href="/ops">대시보드</a><a href="/ops/places">장소 분류</a><a class="active" href="/ops/notices">공지사항</a><form method="post" action="/ops/logout"><input type="hidden" name="_csrf"><button class="logout" type="submit">로그아웃</button></form></nav></div></header>
+  <main>
+    <div class="topline"><div><div class="eyebrow">DULPICK OPERATIONS</div><h2 id="form-heading">공지사항 작성</h2><p class="hint">제목과 내용은 일반 텍스트로 저장됩니다. 내용 수정은 별도 알림 없이 즉시 반영됩니다.</p></div></div>
+    <section class="section">
+      <form id="notice-form">
+        <div class="form-grid">
+          <div class="field full"><label for="title">제목</label><input id="title" maxlength="200" required></div>
+          <div class="field full"><label for="content">내용</label><textarea id="content" maxlength="10000" required></textarea><div id="content-counter" class="counter">0 / 10,000</div></div>
+          <label id="notification-option" class="check"><input id="send-notification" type="checkbox"> 새 글 알림을 전체 활성 회원의 알림함·푸시 큐에 등록</label>
+        </div>
+        <p id="edit-note" class="note" hidden>수정은 잠수함패치 방식으로 조용히 반영되며, 기존 공지 알림을 다시 보내지 않습니다.</p>
+        <div class="form-actions"><button id="submit-button" class="primary" type="submit">공지사항 작성</button><button id="cancel-button" class="secondary" type="button" hidden>수정 취소</button><span id="form-status" class="status"></span></div>
+      </form>
+    </section>
+    <section class="section"><div class="section-head"><div><h3>공지사항 목록</h3><p class="hint">최신 작성 순으로 표시됩니다.</p></div><button id="refresh" class="secondary" type="button">새로고침</button></div><div id="list-status" class="status"></div><div class="table-wrap"><table class="table"><thead><tr><th>ID</th><th>제목</th><th>내용</th><th>작성일</th><th>수정일</th><th></th></tr></thead><tbody id="notice-list"></tbody></table></div><div class="pager"><button id="previous" class="secondary" type="button">이전</button><span id="page-label">1 / 1</span><button id="next" class="secondary" type="button">다음</button></div></section>
+  </main>
+  <script>
+    const state={page:0,size:20,editing:null};
+    const $=id=>document.getElementById(id);
+    const token=()=>decodeURIComponent((document.cookie.match(/(?:^|; )XSRF-TOKEN=([^;]*)/)||[])[1]||'');
+    async function api(path,options={}){const headers=new Headers(options.headers||{});if(options.body)headers.set('Content-Type','application/json');if(options.method&&options.method!=='GET')headers.set('X-XSRF-TOKEN',token());const response=await fetch(path,{...options,headers});if(!response.ok){let message='요청을 처리하지 못했습니다.';try{const body=await response.json();message=body.message||message}catch(_){ }throw new Error(message)}return response.status===204?null:response.json()}
+    const date=value=>value?new Date(value).toLocaleString('ko-KR',{dateStyle:'medium',timeStyle:'short'}):'-';
+    function setStatus(element,message,error=false){element.textContent=message;element.classList.toggle('error',error)}
+    function render(data){const list=$('notice-list');list.replaceChildren();if(!data.notices.length){const row=document.createElement('tr');const cell=document.createElement('td');cell.colSpan=6;cell.className='empty';cell.textContent='작성된 공지사항이 없습니다.';row.append(cell);list.append(row)}else data.notices.forEach(notice=>{const row=document.createElement('tr');[notice.noticeId,notice.title,notice.content,date(notice.createdAt),date(notice.updatedAt)].forEach((value,index)=>{const cell=document.createElement('td');cell.textContent=value;if(index===1)cell.className='title-cell';if(index===2)cell.className='content-cell';row.append(cell)});const action=document.createElement('td');const edit=document.createElement('button');edit.className='edit';edit.type='button';edit.textContent='수정';edit.addEventListener('click',()=>startEdit(notice));action.append(edit);row.append(action);list.append(row)});$('page-label').textContent=`${data.page+1} / ${Math.max(data.totalPages,1)}`;$('previous').disabled=data.page===0;$('next').disabled=!data.hasNext}
+    async function load(){setStatus($('list-status'),'불러오는 중...');try{const data=await api(`/api/v1/admin/notices?page=${state.page}&size=${state.size}`);render(data);setStatus($('list-status'),'')}catch(error){setStatus($('list-status'),error.message,true)}}
+    function startEdit(notice){state.editing=notice;$('form-heading').textContent='공지사항 수정';$('title').value=notice.title;$('content').value=notice.content;$('send-notification').checked=false;$('send-notification').disabled=true;$('notification-option').hidden=true;$('edit-note').hidden=false;$('submit-button').textContent='수정 저장';$('cancel-button').hidden=false;updateCounter();window.scrollTo({top:0,behavior:'smooth'})}
+    function resetForm(){state.editing=null;$('form-heading').textContent='공지사항 작성';$('title').value='';$('content').value='';$('send-notification').checked=false;$('send-notification').disabled=false;$('notification-option').hidden=false;$('edit-note').hidden=true;$('submit-button').textContent='공지사항 작성';$('cancel-button').hidden=true;updateCounter();setStatus($('form-status'),'')}
+    function updateCounter(){$('content-counter').textContent=`${$('content').value.length.toLocaleString()} / 10,000`}
+    $('notice-form').addEventListener('submit',async event=>{event.preventDefault();const editing=state.editing;const send=$('send-notification').checked;if(!editing&&send&&!confirm('전체 활성 회원에게 새 공지 알림을 등록할까요?'))return;const body=editing?{title:$('title').value,content:$('content').value,expectedUpdatedAt:editing.updatedAt}:{title:$('title').value,content:$('content').value,sendNotification:send};setStatus($('form-status'),'저장 중...');$('submit-button').disabled=true;try{const result=await api(editing?`/api/v1/admin/notices/${editing.noticeId}`:'/api/v1/admin/notices',{method:editing?'PATCH':'POST',body:JSON.stringify(body)});if(!editing&&result.notification)setStatus($('form-status'),`작성되었습니다. 알림 작업 ${result.notification.status} (${result.notification.targetCount}명 대상)`);else setStatus($('form-status'),editing?'수정되었습니다.':'작성되었습니다.');resetForm();await load()}catch(error){setStatus($('form-status'),error.message,true)}finally{$('submit-button').disabled=false}});
+    $('cancel-button').addEventListener('click',resetForm);$('refresh').addEventListener('click',load);$('previous').addEventListener('click',()=>{if(state.page>0){state.page--;load()}});$('next').addEventListener('click',()=>{state.page++;load()});$('content').addEventListener('input',updateCounter);updateCounter();load();
+  </script>
+</body>
+</html>

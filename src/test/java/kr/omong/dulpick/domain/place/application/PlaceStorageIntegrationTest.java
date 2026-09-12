@@ -4,13 +4,13 @@ import jakarta.persistence.EntityManager;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidate;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
@@ -67,7 +67,7 @@ class PlaceStorageIntegrationTest {
     private EntityManager entityManager;
 
     @Test
-    void storesNaverMapCandidateWithoutCreatingPublicContent() {
+    void completesNaverMapCandidateWithoutCreatingPublicContent() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.NAVER_MAP);
         String claimToken = reservationService.claimPending(
@@ -100,18 +100,110 @@ class PlaceStorageIntegrationTest {
         Place storedPlace = placeRepository
                 .findByKakaoPlaceId(verifiedPlace.kakaoPlaceId())
                 .orElseThrow();
-        assertThat(storedImport.getStatus()).isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(storedImport.getStatus()).isEqualTo(PlaceImportStatus.COMPLETED);
         assertThat(storedImport.getContentId()).isNull();
         assertThat(contentRepository.count()).isEqualTo(contentCount);
         assertThat(candidateRepository.findAllByImportIdOrderByIdAsc(placeImport.getId()))
                 .hasSize(1);
         assertThat(storedPlace.getCategory()).isEqualTo("음식점 > 한식 > 육류,고기");
         assertThat(storedPlace.getCategoryGroupCode()).isEqualTo("FD6");
+        assertThat(storedPlace.getStoredDulpickCategoryCode()).isEqualTo(DulpickPlaceCategory.RESTAURANT);
         assertThat(storedPlace.getCategoryName()).isEqualTo("맛집");
     }
 
     @Test
-    void rejectsAllSelectionsBeforeWriteWhenOnePlaceIsAlreadySaved() {
+    void completesWhenSomePlaceVerificationsFailButSavedCandidatesAreVerified() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveSuccess(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST),
+                List.of(new VerifiedCandidate(
+                        extractedPlace(),
+                        verifiedPlace("CE7", "음식점 > 카페"),
+                        PlaceVerificationStatus.VERIFIED
+                )),
+                true
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.COMPLETED);
+    }
+
+    @Test
+    void keepsReviewRequiredWhenSavedCandidateNeedsReview() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveSuccess(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST),
+                List.of(new VerifiedCandidate(
+                        extractedPlace(),
+                        verifiedPlace("CE7", "음식점 > 카페"),
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                )),
+                false
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+    }
+
+    @Test
+    void allowsSavingCandidatesAfterSuccessfulImportCompletion() {
+        Member member = memberRepository.save(Member.create(NOW));
+        PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);
+        placeImport.complete("title", "content", null, "hash", NOW, NOW, false);
+        importRepository.saveAndFlush(placeImport);
+        Place place = placeRepository.save(place("completed"));
+        PlaceCandidate candidate = candidateRepository.save(candidate(placeImport, place));
+
+        PlaceConfirmationView result = commandService.confirm(
+                member.getId(),
+                placeImport.getId(),
+                List.of(new PlaceCommandService.PlaceSelection(candidate.getId(), null))
+        );
+
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.COMPLETED);
+        assertThat(result.savedPlaces()).singleElement()
+                .extracting(PlaceConfirmationView.SavedPlaceView::newlySaved)
+                .isEqualTo(true);
+    }
+
+    @Test
+    void reusesExistingPlaceAndSavesOnlyNewSelections() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(
                 member.getId(),
@@ -130,18 +222,22 @@ class PlaceStorageIntegrationTest {
         ));
         entityManager.flush();
 
-        assertThatThrownBy(() -> commandService.confirm(
+        PlaceConfirmationView result = commandService.confirm(
                 member.getId(),
                 placeImport.getId(),
                 List.of(
                         new PlaceCommandService.PlaceSelection(firstCandidate.getId(), null),
                         new PlaceCommandService.PlaceSelection(duplicateCandidate.getId(), null)
                 )
-        )).isInstanceOf(PlaceAlreadySavedException.class);
+        );
 
         assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))
                 .extracting(saved -> saved.getPlace().getId())
-                .containsExactly(duplicate.getId());
+                .containsExactlyInAnyOrder(first.getId(), duplicate.getId());
+        assertThat(result.savedPlaces())
+                .extracting(PlaceConfirmationView.SavedPlaceView::newlySaved)
+                .containsExactly(true, false);
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.COMPLETED);
     }
 
     @Test

@@ -9,11 +9,14 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 
 public interface ContentImageEnrichmentBacklogRepository
         extends JpaRepository<ContentImageEnrichmentBacklog, Long> {
 
     boolean existsByContentIdAndStatusIn(Long contentId, List<String> statuses);
+
+    Optional<ContentImageEnrichmentBacklog> findByContentId(Long contentId);
 
     @Transactional
     @Modifying
@@ -33,6 +36,30 @@ public interface ContentImageEnrichmentBacklogRepository
                 updated_at = :now
             """, nativeQuery = true)
     void enqueue(
+            @Param("contentId") Long contentId,
+            @Param("sourceUrls") String sourceUrls,
+            @Param("nextAttemptAt") Instant nextAttemptAt,
+            @Param("now") Instant now
+    );
+
+    @Transactional
+    @Modifying
+    @Query(value = """
+            INSERT INTO content_image_enrichment_backlogs
+                (content_id, source_urls, attempt_count, status,
+                 next_attempt_at, created_at, updated_at)
+            VALUES (:contentId, :sourceUrls, 0, 'PENDING',
+                    :nextAttemptAt, :now, :now)
+            ON DUPLICATE KEY UPDATE
+                source_urls = IF(status IN ('PENDING', 'PROCESSING'),
+                                 :sourceUrls, source_urls),
+                next_attempt_at = IF(status IN ('PENDING', 'PROCESSING'),
+                                     LEAST(next_attempt_at, :nextAttemptAt),
+                                     next_attempt_at),
+                updated_at = IF(status IN ('PENDING', 'PROCESSING'),
+                                 :now, updated_at)
+            """, nativeQuery = true)
+    void enqueueForRecovery(
             @Param("contentId") Long contentId,
             @Param("sourceUrls") String sourceUrls,
             @Param("nextAttemptAt") Instant nextAttemptAt,

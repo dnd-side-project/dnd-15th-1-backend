@@ -6,8 +6,9 @@ import kr.omong.dulpick.domain.member.application.exception.MemberNotFoundExcept
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.notification.application.event.ContentSavedEvent;
-import kr.omong.dulpick.domain.place.application.exception.PlaceAlreadySavedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportAccessDeniedException;
 import kr.omong.dulpick.domain.place.application.exception.PlaceImportNotFoundException;
 import kr.omong.dulpick.domain.place.application.exception.InvalidPlaceCandidateException;
@@ -36,7 +37,6 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -153,6 +153,10 @@ public class PlaceCommandService {
                 searchResult.categoryGroupCode(),
                 searchResult.phone(),
                 searchResult.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(
+                        searchResult.categoryGroupCode(),
+                        searchResult.category()
+                ).name(),
                 null,
                 now
         );
@@ -173,6 +177,7 @@ public class PlaceCommandService {
                             now
                     ));
                     publishSavedEvent(membership, memberId, partnerId, placeForSave.getId(), now);
+                    publishAnalyticsEvent(memberId, membership, placeForSave.getId(), created.getId(), now);
                     return created;
                 });
         if (imageEnrichmentDispatcher != null) {
@@ -221,18 +226,24 @@ public class PlaceCommandService {
                 .stream()
                 .collect(Collectors.toMap(PlaceCandidate::getId, Function.identity()));
         validateCandidates(importId, selections, candidates);
-        rejectInvalidStateOrDuplicates(memberId, placeImport, selections, candidates);
+        Map<Long, MemberPlace> existingMemberPlaces = existingMemberPlaces(
+                memberId,
+                selections,
+                candidates
+        );
+        validateImportStatus(placeImport);
         ActiveCoupleMember membership = activeCoupleMemberRepository
                 .findByMemberId(memberId)
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
         Instant now = clock.instant();
         List<PlaceConfirmationView.SavedPlaceView> savedPlaces = selections.stream()
-                .map(selection -> saveSelection(
+                .map(selection -> saveOrReuseSelection(
                         memberId,
                         importId,
                         selection,
                         candidates.get(selection.candidateId()),
+                        existingMemberPlaces,
                         membership,
                         partnerId,
                         now
@@ -247,15 +258,24 @@ public class PlaceCommandService {
         );
     }
 
-    private PlaceConfirmationView.SavedPlaceView saveSelection(
+    private PlaceConfirmationView.SavedPlaceView saveOrReuseSelection(
             Long memberId,
             Long importId,
             PlaceSelection selection,
             PlaceCandidate candidate,
+            Map<Long, MemberPlace> existingMemberPlaces,
             ActiveCoupleMember membership,
             Long partnerId,
             Instant now
     ) {
+        MemberPlace existing = existingMemberPlaces.get(candidate.getPlaceId());
+        if (existing != null) {
+            Place place = existing.getPlace();
+            return new PlaceConfirmationView.SavedPlaceView(
+                    toView(existing, place, ownershipStatus(partnerId, place.getId())),
+                    false
+            );
+        }
         Place place = findPlace(candidate.getPlaceId());
         MemberPlace created = memberPlaceRepository.save(MemberPlace.save(
                 memberId,
@@ -265,6 +285,7 @@ public class PlaceCommandService {
                 now
         ));
         publishSavedEvent(membership, memberId, partnerId, place.getId(), now);
+        publishAnalyticsEvent(memberId, membership, place.getId(), created.getId(), now);
         return new PlaceConfirmationView.SavedPlaceView(
                 toView(created, place, ownershipStatus(partnerId, place.getId())),
                 true
@@ -307,22 +328,7 @@ public class PlaceCommandService {
                 || status == PlaceVerificationStatus.REVIEW_REQUIRED;
     }
 
-    private void rejectInvalidStateOrDuplicates(
-            Long memberId,
-            PlaceImport placeImport,
-            List<PlaceSelection> selections,
-            Map<Long, PlaceCandidate> candidates
-    ) {
-        Set<Long> existingPlaceIds = existingPlaceIds(memberId, selections, candidates);
-        if (!existingPlaceIds.isEmpty()) {
-            throw new PlaceAlreadySavedException();
-        }
-        if (placeImport.getStatus() != PlaceImportStatus.REVIEW_REQUIRED) {
-            throw new InvalidPlaceCandidateException();
-        }
-    }
-
-    private Set<Long> existingPlaceIds(
+    private Map<Long, MemberPlace> existingMemberPlaces(
             Long memberId,
             List<PlaceSelection> selections,
             Map<Long, PlaceCandidate> candidates
@@ -333,8 +339,18 @@ public class PlaceCommandService {
                 .toList();
         return memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(memberId, placeIds)
                 .stream()
-                .map(memberPlace -> memberPlace.getPlace().getId())
-                .collect(Collectors.toSet());
+                .collect(Collectors.toMap(
+                        memberPlace -> memberPlace.getPlace().getId(),
+                        Function.identity()
+                ));
+    }
+
+    private void validateImportStatus(PlaceImport placeImport) {
+        if (placeImport.getStatus() == PlaceImportStatus.REVIEW_REQUIRED
+                || placeImport.getStatus() == PlaceImportStatus.COMPLETED) {
+            return;
+        }
+        throw new InvalidPlaceCandidateException();
     }
 
     private MemberPlaceView toView(
@@ -383,6 +399,28 @@ public class PlaceCommandService {
                 partnerId,
                 placeId,
                 now
+        ));
+    }
+
+    private void publishAnalyticsEvent(
+            Long memberId,
+            ActiveCoupleMember membership,
+            Long placeId,
+            Long memberPlaceId,
+            Instant occurredAt
+    ) {
+        if (memberPlaceId == null) {
+            return;
+        }
+        Long coupleId = membership == null ? null : membership.getCouple().getId();
+        eventPublisher.publishEvent(new AnalyticsActionEvent(
+                "PLACE_SAVED:%d".formatted(memberPlaceId),
+                AnalyticsEventType.PLACE_SAVED,
+                memberId,
+                coupleId,
+                "PLACE",
+                placeId,
+                occurredAt
         ));
     }
 
