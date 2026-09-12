@@ -112,7 +112,7 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
-    void keepsReviewRequiredWhenSomePlaceVerificationsFail() {
+    void completesWhenSomePlaceVerificationsFailButSavedCandidatesAreVerified() {
         Member member = memberRepository.save(Member.create(NOW));
         String uniqueKey = UUID.randomUUID().toString();
         PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
@@ -138,6 +138,41 @@ class PlaceStorageIntegrationTest {
                         PlaceVerificationStatus.VERIFIED
                 )),
                 true
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.COMPLETED);
+    }
+
+    @Test
+    void keepsReviewRequiredWhenSavedCandidateNeedsReview() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveSuccess(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST),
+                List.of(new VerifiedCandidate(
+                        extractedPlace(),
+                        verifiedPlace("CE7", "음식점 > 카페"),
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                )),
+                false
         );
         entityManager.flush();
         entityManager.clear();

@@ -137,8 +137,13 @@ public class PlaceImportContentWriter {
                     .ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
-                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), preserveExistingLinks);
+                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), requiresReview(uniqueCandidates));
         recordSourceMetadata(placeImport, metadata);
+    }
+
+    private boolean requiresReview(List<VerifiedCandidate> candidates) {
+        return candidates.stream()
+                .anyMatch(candidate -> candidate.verificationStatus() == PlaceVerificationStatus.REVIEW_REQUIRED);
     }
 
     private PlaceImport requireClaim(Long importId, String claimToken) {
