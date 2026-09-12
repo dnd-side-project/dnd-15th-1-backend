@@ -627,6 +627,37 @@ class OperationsAdminIntegrationTest {
                 .andExpect(jsonPath("$.summary.failedPlaceNames").value("미검증 후보"));
     }
 
+    @Test
+    void requeuesReviewRequiredImportForOperatorRetry() throws Exception {
+        Content content = createContent();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-retry-review-" + UUID.randomUUID(),
+                "ops-import-retry-review@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport.complete("제목", "본문", null, "hash", Instant.now(), Instant.now(), true);
+        placeImport = placeImportRepository.saveAndFlush(placeImport);
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/retry", placeImport.getId())
+                        .with(operator())
+                        .with(csrf()))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", placeImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.status").value("RECEIVED"));
+    }
+
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {
         return httpBasic(opsAccessProperties.username(), opsAccessProperties.password());
     }
