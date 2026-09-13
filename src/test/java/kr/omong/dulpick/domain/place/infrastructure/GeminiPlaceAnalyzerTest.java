@@ -59,7 +59,8 @@ class GeminiPlaceAnalyzerTest {
                 null,
                 null,
                 null,
-                null
+                null,
+                java.util.List.of()
         ));
 
         assertThat(result).hasSize(1);
@@ -86,18 +87,9 @@ class GeminiPlaceAnalyzerTest {
         server.expect(once(), requestTo(
                         "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent"
                 ))
-                .andExpect(content().string(org.hamcrest.Matchers.not(
-                        org.hamcrest.Matchers.containsString("inlineData")
-                )))
-                .andRespond(withSuccess("""
-                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[]}"}]}}]}
-                        """, MediaType.APPLICATION_JSON));
-        server.expect(once(), requestTo(
-                        "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent"
-                ))
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("inlineData")))
                 .andRespond(withSuccess("""
-                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[]}"}]}}]}
+                        {"candidates":[{"content":{"parts":[{"text":"{\\\"candidates\\\":[{\\\"name\\\":\\\"사진 속 장소\\\"}]}"}]}}]}
                         """, MediaType.APPLICATION_JSON));
 
         var result = analyzer.analyze(new ContentMetadata(
@@ -116,7 +108,9 @@ class GeminiPlaceAnalyzerTest {
                 null
         ));
 
-        assertThat(result).isEmpty();
+        assertThat(result).singleElement()
+                .extracting(place -> place.name())
+                .isEqualTo("사진 속 장소");
         server.verify();
     }
 }

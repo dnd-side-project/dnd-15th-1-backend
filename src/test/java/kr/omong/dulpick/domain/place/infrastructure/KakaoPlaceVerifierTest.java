@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
 import kr.omong.dulpick.domain.place.application.ExtractedPlace;
+import kr.omong.dulpick.domain.place.application.exception.PlaceVerificationUnavailableException;
 import kr.omong.dulpick.domain.place.config.KakaoProperties;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import org.junit.jupiter.api.Test;
@@ -12,6 +13,7 @@ import org.springframework.web.util.UriUtils;
 import java.nio.charset.StandardCharsets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
@@ -107,6 +109,33 @@ class KakaoPlaceVerifierTest {
                         """, MediaType.APPLICATION_JSON));
 
         assertThat(searchClient.search("카페").getFirst().categoryGroupCode()).isNull();
+        server.verify();
+    }
+
+    @Test
+    void mapsMalformedKakaoDocumentToRetryableVerificationFailure() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoProperties properties = new KakaoProperties(true, "test-key", "https://dapi.kakao.com", 3);
+        KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(properties, builder);
+        KakaoPlaceVerifier verifier = new KakaoPlaceVerifier(properties, searchClient, new KakaoPlaceMatcher());
+        server.expect(once(), queryParam("query", encoded("카페")))
+                .andRespond(withSuccess("""
+                        {
+                          "documents": [{
+                            "id": "100",
+                            "place_name": "분류 카페",
+                            "address_name": "서울 성동구",
+                            "road_address_name": "서울 성동구 성수이로",
+                            "y": "not-a-coordinate",
+                            "x": "127.1",
+                            "category_name": "음식점 > 카페"
+                          }]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> verifier.verify(new ExtractedPlace("카페", null, null, "INFERRED")))
+                .isInstanceOf(PlaceVerificationUnavailableException.class);
         server.verify();
     }
 

@@ -206,4 +206,5 @@ public class PlaceImportViewMapper {
                 placeImport.getEngagementCheckedAt()
         );
     }
+
 }

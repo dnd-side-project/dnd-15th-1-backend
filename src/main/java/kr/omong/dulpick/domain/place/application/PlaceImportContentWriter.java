@@ -103,7 +103,19 @@ public class PlaceImportContentWriter {
     @Transactional
     public void saveSuccess(Long importId, String claimToken, ContentMetadata metadata,
                             List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks) {
+        saveResult(importId, claimToken, metadata, verifiedCandidates, preserveExistingLinks, false);
+    }
+
+    @Transactional
+    public void saveReviewRequired(Long importId, String claimToken, ContentMetadata metadata) {
+        saveResult(importId, claimToken, metadata, List.of(), true, true);
+    }
+
+    private void saveResult(Long importId, String claimToken, ContentMetadata metadata,
+                            List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks,
+                            boolean forceReview) {
         List<VerifiedCandidate> uniqueCandidates = uniqueCandidates(verifiedCandidates);
+        boolean reviewRequired = forceReview || requiresReview(uniqueCandidates);
         PlaceImport placeImport = requireClaim(importId, claimToken);
         Long contentId = placeImport.getContentId();
         if (contentId == null && metadata.sourceType().storesPublicContent()) {
@@ -119,6 +131,9 @@ public class PlaceImportContentWriter {
                 .map(candidate -> saveCandidate(importId, resolvedContentId, candidate))
                 .toList();
         candidateRepository.saveAll(candidates);
+        List<PlaceCandidate> linkedCandidates = candidates.stream()
+                .filter(candidate -> candidate.getPlaceId() != null)
+                .toList();
         if (resolvedContentId != null) {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateMetadata(
                     displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
@@ -126,18 +141,18 @@ public class PlaceImportContentWriter {
             contentRepository.findById(resolvedContentId).ifPresent(content -> content.updateSourceMetadata(
                     metadata.sourceAuthorName(), metadata.sourceAuthorUsername(), metadata.sourcePublishedOn(),
                     metadata.likeCount(), metadata.commentCount(), metadata.engagementCheckedAt()));
-            candidates.forEach(candidate -> contentPlaceRepository.insertIfAbsent(
+            linkedCandidates.forEach(candidate -> contentPlaceRepository.insertIfAbsent(
                     resolvedContentId, candidate.getPlaceId(), clock.instant()));
             int linkedPlaceCount = preserveExistingLinks
                     ? contentPlaceRepository.findAllByContentId(resolvedContentId).size()
-                    : candidates.size();
+                    : linkedCandidates.size();
             contentRepository.findById(resolvedContentId)
                     .ifPresent(content -> content.updatePlaceCount(linkedPlaceCount));
             contentRepository.findById(resolvedContentId)
                     .ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
-                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), requiresReview(uniqueCandidates));
+                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), reviewRequired);
         recordSourceMetadata(placeImport, metadata);
     }
 
@@ -153,9 +168,16 @@ public class PlaceImportContentWriter {
 
     private List<VerifiedCandidate> uniqueCandidates(List<VerifiedCandidate> candidates) {
         Map<String, VerifiedCandidate> unique = new LinkedHashMap<>();
-        candidates.forEach(candidate -> unique.merge(candidate.verified().kakaoPlaceId(), candidate,
+        candidates.forEach(candidate -> unique.merge(candidateKey(candidate), candidate,
                 this::preferVerified));
         return unique.values().stream().toList();
+    }
+
+    private String candidateKey(VerifiedCandidate candidate) {
+        if (candidate.verified() != null) {
+            return "PLACE:" + candidate.verified().kakaoPlaceId();
+        }
+        return "REVIEW:" + candidate.extracted().name() + "|" + candidate.extracted().addressHint();
     }
 
     private VerifiedCandidate preferVerified(VerifiedCandidate first, VerifiedCandidate second) {
@@ -165,6 +187,11 @@ public class PlaceImportContentWriter {
     private PlaceCandidate saveCandidate(Long importId, Long contentId, VerifiedCandidate candidate) {
         VerifiedPlace verified = candidate.verified();
         Instant now = clock.instant();
+        if (verified == null) {
+            return PlaceCandidate.matched(importId, null, candidate.extracted().name(),
+                    candidate.extracted().addressHint(), candidate.extracted().evidence(),
+                    candidate.extracted().mentionType(), PlaceVerificationStatus.REVIEW_REQUIRED, now);
+        }
         logFallbackCategory(verified);
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),

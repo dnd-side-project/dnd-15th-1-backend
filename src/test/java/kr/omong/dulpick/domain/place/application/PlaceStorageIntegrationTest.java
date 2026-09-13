@@ -182,6 +182,114 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
+    void keepsUnmatchedCandidateForReviewInsteadOfFailingImport() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveSuccess(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST),
+                List.of(new VerifiedCandidate(
+                        extractedPlace(),
+                        null,
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                )),
+                true
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(candidateRepository.findAllByImportIdOrderByIdAsc(placeImport.getId()))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.getPlaceId()).isNull();
+                    assertThat(candidate.getVerificationStatus())
+                            .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+                });
+    }
+
+    @Test
+    void keepsEmptyExtractionReviewableInsteadOfFailingImport() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveReviewRequired(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST)
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(candidateRepository.findAllByImportIdOrderByIdAsc(placeImport.getId()))
+                .isEmpty();
+    }
+
+    @Test
+    void savesVerifiedSelectionAndLeavesUnresolvedSelectionForOperationsReview() {
+        Member member = memberRepository.save(Member.create(NOW));
+        PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);
+        Place verifiedPlace = placeRepository.save(place("confirmable"));
+        PlaceCandidate verifiedCandidate = candidateRepository.save(PlaceCandidate.verified(
+                placeImport.getId(), verifiedPlace.getId(), "확인된 장소", "서울", null,
+                "EXPLICIT_VENUE", NOW
+        ));
+        PlaceCandidate unresolvedCandidate = candidateRepository.save(PlaceCandidate.matched(
+                placeImport.getId(), null, "운영진 확인 필요 장소", "서울", null,
+                "EXPLICIT_VENUE", PlaceVerificationStatus.REVIEW_REQUIRED, NOW
+        ));
+        entityManager.flush();
+
+        PlaceConfirmationView result = commandService.confirm(
+                member.getId(),
+                placeImport.getId(),
+                List.of(
+                        new PlaceCommandService.PlaceSelection(verifiedCandidate.getId(), null),
+                        new PlaceCommandService.PlaceSelection(unresolvedCandidate.getId(), null)
+                )
+        );
+
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(result.savedPlaces()).singleElement()
+                .satisfies(saved -> {
+                    assertThat(saved.place().placeId()).isEqualTo(verifiedPlace.getId());
+                    assertThat(saved.newlySaved()).isTrue();
+                });
+        assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))
+                .extracting(saved -> saved.getPlace().getId())
+                .containsExactly(verifiedPlace.getId());
+    }
+
+    @Test
     void allowsSavingCandidatesAfterSuccessfulImportCompletion() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);

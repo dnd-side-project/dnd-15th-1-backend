@@ -50,6 +50,8 @@ public class PlaceImportRecoveryProcessor {
         importRepository.findRecoverableIds(
                 clock.instant().minus(properties.recoveryDelay()),
                 clock.instant().minusSeconds(properties.staleTimeoutSeconds()),
+                clock.instant().minusSeconds(properties.retryCooldownSeconds()),
+                properties.maxRetryCount(),
                 PageRequest.of(0, properties.recoveryBatchSize())
         ).forEach(this::dispatchSafely);
     }
