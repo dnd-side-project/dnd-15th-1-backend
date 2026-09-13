@@ -93,7 +93,7 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
-    void preservesLinksWhenMatchReturnsNoResult() {
+    void keepsUnmatchedPlaceForManualReview() {
         ExtractedPlace succeeded = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace unmatched = new ExtractedPlace("미매칭 카페", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(succeeded, unmatched));
@@ -109,7 +109,27 @@ class PlaceImportPartialVerificationTest {
         org.mockito.Mockito.verify(resultWriter).saveSuccess(
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
-        assertThat(captor.getValue()).hasSize(1);
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getLast().verificationStatus())
+                .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+        assertThat(saved.getLast().verified()).isNull();
+    }
+
+    @Test
+    void keepsImportReviewableWhenEveryPlaceHasNoKakaoMatch() {
+        ExtractedPlace first = new ExtractedPlace("첫 장소", null, null, "EXPLICIT_VENUE");
+        ExtractedPlace second = new ExtractedPlace("두 번째 장소", null, null, "EXPLICIT_VENUE");
+        when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(first, second));
+        when(placeVerifier.verify(any(ExtractedPlace.class))).thenReturn(null);
+
+        service.processClaimed(1L, CLAIM_TOKEN);
+
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), anyList(), eq(true)
+        );
+        org.mockito.Mockito.verify(reservationService, org.mockito.Mockito.never())
+                .failClaimed(anyLong(), anyString(), anyString(), any());
     }
 
     @Test

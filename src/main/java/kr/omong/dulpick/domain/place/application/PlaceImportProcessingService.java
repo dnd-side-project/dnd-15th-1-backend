@@ -374,6 +374,11 @@ public class PlaceImportProcessingService {
                     ));
                 } else {
                     hasFailure = true;
+                    candidates.add(new VerifiedCandidate(
+                            extracted.get(index),
+                            null,
+                            PlaceVerificationStatus.REVIEW_REQUIRED
+                    ));
                 }
             } catch (PlaceVerificationUnavailableException exception) {
                 hasFailure = true;

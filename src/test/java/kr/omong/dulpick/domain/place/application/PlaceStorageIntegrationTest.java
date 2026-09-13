@@ -182,6 +182,48 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
+    void keepsUnmatchedCandidateForReviewInsteadOfFailingImport() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveSuccess(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST),
+                List.of(new VerifiedCandidate(
+                        extractedPlace(),
+                        null,
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                )),
+                true
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(candidateRepository.findAllByImportIdOrderByIdAsc(placeImport.getId()))
+                .singleElement()
+                .satisfies(candidate -> {
+                    assertThat(candidate.getPlaceId()).isNull();
+                    assertThat(candidate.getVerificationStatus())
+                            .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+                });
+    }
+
+    @Test
     void allowsSavingCandidatesAfterSuccessfulImportCompletion() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);
