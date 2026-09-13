@@ -206,7 +206,7 @@ public class PlaceImportProcessingService {
         try {
             for (int attempt = 0; attempt < attempts; attempt++) {
                 try {
-                    process(placeImport, sourceType, claimToken, timing);
+                    process(placeImport, sourceType, claimToken, attempt == attempts - 1, timing);
                     return;
                 } catch (PlaceImportClaimLostException exception) {
                     logger.info("Place import claim lost: importId={}", placeImport.getId());
@@ -257,6 +257,7 @@ public class PlaceImportProcessingService {
             PlaceImport placeImport,
             ContentSourceType sourceType,
             String claimToken,
+            boolean allowReviewFallback,
             ProcessingTiming timing
     ) {
         ContentMetadata metadata = measure(
@@ -311,6 +312,21 @@ public class PlaceImportProcessingService {
                 () -> verifyCandidates(extractedCandidates),
                 timing::addKakaoVerification
         );
+        if (verifications.retryableFailure()) {
+            if (allowReviewFallback) {
+                measureDbWrite(
+                        () -> resultWriter.saveSuccess(
+                                placeImport.getId(), claimToken, metadata,
+                                verifications.candidates(), true
+                        ),
+                        timing
+                );
+                contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
+                dispatchPlaceImageEnrichment(placeImport.getId());
+                return;
+            }
+            throw new PlaceVerificationUnavailableException();
+        }
         if (verifications.hadFailure() && !verifications.candidates().isEmpty()) {
             logger.warn(
                     "Place verification partially failed: importId={}, succeeded={}, failed={}",
@@ -320,16 +336,12 @@ public class PlaceImportProcessingService {
             );
         }
         if (verifications.candidates().isEmpty()) {
-            if (verifications.hadFailure()) {
-                throw new PlaceVerificationUnavailableException();
-            }
             measureDbWrite(
-                    () -> reservationService.failClaimed(
-                            placeImport.getId(), claimToken,
-                            ErrorCode.PLACE_NOT_VERIFIED.getCode(), clock.instant()
-                    ),
+                    () -> resultWriter.saveReviewRequired(placeImport.getId(), claimToken, metadata),
                     timing
             );
+            contentImageEnrichmentService.dispatch(placeImport.getContentId(), metadata.imageUrls());
+            dispatchPlaceImageEnrichment(placeImport.getId());
             return;
         }
         measureDbWrite(
@@ -358,9 +370,15 @@ public class PlaceImportProcessingService {
         waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
         boolean hasFailure = hasSubmissionFailure;
+        boolean retryableFailure = false;
         for (int index = 0; index < extracted.size(); index++) {
             CompletableFuture<PlaceVerificationResult> future = futures.get(index);
             if (future == null) {
+                candidates.add(new VerifiedCandidate(
+                        extracted.get(index),
+                        null,
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                ));
                 continue;
             }
             try {
@@ -382,9 +400,15 @@ public class PlaceImportProcessingService {
                 }
             } catch (PlaceVerificationUnavailableException exception) {
                 hasFailure = true;
+                retryableFailure = true;
+                candidates.add(new VerifiedCandidate(
+                        extracted.get(index),
+                        null,
+                        PlaceVerificationStatus.REVIEW_REQUIRED
+                ));
             }
         }
-        return new CandidateVerifications(candidates, hasFailure);
+        return new CandidateVerifications(candidates, hasFailure, retryableFailure);
     }
 
     private void waitForAllVerifications(List<CompletableFuture<PlaceVerificationResult>> futures) {
@@ -619,7 +643,8 @@ public class PlaceImportProcessingService {
 
     private record CandidateVerifications(
             List<VerifiedCandidate> candidates,
-            boolean hadFailure
+            boolean hadFailure,
+            boolean retryableFailure
     ) {
     }
 

@@ -224,6 +224,37 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
+    void keepsEmptyExtractionReviewableInsteadOfFailingImport() {
+        Member member = memberRepository.save(Member.create(NOW));
+        String uniqueKey = UUID.randomUUID().toString();
+        PlaceImport placeImport = importRepository.saveAndFlush(PlaceImport.receive(
+                member.getId(),
+                "https://example.test/" + uniqueKey,
+                uniqueKey,
+                ContentSourceType.INSTAGRAM_POST,
+                NOW
+        ));
+        String claimToken = reservationService.claimPending(
+                placeImport.getId(),
+                NOW,
+                NOW.minusSeconds(600)
+        );
+
+        resultWriter.saveReviewRequired(
+                placeImport.getId(),
+                claimToken,
+                metadata(placeImport.getCanonicalUrl(), ContentSourceType.INSTAGRAM_POST)
+        );
+        entityManager.flush();
+        entityManager.clear();
+
+        assertThat(importRepository.findById(placeImport.getId()).orElseThrow().getStatus())
+                .isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(candidateRepository.findAllByImportIdOrderByIdAsc(placeImport.getId()))
+                .isEmpty();
+    }
+
+    @Test
     void savesVerifiedSelectionAndLeavesUnresolvedSelectionForOperationsReview() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);

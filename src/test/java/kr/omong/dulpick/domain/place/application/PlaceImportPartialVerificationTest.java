@@ -73,7 +73,7 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
-    void savesVerifiedCandidatesWhenSomeVerificationsFail() {
+    void preservesExtractedCandidatesWhenVerificationRetriesAreExhausted() {
         ExtractedPlace succeeded = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace failed = new ExtractedPlace("실패 카페", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(succeeded, failed));
@@ -90,8 +90,10 @@ class PlaceImportPartialVerificationTest {
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
         List<VerifiedCandidate> saved = captor.getValue();
-        assertThat(saved).hasSize(1);
-        assertThat(saved.getFirst().extracted().name()).isEqualTo("성공 카페");
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getFirst().verificationStatus()).isEqualTo(PlaceVerificationStatus.VERIFIED);
+        assertThat(saved.getLast().verificationStatus()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+        assertThat(saved.getLast().verified()).isNull();
     }
 
     @Test
@@ -189,7 +191,10 @@ class PlaceImportPartialVerificationTest {
         org.mockito.Mockito.verify(resultWriter).saveSuccess(
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
-        assertThat(captor.getValue()).hasSize(1);
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getLast().verificationStatus())
+                .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
     }
 
     private PlaceImportProcessingService createService(Executor verificationExecutor) {
@@ -214,7 +219,7 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
-    void failsImportWhenEveryVerificationFails() {
+    void keepsEveryVerificationFailureAvailableForOperationsReview() {
         ExtractedPlace first = new ExtractedPlace("실패 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace second = new ExtractedPlace("실패 펜션", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(first, second));
@@ -223,12 +228,20 @@ class PlaceImportPartialVerificationTest {
 
         service.processClaimed(1L, CLAIM_TOKEN);
 
-        org.mockito.Mockito.verify(reservationService).failClaimed(
-                eq(1L),
-                eq(CLAIM_TOKEN),
-                eq(kr.omong.dulpick.global.exception.ErrorCode.PLACE_VERIFICATION_UNAVAILABLE.getCode()),
-                any(Instant.class)
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved)
+                .allSatisfy(candidate -> {
+                    assertThat(candidate.verificationStatus())
+                            .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+                    assertThat(candidate.verified()).isNull();
+                });
+        org.mockito.Mockito.verify(reservationService, org.mockito.Mockito.never())
+                .failClaimed(anyLong(), anyString(), anyString(), any());
     }
 
     private PlaceImport receivedImport(Long importId) {

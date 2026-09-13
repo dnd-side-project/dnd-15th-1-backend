@@ -103,7 +103,19 @@ public class PlaceImportContentWriter {
     @Transactional
     public void saveSuccess(Long importId, String claimToken, ContentMetadata metadata,
                             List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks) {
+        saveResult(importId, claimToken, metadata, verifiedCandidates, preserveExistingLinks, false);
+    }
+
+    @Transactional
+    public void saveReviewRequired(Long importId, String claimToken, ContentMetadata metadata) {
+        saveResult(importId, claimToken, metadata, List.of(), true, true);
+    }
+
+    private void saveResult(Long importId, String claimToken, ContentMetadata metadata,
+                            List<VerifiedCandidate> verifiedCandidates, boolean preserveExistingLinks,
+                            boolean forceReview) {
         List<VerifiedCandidate> uniqueCandidates = uniqueCandidates(verifiedCandidates);
+        boolean reviewRequired = forceReview || requiresReview(uniqueCandidates);
         PlaceImport placeImport = requireClaim(importId, claimToken);
         Long contentId = placeImport.getContentId();
         if (contentId == null && metadata.sourceType().storesPublicContent()) {
@@ -140,7 +152,7 @@ public class PlaceImportContentWriter {
                     .ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
-                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), requiresReview(uniqueCandidates));
+                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), reviewRequired);
         recordSourceMetadata(placeImport, metadata);
     }
 
