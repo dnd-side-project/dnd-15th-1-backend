@@ -224,6 +224,41 @@ class PlaceStorageIntegrationTest {
     }
 
     @Test
+    void savesVerifiedSelectionAndLeavesUnresolvedSelectionForOperationsReview() {
+        Member member = memberRepository.save(Member.create(NOW));
+        PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);
+        Place verifiedPlace = placeRepository.save(place("confirmable"));
+        PlaceCandidate verifiedCandidate = candidateRepository.save(PlaceCandidate.verified(
+                placeImport.getId(), verifiedPlace.getId(), "확인된 장소", "서울", null,
+                "EXPLICIT_VENUE", NOW
+        ));
+        PlaceCandidate unresolvedCandidate = candidateRepository.save(PlaceCandidate.matched(
+                placeImport.getId(), null, "운영진 확인 필요 장소", "서울", null,
+                "EXPLICIT_VENUE", PlaceVerificationStatus.REVIEW_REQUIRED, NOW
+        ));
+        entityManager.flush();
+
+        PlaceConfirmationView result = commandService.confirm(
+                member.getId(),
+                placeImport.getId(),
+                List.of(
+                        new PlaceCommandService.PlaceSelection(verifiedCandidate.getId(), null),
+                        new PlaceCommandService.PlaceSelection(unresolvedCandidate.getId(), null)
+                )
+        );
+
+        assertThat(result.status()).isEqualTo(PlaceImportStatus.REVIEW_REQUIRED);
+        assertThat(result.savedPlaces()).singleElement()
+                .satisfies(saved -> {
+                    assertThat(saved.place().placeId()).isEqualTo(verifiedPlace.getId());
+                    assertThat(saved.newlySaved()).isTrue();
+                });
+        assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))
+                .extracting(saved -> saved.getPlace().getId())
+                .containsExactly(verifiedPlace.getId());
+    }
+
+    @Test
     void allowsSavingCandidatesAfterSuccessfulImportCompletion() {
         Member member = memberRepository.save(Member.create(NOW));
         PlaceImport placeImport = saveReviewableImport(member.getId(), ContentSourceType.INSTAGRAM_POST);
