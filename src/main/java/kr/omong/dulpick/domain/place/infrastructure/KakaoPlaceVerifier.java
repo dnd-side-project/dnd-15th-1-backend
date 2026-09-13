@@ -58,6 +58,8 @@ public class KakaoPlaceVerifier implements PlaceVerifier {
                     .orElse(null);
         } catch (PlaceVerificationUnavailableException exception) {
             throw exception;
+        } catch (RuntimeException exception) {
+            throw new PlaceVerificationUnavailableException(exception);
         }
     }
 

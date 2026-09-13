@@ -61,11 +61,21 @@ public interface PlaceImportRepository extends JpaRepository<PlaceImport, Long> 
                     AND placeImport.updatedAt <= :receivedBefore)
                 OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.PROCESSING
                     AND placeImport.updatedAt < :processingBefore)
+                OR (placeImport.status = kr.omong.dulpick.domain.place.domain.PlaceImportStatus.FAILED
+                    AND placeImport.retryCount < :maxRetryCount
+                    AND placeImport.updatedAt <= :failureBefore
+                    AND placeImport.failureCode IN (
+                        'PLACE_METADATA_UNAVAILABLE',
+                        'PLACE_ANALYSIS_UNAVAILABLE',
+                        'PLACE_VERIFICATION_UNAVAILABLE'
+                    ))
              ORDER BY placeImport.updatedAt ASC, placeImport.id ASC
             """)
     List<Long> findRecoverableIds(
             @Param("receivedBefore") Instant receivedBefore,
             @Param("processingBefore") Instant processingBefore,
+            @Param("failureBefore") Instant failureBefore,
+            @Param("maxRetryCount") int maxRetryCount,
             Pageable pageable
     );
 

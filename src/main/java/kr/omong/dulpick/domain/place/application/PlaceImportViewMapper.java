@@ -10,9 +10,12 @@ import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.global.exception.ErrorCode;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
+import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
@@ -22,11 +25,18 @@ import java.util.stream.Collectors;
 public class PlaceImportViewMapper {
 
     static final long PROCESSING_RETRY_AFTER_SECONDS = 2L;
+    private static final long LATER_PROCESSING_RETRY_AFTER_SECONDS = 4L;
+    private static final long FINAL_PROCESSING_RETRY_AFTER_SECONDS = 5L;
+    private static final long FIRST_INTERVAL_END_SECONDS = 2L;
+    private static final long SECOND_INTERVAL_END_SECONDS = 6L;
+    private static final long THIRD_INTERVAL_END_SECONDS = 10L;
+    private static final long FOURTH_INTERVAL_END_SECONDS = 15L;
 
     private final PlaceCandidateRepository candidateRepository;
     private final PlaceRepository placeRepository;
     private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceAnalysisProperties properties;
+    private final Clock clock;
 
     public PlaceImportViewMapper(
             PlaceCandidateRepository candidateRepository,
@@ -34,10 +44,22 @@ public class PlaceImportViewMapper {
             MemberPlaceRepository memberPlaceRepository,
             PlaceAnalysisProperties properties
     ) {
+        this(candidateRepository, placeRepository, memberPlaceRepository, properties, Clock.systemUTC());
+    }
+
+    @Autowired
+    public PlaceImportViewMapper(
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            MemberPlaceRepository memberPlaceRepository,
+            PlaceAnalysisProperties properties,
+            Clock clock
+    ) {
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
         this.memberPlaceRepository = memberPlaceRepository;
         this.properties = properties;
+        this.clock = clock;
     }
 
     @Transactional(readOnly = true)
@@ -145,7 +167,7 @@ public class PlaceImportViewMapper {
     private Long retryAfterSeconds(PlaceImport placeImport) {
         if (placeImport.getStatus() == PlaceImportStatus.RECEIVED
                 || placeImport.getStatus() == PlaceImportStatus.PROCESSING) {
-            return PROCESSING_RETRY_AFTER_SECONDS;
+            return processingRetryAfterSeconds(placeImport);
         }
         if (placeImport.getStatus() == PlaceImportStatus.FAILED
                 && isRetryableFailure(placeImport)) {
@@ -206,4 +228,21 @@ public class PlaceImportViewMapper {
                 placeImport.getEngagementCheckedAt()
         );
     }
+
+    private long processingRetryAfterSeconds(PlaceImport placeImport) {
+        long elapsedSeconds = Math.max(Duration.between(
+                placeImport.getUpdatedAt(), clock.instant()
+        ).toSeconds(), 0L);
+        if (elapsedSeconds < FIRST_INTERVAL_END_SECONDS) {
+            return PROCESSING_RETRY_AFTER_SECONDS;
+        }
+        if (elapsedSeconds < SECOND_INTERVAL_END_SECONDS) {
+            return LATER_PROCESSING_RETRY_AFTER_SECONDS;
+        }
+        if (elapsedSeconds < THIRD_INTERVAL_END_SECONDS) {
+            return LATER_PROCESSING_RETRY_AFTER_SECONDS;
+        }
+        return FINAL_PROCESSING_RETRY_AFTER_SECONDS;
+    }
+
 }
