@@ -10,6 +10,7 @@ import java.time.Instant;
 
 public record UpdateContentPlacesRequest(
         @NotNull @Size(max = 50) @ArraySchema(schema = @Schema(example = "101"), arraySchema = @Schema(example = "[101, 102]")) List<@NotNull Long> placeIds,
-        @NotNull @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt
+        @NotNull @Schema(example = "2026-08-24T10:00:05Z") Instant expectedUpdatedAt,
+        @Schema(description = "저장한 장소를 함께 공개할지 여부", example = "true") boolean publish
 ) {
 }

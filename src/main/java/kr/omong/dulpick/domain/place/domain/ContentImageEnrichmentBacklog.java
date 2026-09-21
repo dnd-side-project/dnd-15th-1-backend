@@ -48,4 +48,12 @@ public class ContentImageEnrichmentBacklog {
     public String getSourceUrls() {
         return sourceUrls;
     }
+
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public String getStatus() {
+        return status;
+    }
 }

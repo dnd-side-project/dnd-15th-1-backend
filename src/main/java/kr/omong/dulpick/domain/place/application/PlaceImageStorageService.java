@@ -44,7 +44,12 @@ public class PlaceImageStorageService {
         ContentThumbnailDownloader.DownloadedThumbnail downloaded = downloader.download(sourceUrl);
         String storageKey = UUID.randomUUID().toString();
         write(storageKey, downloaded.bytes());
-        return new StoredImage(storageKey, downloaded.contentType());
+        return new StoredImage(
+                storageKey,
+                downloaded.contentType(),
+                null,
+                Sha256.hex(downloaded.bytes())
+        );
     }
 
     public StoredImage load(String storageKey) {
@@ -162,9 +167,18 @@ public class PlaceImageStorageService {
         return resolved;
     }
 
-    public record StoredImage(String storageKey, MediaType contentType, byte[] bytes) {
+    public record StoredImage(
+            String storageKey,
+            MediaType contentType,
+            byte[] bytes,
+            String contentHash
+    ) {
         public StoredImage(String storageKey, MediaType contentType) {
-            this(storageKey, contentType, null);
+            this(storageKey, contentType, null, null);
+        }
+
+        public StoredImage(String storageKey, MediaType contentType, byte[] bytes) {
+            this(storageKey, contentType, bytes, bytes == null ? null : Sha256.hex(bytes));
         }
     }
 }

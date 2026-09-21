@@ -6,6 +6,7 @@ public final class SwaggerTagNames {
     public static final String MEMBER = "회원";
     public static final String COUPLE_CONNECTION = "커플 연결";
     public static final String NOTIFICATION = "알림";
+    public static final String NOTICE = "공지사항";
     public static final String PLACE = "장소";
     public static final String OPS = "운영";
     public static final String DATE = "데이트";

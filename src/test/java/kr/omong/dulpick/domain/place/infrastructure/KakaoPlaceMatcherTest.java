@@ -34,7 +34,7 @@ class KakaoPlaceMatcherTest {
     }
 
     @Test
-    void returnsChangedBusinessNameAtExactAddressForReview() {
+    void verifiesChangedBusinessNameAtExactAddress() {
         ExtractedPlace extracted = extracted(
                 "시어풀빌라",
                 "경기 가평군 설악면 유명로 100"
@@ -49,12 +49,32 @@ class KakaoPlaceMatcherTest {
 
         assertThat(result).hasValueSatisfying(match -> {
             assertThat(match.place().name()).isEqualTo("시어팬션");
-            assertThat(match.status()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+            assertThat(match.status()).isEqualTo(PlaceVerificationStatus.VERIFIED);
         });
     }
 
     @Test
-    void returnsAliasWithMatchingLocationForReview() {
+    void verifiesCandidateWhenNameIsMissingButExactAddressMatches() {
+        ExtractedPlace extracted = extracted(
+                "",
+                "서울 성동구 성수이로 10"
+        );
+
+        var result = matcher.findBest(extracted, List.of(place(
+                "1",
+                "둘픽카페",
+                "서울 성동구 성수동1가 10",
+                "서울 성동구 성수이로 10"
+        )));
+
+        assertThat(result).hasValueSatisfying(match -> {
+            assertThat(match.place().name()).isEqualTo("둘픽카페");
+            assertThat(match.status()).isEqualTo(PlaceVerificationStatus.VERIFIED);
+        });
+    }
+
+    @Test
+    void verifiesAliasWithMatchingLocation() {
         ExtractedPlace extracted = extracted("MIP 라운지", "잠실");
 
         var result = matcher.findBest(extracted, List.of(place(
@@ -65,7 +85,7 @@ class KakaoPlaceMatcherTest {
         )));
 
         assertThat(result).hasValueSatisfying(match ->
-                assertThat(match.status()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED)
+                assertThat(match.status()).isEqualTo(PlaceVerificationStatus.VERIFIED)
         );
     }
 
@@ -84,6 +104,25 @@ class KakaoPlaceMatcherTest {
         )));
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void promotesAOneCharacterTypoWhenAddressMatches() {
+        ExtractedPlace extracted = extracted(
+                "둘픽커페",
+                "서울 성동구 성수이로 10"
+        );
+
+        var result = matcher.findBest(extracted, List.of(place(
+                "1",
+                "둘픽카페",
+                "서울 성동구 성수동1가 10",
+                "서울 성동구 성수이로 10"
+        )));
+
+        assertThat(result).hasValueSatisfying(match ->
+                assertThat(match.status()).isEqualTo(PlaceVerificationStatus.VERIFIED)
+        );
     }
 
     @Test
@@ -109,7 +148,7 @@ class KakaoPlaceMatcherTest {
 
         assertThat(result).hasValueSatisfying(match -> {
             assertThat(match.place()).isEqualTo(sameRoadResult);
-            assertThat(match.status()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+            assertThat(match.status()).isEqualTo(PlaceVerificationStatus.VERIFIED);
         });
     }
 

@@ -40,6 +40,7 @@ public enum ErrorCode {
             HttpStatus.SERVICE_UNAVAILABLE,
             "푸시 디바이스를 등록할 수 없습니다. 잠시 후 다시 시도해 주세요"
     ),
+    NOTICE_NOT_FOUND(HttpStatus.NOT_FOUND, "공지사항을 찾을 수 없습니다"),
 
     // 장소 import
     UNSUPPORTED_SOURCE_URL(HttpStatus.BAD_REQUEST, "지원하지 않는 콘텐츠 URL입니다"),

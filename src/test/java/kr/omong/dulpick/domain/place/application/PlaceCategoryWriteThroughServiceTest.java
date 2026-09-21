@@ -1,6 +1,7 @@
 package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -9,7 +10,6 @@ import java.time.ZoneOffset;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 
 class PlaceCategoryWriteThroughServiceTest {
 
@@ -31,19 +31,43 @@ class PlaceCategoryWriteThroughServiceTest {
                 "음식점 > 카페",
                 NOW
         );
+        verify(placeRepository).updateDulpickCategoryIfMissing(
+                10L,
+                DulpickPlaceCategory.CAFE,
+                NOW
+        );
     }
 
     @Test
-    void doesNotPersistUnknownKakaoCategoryFallback() {
+    void classifiesUnknownKakaoCategoryAsConvenienceFallback() {
         service.fillIfMissing(10L, null, null, null, "기타 > 미분류");
 
-        verifyNoInteractions(placeRepository);
+        verify(placeRepository).updateDulpickCategoryIfMissing(
+                10L,
+                DulpickPlaceCategory.CONVENIENCE,
+                NOW
+        );
     }
 
     @Test
     void doesNotOverwriteExistingRecognizedCategory() {
         service.fillIfMissing(10L, "CE7", "음식점 > 카페", "FD6", "음식점");
 
-        verifyNoInteractions(placeRepository);
+        verify(placeRepository).updateDulpickCategoryIfMissing(
+                10L,
+                DulpickPlaceCategory.RESTAURANT,
+                NOW
+        );
+    }
+
+    @Test
+    void doesNotWriteStoredDulpickCategoryAgain() {
+        service.fillIfMissing(10L, "CE7", "음식점 > 카페", "FD6", "음식점", DulpickPlaceCategory.CAFE);
+
+        verify(placeRepository, org.mockito.Mockito.never()).updateDulpickCategoryIfMissing(
+                org.mockito.ArgumentMatchers.anyLong(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.any()
+        );
     }
 }

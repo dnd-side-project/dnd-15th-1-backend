@@ -4,6 +4,8 @@ import kr.omong.dulpick.domain.couple.application.exception.CoupleNotFoundExcept
 import kr.omong.dulpick.domain.couple.application.exception.CoupleStateInvalidException;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
 import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.date.application.exception.DateCourseConflictException;
 import kr.omong.dulpick.domain.date.application.exception.DateCourseNotFoundException;
 import kr.omong.dulpick.domain.date.application.exception.DateCoursePlaceNotSavedException;
@@ -135,7 +137,55 @@ public class DateCourseCommandService {
         } catch (ObjectOptimisticLockingFailureException exception) {
             throw new DateCourseConflictException();
         }
+        publishAnalyticsEvents(memberId, context, dateCourse, newPlaces, now);
         return toView(dateCourse, newPlaces);
+    }
+
+    private void publishAnalyticsEvents(
+            Long memberId,
+            CoupleContext context,
+            DateCourse dateCourse,
+            List<DateCoursePlace> places,
+            Instant occurredAt
+    ) {
+        if (dateCourse.getId() == null) {
+            return;
+        }
+        eventPublisher.publishEvent(new AnalyticsActionEvent(
+                "DATE_COURSE_CREATED:%d".formatted(dateCourse.getId()),
+                AnalyticsEventType.DATE_COURSE_CREATED,
+                memberId,
+                context.coupleId(),
+                "DATE_COURSE",
+                dateCourse.getId(),
+                occurredAt
+        ));
+        if (containsSharedPlace(context.memberIds(), places)) {
+            eventPublisher.publishEvent(new AnalyticsActionEvent(
+                    "SHARED_PLACE_USED_IN_COURSE:%d".formatted(dateCourse.getId()),
+                    AnalyticsEventType.SHARED_PLACE_USED_IN_COURSE,
+                    memberId,
+                    context.coupleId(),
+                    "DATE_COURSE",
+                    dateCourse.getId(),
+                    occurredAt
+            ));
+        }
+    }
+
+    private boolean containsSharedPlace(List<Long> memberIds, List<DateCoursePlace> places) {
+        List<Long> placeIds = places.stream()
+                .map(place -> place.getPlace().getId())
+                .toList();
+        return memberPlaceRepository.findAllByMemberIdInAndPlaceIdIn(memberIds, placeIds)
+                .stream()
+                .collect(Collectors.groupingBy(
+                        memberPlace -> memberPlace.getPlace().getId(),
+                        Collectors.counting()
+                ))
+                .values()
+                .stream()
+                .anyMatch(count -> count >= 2);
     }
 
     @Transactional

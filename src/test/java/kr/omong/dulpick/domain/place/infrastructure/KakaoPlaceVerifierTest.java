@@ -40,7 +40,7 @@ class KakaoPlaceVerifierTest {
     }
 
     @Test
-    void searchesPreciseAddressWithoutNameAndReturnsChangedNameForReview() {
+    void searchesPreciseAddressWithoutNameAndVerifiesChangedName() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoPlaceSearchClient searchClient = new KakaoPlaceSearchClient(
@@ -79,7 +79,7 @@ class KakaoPlaceVerifierTest {
         ));
 
         assertThat(result.place().name()).isEqualTo("시어팬션");
-        assertThat(result.status()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+        assertThat(result.status()).isEqualTo(PlaceVerificationStatus.VERIFIED);
         server.verify();
     }
 

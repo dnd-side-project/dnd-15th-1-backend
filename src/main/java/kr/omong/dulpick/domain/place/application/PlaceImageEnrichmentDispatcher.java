@@ -40,6 +40,13 @@ public class PlaceImageEnrichmentDispatcher {
         ));
     }
 
+    public void dispatchPlaceRefresh(Long placeId) {
+        afterCommit(() -> submit(
+                () -> enrichmentService.refreshPlace(placeId),
+                () -> enrichmentService.recordPlaceDispatchFailure(placeId)
+        ));
+    }
+
     private void submit(Runnable task, Runnable rejectionHandler) {
         try {
             executor.execute(() -> runSafely(task));

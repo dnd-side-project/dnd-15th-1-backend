@@ -2,6 +2,7 @@ package kr.omong.dulpick.domain.place.application;
 
 import kr.omong.dulpick.domain.place.domain.ContentImageEnrichmentBacklog;
 import kr.omong.dulpick.domain.place.domain.ContentImageEnrichmentBacklogRepository;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,6 +19,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class ContentImageEnrichmentService {
@@ -33,6 +35,7 @@ public class ContentImageEnrichmentService {
     private final ObjectMapper objectMapper;
     private final Clock clock;
     private final Executor executor;
+    private final AtomicBoolean shuttingDown = new AtomicBoolean();
 
     @Autowired
     public ContentImageEnrichmentService(
@@ -61,22 +64,28 @@ public class ContentImageEnrichmentService {
     }
 
     public void dispatch(Long contentId, List<String> sourceUrls) {
-        if (contentId == null || sourceUrls == null || sourceUrls.isEmpty()) {
+        if (shuttingDown.get() || contentId == null || sourceUrls == null || sourceUrls.isEmpty()) {
             return;
         }
         List<String> imageUrls = List.copyOf(sourceUrls);
+        Instant now = clock.instant();
+        boolean persisted = enqueue(contentId, imageUrls, now, now);
         try {
             executor.execute(() -> store(contentId, imageUrls));
         } catch (RejectedExecutionException exception) {
-            Instant now = clock.instant();
-            enqueue(contentId, imageUrls, now, now);
-            logger.warn("Content image enrichment queued for recovery: contentId={}", contentId);
+            if (!persisted) {
+                enqueue(contentId, imageUrls, now, now);
+            }
+            logger.warn(
+                    "Content image enrichment deferred to recovery: contentId={}",
+                    contentId
+            );
         }
     }
 
     @Scheduled(fixedDelay = 30_000, initialDelay = 30_000)
     public void recoverPending() {
-        if (backlogRepository == null) {
+        if (shuttingDown.get() || backlogRepository == null) {
             return;
         }
         Instant now = clock.instant();
@@ -89,6 +98,9 @@ public class ContentImageEnrichmentService {
     }
 
     private void store(Long contentId, List<String> sourceUrls) {
+        if (shuttingDown.get()) {
+            return;
+        }
         try {
             storageService.storeIfAvailable(contentId, sourceUrls);
             if (backlogRepository == null) {
@@ -100,6 +112,9 @@ public class ContentImageEnrichmentService {
                 scheduleRetry(contentId, sourceUrls);
             }
         } catch (RuntimeException exception) {
+            if (shuttingDown.get() || Thread.currentThread().isInterrupted()) {
+                return;
+            }
             scheduleRetry(contentId, sourceUrls);
             logger.warn(
                     "Content image enrichment failed: contentId={}, cause={}",
@@ -110,6 +125,9 @@ public class ContentImageEnrichmentService {
     }
 
     private void recover(ContentImageEnrichmentBacklog backlog) {
+        if (shuttingDown.get()) {
+            return;
+        }
         if (backlogRepository.claim(
                 backlog.getContentId(),
                 clock.instant().minus(STALE_TASK_TIMEOUT)
@@ -135,14 +153,14 @@ public class ContentImageEnrichmentService {
         }
     }
 
-    private void enqueue(
+    private boolean enqueue(
             Long contentId,
             List<String> sourceUrls,
             Instant nextAttemptAt,
             Instant now
     ) {
         if (backlogRepository == null) {
-            return;
+            return false;
         }
         try {
             backlogRepository.enqueue(
@@ -151,8 +169,10 @@ public class ContentImageEnrichmentService {
                     nextAttemptAt,
                     now
             );
+            return true;
         } catch (Exception exception) {
             logger.error("Content image recovery enqueue failed: contentId={}", contentId, exception);
+            return false;
         }
     }
 
@@ -161,7 +181,7 @@ public class ContentImageEnrichmentService {
     }
 
     private void scheduleRetry(Long contentId, List<String> sourceUrls) {
-        if (backlogRepository == null) {
+        if (shuttingDown.get() || backlogRepository == null) {
             return;
         }
         Instant now = clock.instant();
@@ -169,5 +189,10 @@ public class ContentImageEnrichmentService {
             enqueue(contentId, sourceUrls, now.plus(RETRY_DELAY), now);
         }
         backlogRepository.scheduleRetry(contentId, now.plus(RETRY_DELAY), now, MAX_RETRY_ATTEMPTS);
+    }
+
+    @PreDestroy
+    void stopAcceptingTasks() {
+        shuttingDown.set(true);
     }
 }

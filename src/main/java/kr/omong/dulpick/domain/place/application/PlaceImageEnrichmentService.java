@@ -113,6 +113,19 @@ public class PlaceImageEnrichmentService {
         }
     }
 
+    public boolean refreshPlace(Long placeId) {
+        if (!inFlightPlaces.add(placeId)) {
+            return true;
+        }
+        try {
+            return placeRepository.findById(placeId)
+                    .map(this::performEnrich)
+                    .orElse(false);
+        } finally {
+            inFlightPlaces.remove(placeId);
+        }
+    }
+
     private boolean enrichWithLock(Place place) {
         if (!inFlightPlaces.add(place.getId())) {
             return true;

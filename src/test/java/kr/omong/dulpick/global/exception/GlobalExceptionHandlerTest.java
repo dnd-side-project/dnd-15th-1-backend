@@ -43,6 +43,23 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void recordsImageUnavailableAsWarning() {
+        MockHttpServletRequest request = new MockHttpServletRequest(
+                HttpMethod.GET.name(), "/api/v1/content-images/key"
+        );
+        BusinessException exception = new BusinessException(ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE);
+
+        globalExceptionHandler.handleBusiness(exception, request);
+
+        verify(errorMonitoringService).record(
+                ErrorLevel.WARNING,
+                ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE,
+                exception,
+                request
+        );
+    }
+
+    @Test
     void recordsInfoForNotFoundException() {
         MockHttpServletRequest request = new MockHttpServletRequest(HttpMethod.GET.name(), "/missing");
         NoResourceFoundException exception = mock(NoResourceFoundException.class);

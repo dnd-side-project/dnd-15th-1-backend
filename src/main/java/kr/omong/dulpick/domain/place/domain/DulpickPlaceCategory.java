@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.domain;
 
+import java.util.List;
 import java.util.Locale;
 
 public enum DulpickPlaceCategory {
@@ -12,6 +13,26 @@ public enum DulpickPlaceCategory {
     ACCOMMODATION("숙박");
 
     private final String displayName;
+
+    private static final List<KakaoCategoryGroup> KAKAO_CATEGORY_GROUPS = List.of(
+            new KakaoCategoryGroup("FD6", "음식점"),
+            new KakaoCategoryGroup("CE7", "카페"),
+            new KakaoCategoryGroup("CT1", "문화시설"),
+            new KakaoCategoryGroup("MT1", "대형마트"),
+            new KakaoCategoryGroup("CS2", "편의점"),
+            new KakaoCategoryGroup("AT4", "관광명소"),
+            new KakaoCategoryGroup("AD5", "숙박"),
+            new KakaoCategoryGroup("PS3", "어린이집"),
+            new KakaoCategoryGroup("SC4", "학교"),
+            new KakaoCategoryGroup("AC5", "학원"),
+            new KakaoCategoryGroup("PK6", "주차장"),
+            new KakaoCategoryGroup("OL7", "주유소"),
+            new KakaoCategoryGroup("SW8", "지하철역"),
+            new KakaoCategoryGroup("BK9", "은행"),
+            new KakaoCategoryGroup("AG2", "관공서"),
+            new KakaoCategoryGroup("PO3", "병원"),
+            new KakaoCategoryGroup("PM9", "약국")
+    );
 
     DulpickPlaceCategory(String displayName) {
         this.displayName = displayName;
@@ -28,6 +49,20 @@ public enum DulpickPlaceCategory {
     public static boolean isFallback(String categoryGroupCode, String kakaoCategory) {
         return fromGroupCode(categoryGroupCode) == null
                 && fromCategoryPathOrNull(kakaoCategory) == null;
+    }
+
+    public static List<KakaoCategoryGroup> kakaoCategoryGroups() {
+        return KAKAO_CATEGORY_GROUPS;
+    }
+
+    public static boolean isSupportedGroupCode(String categoryGroupCode) {
+        if (categoryGroupCode == null || categoryGroupCode.isBlank()) {
+            return true;
+        }
+        String normalized = categoryGroupCode.strip().toUpperCase(Locale.ROOT);
+        return KAKAO_CATEGORY_GROUPS.stream()
+                .map(KakaoCategoryGroup::code)
+                .anyMatch(normalized::equals);
     }
 
     public String getDisplayName() {
@@ -101,5 +136,8 @@ public enum DulpickPlaceCategory {
             }
         }
         return false;
+    }
+
+    public record KakaoCategoryGroup(String code, String displayName) {
     }
 }

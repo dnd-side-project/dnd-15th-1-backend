@@ -189,6 +189,12 @@ public class GlobalExceptionHandler {
     }
 
     private ErrorLevel resolveBusinessLevel(ErrorCode errorCode) {
+        if (errorCode == ErrorCode.PUBLIC_CONTENT_IMAGE_UNAVAILABLE
+                || errorCode == ErrorCode.PLACE_METADATA_UNAVAILABLE
+                || errorCode == ErrorCode.PLACE_ANALYSIS_UNAVAILABLE
+                || errorCode == ErrorCode.PLACE_VERIFICATION_UNAVAILABLE) {
+            return ErrorLevel.WARNING;
+        }
         if (errorCode.getHttpStatus().is5xxServerError()) {
             return ErrorLevel.CRITICAL;
         }

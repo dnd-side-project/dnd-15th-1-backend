@@ -19,7 +19,8 @@ public class ContentImageWorkerConfig {
         executor.setThreadNamePrefix("content-image-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.AbortPolicy());
         executor.setWaitForTasksToCompleteOnShutdown(false);
-        executor.setAwaitTerminationSeconds(1);
+        executor.setAcceptTasksAfterContextClose(false);
+        executor.setAwaitTerminationSeconds(0);
         executor.initialize();
         return executor;
     }

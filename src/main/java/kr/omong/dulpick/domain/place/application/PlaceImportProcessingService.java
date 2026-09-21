@@ -344,22 +344,27 @@ public class PlaceImportProcessingService {
 
     private CandidateVerifications verifyCandidates(List<ExtractedPlace> extracted) {
         List<CompletableFuture<PlaceVerificationResult>> futures = new ArrayList<>();
-        try {
-            for (ExtractedPlace place : extracted) {
+        boolean hasSubmissionFailure = false;
+        for (ExtractedPlace place : extracted) {
+            try {
                 futures.add(CompletableFuture.supplyAsync(
                         () -> verifyCachedOrExternal(place), verificationExecutor
                 ));
+            } catch (RejectedExecutionException exception) {
+                futures.add(null);
+                hasSubmissionFailure = true;
             }
-        } catch (RejectedExecutionException exception) {
-            waitForAllVerifications(futures);
-            throw new PlaceVerificationUnavailableException(exception);
         }
         waitForAllVerifications(futures);
         List<VerifiedCandidate> candidates = new ArrayList<>();
-        boolean hasFailure = false;
+        boolean hasFailure = hasSubmissionFailure;
         for (int index = 0; index < extracted.size(); index++) {
+            CompletableFuture<PlaceVerificationResult> future = futures.get(index);
+            if (future == null) {
+                continue;
+            }
             try {
-                PlaceVerificationResult verification = awaitVerification(futures.get(index));
+                PlaceVerificationResult verification = awaitVerification(future);
                 if (verification != null) {
                     ExtractedPlace extractedPlace = extracted.get(index);
                     candidates.add(new VerifiedCandidate(
@@ -379,7 +384,10 @@ public class PlaceImportProcessingService {
 
     private void waitForAllVerifications(List<CompletableFuture<PlaceVerificationResult>> futures) {
         try {
-            CompletableFuture.allOf(futures.toArray(CompletableFuture[]::new)).join();
+            CompletableFuture<?>[] submitted = futures.stream()
+                    .filter(Objects::nonNull)
+                    .toArray(CompletableFuture[]::new);
+            CompletableFuture.allOf(submitted).join();
         } catch (CompletionException ignored) {
             // Preserve the original exception while ensuring sibling tasks have finished.
         }

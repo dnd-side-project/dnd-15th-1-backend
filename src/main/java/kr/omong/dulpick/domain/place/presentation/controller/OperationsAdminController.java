@@ -6,6 +6,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import kr.omong.dulpick.domain.analytics.application.AnalyticsMetricsService;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsMetricsResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsComparisonResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsFunnelResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsRetentionResponse;
+import kr.omong.dulpick.domain.analytics.presentation.AnalyticsTrendResponse;
+import kr.omong.dulpick.domain.analytics.application.InvalidMetricPeriodException;
 import kr.omong.dulpick.domain.place.application.OperationsAdminService;
 import kr.omong.dulpick.domain.place.application.OperationsAdminView;
 import kr.omong.dulpick.domain.place.application.ContentImageStorageService;
@@ -14,6 +21,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceImportStatus;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPublicationStatusRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.CreateAdminPlaceRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.ManualPlaceLinkRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.CompletePlaceImportRequest;
+import kr.omong.dulpick.domain.place.presentation.dto.request.ReviewPlaceCandidateRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentAdminRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdateContentPlacesRequest;
 import kr.omong.dulpick.domain.place.presentation.dto.request.UpdatePlaceAdminRequest;
@@ -36,6 +45,10 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
 
 @Tag(name = SwaggerTagNames.OPS, description = "운영자 대시보드·장애 대응 API")
 @SecurityRequirement(name = "basicAuth")
@@ -43,16 +56,112 @@ import java.time.Instant;
 @RequestMapping("/api/v1/admin")
 public class OperationsAdminController {
 
-    private final OperationsAdminService adminService;
+    private static final int MAX_METRIC_PERIOD_DAYS = 366;
 
-    public OperationsAdminController(OperationsAdminService adminService) {
+    private final OperationsAdminService adminService;
+    private final AnalyticsMetricsService analyticsMetricsService;
+
+    public OperationsAdminController(
+            OperationsAdminService adminService,
+            AnalyticsMetricsService analyticsMetricsService
+    ) {
         this.adminService = adminService;
+        this.analyticsMetricsService = analyticsMetricsService;
     }
 
     @Operation(summary = "운영 대시보드 요약 조회")
     @GetMapping("/overview")
     public ResponseEntity<OperationsAdminView.Dashboard> overview() {
         return ResponseEntity.ok(adminService.dashboard());
+    }
+
+    @Operation(summary = "성과 지표 요약 조회")
+    @GetMapping("/metrics/overview")
+    public ResponseEntity<AnalyticsMetricsResponse> metricsOverview(
+            @Parameter(description = "조회 시작일(포함). 생략하면 이번 달 1일입니다.", example = "2026-09-01")
+            @RequestParam(required = false) LocalDate from,
+            @Parameter(description = "조회 종료일(미포함). 생략하면 다음 달 1일입니다.", example = "2026-10-01")
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsMetricsResponse.from(
+                analyticsMetricsService.overview(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 기간 비교 조회")
+    @GetMapping("/metrics/comparison")
+    public ResponseEntity<AnalyticsComparisonResponse> metricsComparison(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate startDate = from == null ? today.withDayOfMonth(1) : from;
+        LocalDate endDate = to == null ? startDate.plusMonths(1) : to;
+        MetricPeriod current = metricPeriod(startDate, endDate);
+        long periodDays = ChronoUnit.DAYS.between(startDate, endDate);
+        MetricPeriod previous = metricPeriod(
+                startDate.minusDays(periodDays),
+                startDate
+        );
+        return ResponseEntity.ok(AnalyticsComparisonResponse.from(
+                analyticsMetricsService.overview(current.from(), current.to()),
+                analyticsMetricsService.overview(previous.from(), previous.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 일별 추이 조회")
+    @GetMapping("/metrics/trends")
+    public ResponseEntity<AnalyticsTrendResponse> metricsTrends(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsTrendResponse.from(
+                analyticsMetricsService.trends(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 퍼널 조회")
+    @GetMapping("/metrics/funnel")
+    public ResponseEntity<AnalyticsFunnelResponse> metricsFunnel(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsFunnelResponse.from(
+                analyticsMetricsService.funnel(period.from(), period.to())
+        ));
+    }
+
+    @Operation(summary = "성과 지표 리텐션 조회")
+    @GetMapping("/metrics/retention")
+    public ResponseEntity<AnalyticsRetentionResponse> metricsRetention(
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to
+    ) {
+        MetricPeriod period = metricPeriod(from, to);
+        return ResponseEntity.ok(AnalyticsRetentionResponse.from(
+                analyticsMetricsService.retention(period.from(), period.to())
+        ));
+    }
+
+    private MetricPeriod metricPeriod(LocalDate from, LocalDate to) {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDate startDate = from == null ? today.withDayOfMonth(1) : from;
+        LocalDate endDate = to == null ? startDate.plusMonths(1) : to;
+        if (!startDate.isBefore(endDate)
+                || startDate.plusDays(MAX_METRIC_PERIOD_DAYS).isBefore(endDate)) {
+            throw new InvalidMetricPeriodException();
+        }
+        ZoneId zone = ZoneId.of("Asia/Seoul");
+        return new MetricPeriod(
+                startDate.atStartOfDay(zone).toInstant(),
+                endDate.atStartOfDay(zone).toInstant()
+        );
+    }
+
+    private record MetricPeriod(Instant from, Instant to) {
     }
 
     @Operation(
@@ -140,7 +249,7 @@ public class OperationsAdminController {
         return ResponseEntity.ok(adminService.updateContent(contentId, request));
     }
 
-    @Operation(summary = "게시글 연결 장소 수정")
+    @Operation(summary = "게시글 연결 장소 수정", description = "장소를 저장하고 publish=true이면 게시글을 PUBLIC으로 전환합니다.")
     @PatchMapping("/contents/{contentId:[0-9]+}/places")
     public ResponseEntity<OperationsAdminView.ContentDetail> updateContentPlaces(
             @Parameter(example = "2001") @PathVariable @Schema(example = "2001") Long contentId,
@@ -276,10 +385,29 @@ public class OperationsAdminController {
     @GetMapping("/places/search")
     public ResponseEntity<OperationsAdminView.PlaceSearchPage> searchPlaces(
             @Parameter(example = "카페") @RequestParam(defaultValue = "") @Schema(example = "카페") String query,
+            @Parameter(description = "카카오 그룹 코드 또는 MISSING")
+            @RequestParam(required = false) @Schema(example = "CE7") String categoryGroupCode,
+            @Parameter(description = "대표 이미지 상태: AVAILABLE 또는 MISSING")
+            @RequestParam(required = false) @Schema(example = "MISSING") String thumbnailStatus,
             @Parameter(example = "0") @RequestParam(defaultValue = "0") @Schema(example = "0") int page,
             @Parameter(example = "20") @RequestParam(defaultValue = "20") @Schema(example = "20") int size
     ) {
-        return ResponseEntity.ok(adminService.searchPlaces(query, page, size));
+        return ResponseEntity.ok(adminService.searchPlaces(query, categoryGroupCode, thumbnailStatus, page, size));
+    }
+
+    @Operation(summary = "카카오맵 장소 검색")
+    @GetMapping("/places/kakao-search")
+    public ResponseEntity<OperationsAdminView.KakaoPlaceSearchPage> searchKakaoPlaces(
+            @Parameter(example = "도원반점")
+            @RequestParam @Schema(example = "도원반점") String query
+    ) {
+        return ResponseEntity.ok(adminService.searchKakaoPlaces(query));
+    }
+
+    @Operation(summary = "Kakao 장소 카테고리 그룹 코드 목록 조회")
+    @GetMapping("/places/category-groups")
+    public ResponseEntity<List<OperationsAdminView.PlaceCategoryGroupOption>> placeCategoryGroups() {
+        return ResponseEntity.ok(adminService.placeCategoryGroups());
     }
 
     @Operation(
@@ -301,6 +429,29 @@ public class OperationsAdminController {
             @Valid @RequestBody ManualPlaceLinkRequest request
     ) {
         return ResponseEntity.ok(adminService.manuallyLinkPlace(importId, request));
+    }
+
+    @Operation(summary = "장소 추출 후보 제외")
+    @DeleteMapping("/place-imports/{importId:[0-9]+}/candidates/{candidateId:[0-9]+}")
+    public ResponseEntity<OperationsAdminView.ImportDetail> rejectPlaceCandidate(
+            @Parameter(example = "1001") @PathVariable @Schema(example = "1001") Long importId,
+            @Parameter(example = "3001") @PathVariable @Schema(example = "3001") Long candidateId,
+            @Valid @RequestBody ReviewPlaceCandidateRequest request
+    ) {
+        return ResponseEntity.ok(adminService.rejectCandidate(
+                importId, candidateId, request.expectedUpdatedAt()
+        ));
+    }
+
+    @Operation(summary = "장소 추출 작업 최종 확정 및 공개")
+    @PostMapping("/place-imports/{importId:[0-9]+}/complete")
+    public ResponseEntity<OperationsAdminView.ContentDetail> completePlaceImport(
+            @Parameter(example = "1001") @PathVariable @Schema(example = "1001") Long importId,
+            @Valid @RequestBody CompletePlaceImportRequest request
+    ) {
+        return ResponseEntity.ok(adminService.completeManualPlaceImport(
+                importId, request.expectedUpdatedAt()
+        ));
     }
 
     @Operation(summary = "이미지 보강 백로그 조회")
@@ -328,6 +479,15 @@ public class OperationsAdminController {
             @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId
     ) {
         adminService.retryPlaceImages(placeId);
+        return ResponseEntity.accepted().build();
+    }
+
+    @Operation(summary = "장소 원본 이미지 재추출")
+    @PostMapping("/places/{placeId:[0-9]+}/images/refresh")
+    public ResponseEntity<Void> refreshPlaceImages(
+            @Parameter(example = "101") @PathVariable @Schema(example = "101") Long placeId
+    ) {
+        adminService.refreshPlaceImages(placeId);
         return ResponseEntity.accepted().build();
     }
 

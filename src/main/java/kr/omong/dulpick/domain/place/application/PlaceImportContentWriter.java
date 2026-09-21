@@ -96,7 +96,7 @@ public class PlaceImportContentWriter {
                         place.getAddress(), null, null, clock.instant()))
                 .toList());
         requireClaim(importId, claimToken).complete(displayTitle(metadata), metadata.caption(),
-                metadata.thumbnailUrl(), metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant());
+                metadata.thumbnailUrl(), metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), false);
         return true;
     }
 
@@ -137,7 +137,7 @@ public class PlaceImportContentWriter {
                     .ifPresent(content -> content.publish(clock.instant()));
         }
         placeImport.complete(displayTitle(metadata), metadata.caption(), metadata.thumbnailUrl(),
-                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant());
+                metadata.contentHash(), metadata.sourceUpdatedAt(), clock.instant(), preserveExistingLinks);
         recordSourceMetadata(placeImport, metadata);
     }
 
@@ -164,6 +164,7 @@ public class PlaceImportContentWriter {
         placeRepository.insertIfAbsent(verified.kakaoPlaceId(), verified.name(), verified.address(),
                 verified.roadAddress(), verified.latitude(), verified.longitude(), verified.category(),
                 verified.categoryGroupCode(), verified.phone(), verified.kakaoPlaceUrl(),
+                DulpickPlaceCategory.fromKakao(verified.categoryGroupCode(), verified.category()).name(),
                 null, now);
         Place place = placeRepository.findByKakaoPlaceId(verified.kakaoPlaceId())
                 .orElseThrow(IllegalStateException::new);

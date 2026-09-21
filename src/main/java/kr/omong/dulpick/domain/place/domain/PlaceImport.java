@@ -156,9 +156,21 @@ public class PlaceImport {
             Instant sourceUpdatedAt,
             Instant now
     ) {
+        complete(title, content, thumbnailUrl, contentHash, sourceUpdatedAt, now, true);
+    }
+
+    public void complete(
+            String title,
+            String content,
+            String thumbnailUrl,
+            String contentHash,
+            Instant sourceUpdatedAt,
+            Instant now,
+            boolean reviewRequired
+    ) {
         recordMetadata(title, content, thumbnailUrl, contentHash, sourceUpdatedAt);
         this.sourceUpdatedAt = sourceUpdatedAt;
-        status = PlaceImportStatus.REVIEW_REQUIRED;
+        status = reviewRequired ? PlaceImportStatus.REVIEW_REQUIRED : PlaceImportStatus.COMPLETED;
         processingClaimToken = null;
         updatedAt = now;
         completedAt = now;
@@ -222,6 +234,10 @@ public class PlaceImport {
         this.processingClaimToken = null;
         this.updatedAt = now;
         this.completedAt = now;
+    }
+
+    public void touch(Instant now) {
+        this.updatedAt = now;
     }
 
     public Long getId() {

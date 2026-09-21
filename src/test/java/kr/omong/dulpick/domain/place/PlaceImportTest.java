@@ -38,6 +38,30 @@ class PlaceImportTest {
     }
 
     @Test
+    void completesWhenEveryPlaceVerificationSucceeds() {
+        Instant createdAt = Instant.parse("2026-08-09T00:00:00Z");
+        PlaceImport placeImport = PlaceImport.receive(
+                1L,
+                "https://www.instagram.com/reel/example",
+                "hash",
+                ContentSourceType.INSTAGRAM_REEL,
+                createdAt
+        );
+
+        placeImport.complete(
+                "제목",
+                "내용",
+                null,
+                "content-hash",
+                createdAt,
+                createdAt.plusSeconds(2),
+                false
+        );
+
+        assertThat(placeImport.getStatus()).isEqualTo(PlaceImportStatus.COMPLETED);
+    }
+
+    @Test
     void failedImportCanBeRetried() {
         Instant createdAt = Instant.parse("2026-08-09T00:00:00Z");
         PlaceImport placeImport = PlaceImport.receive(

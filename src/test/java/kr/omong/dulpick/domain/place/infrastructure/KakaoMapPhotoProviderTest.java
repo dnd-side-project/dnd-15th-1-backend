@@ -45,6 +45,58 @@ class KakaoMapPhotoProviderTest {
     }
 
     @Test
+    void returnsUpToTenPhotosAndKeepsAvailablePhotosWhenFewerExist() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
+                properties(true, 50),
+                builder
+        );
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withSuccess("""
+                        {
+                          "photos": [
+                            {"url": "https://t1.kakaocdn.net/photo/1"},
+                            {"url": "https://t1.kakaocdn.net/photo/2"},
+                            {"url": "https://t1.kakaocdn.net/photo/3"},
+                            {"url": "https://t1.kakaocdn.net/photo/4"},
+                            {"url": "https://t1.kakaocdn.net/photo/5"},
+                            {"url": "https://t1.kakaocdn.net/photo/6"},
+                            {"url": "https://t1.kakaocdn.net/photo/7"},
+                            {"url": "https://t1.kakaocdn.net/photo/8"},
+                            {"url": "https://t1.kakaocdn.net/photo/9"},
+                            {"url": "https://t1.kakaocdn.net/photo/10"},
+                            {"url": "https://t1.kakaocdn.net/photo/11"}
+                          ]
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findImageUrls("610012827"))
+                .hasSize(10)
+                .contains("https://t1.kakaocdn.net/photo/10")
+                .doesNotContain("https://t1.kakaocdn.net/photo/11");
+        server.verify();
+    }
+
+    @Test
+    void returnsFewerThanTenPhotosWithoutRaisingAnError() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoMapPhotoProvider provider = new KakaoMapPhotoProvider(
+                properties(true, 10),
+                builder
+        );
+        server.expect(once(), queryParam("page", "1"))
+                .andRespond(withSuccess("""
+                        {"photos": [{"url": "https://t1.kakaocdn.net/photo/only"}]}
+                        """, MediaType.APPLICATION_JSON));
+
+        assertThat(provider.findImageUrls("610012827"))
+                .containsExactly("https://t1.kakaocdn.net/photo/only");
+        server.verify();
+    }
+
+    @Test
     void returnsEmptyWhenKakaoMapPhotoRequestFails() {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();

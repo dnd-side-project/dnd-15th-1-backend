@@ -182,10 +182,10 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
             INSERT INTO places
                 (kakao_place_id, name, address, road_address, latitude, longitude,
                  category, category_group_code, phone, kakao_place_url,
-                 thumbnail_url, created_at, updated_at)
+                 dulpick_category_code, thumbnail_url, created_at, updated_at)
             VALUES
                 (:kakaoId, :name, :address, NULLIF(TRIM(:roadAddress), ''), :latitude, :longitude,
-                 :category, :categoryGroupCode, :phone, :kakaoPlaceUrl,
+                 :category, :categoryGroupCode, :phone, :kakaoPlaceUrl, :dulpickCategoryCode,
                  :thumbnail, :now, :now)
             ON DUPLICATE KEY UPDATE
                 road_address = COALESCE(
@@ -198,12 +198,17 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
                 ),
                 phone = COALESCE(NULLIF(:phone, ''), phone),
                 kakao_place_url = COALESCE(NULLIF(:kakaoPlaceUrl, ''), kakao_place_url),
+                dulpick_category_code = COALESCE(
+                    NULLIF(TRIM(dulpick_category_code), ''),
+                    NULLIF(TRIM(:dulpickCategoryCode), '')
+                ),
                 thumbnail_url = COALESCE(:thumbnail, thumbnail_url),
                 updated_at = CASE
                     WHEN :thumbnail IS NULL
                          AND NULLIF(TRIM(:categoryGroupCode), '') IS NULL
                          AND (:phone IS NULL OR :phone = '')
                          AND (:kakaoPlaceUrl IS NULL OR :kakaoPlaceUrl = '')
+                         AND NULLIF(TRIM(:dulpickCategoryCode), '') IS NULL
                     THEN updated_at
                     ELSE :now
                 END
@@ -219,9 +224,41 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
             @Param("categoryGroupCode") String categoryGroupCode,
             @Param("phone") String phone,
             @Param("kakaoPlaceUrl") String kakaoPlaceUrl,
+            @Param("dulpickCategoryCode") String dulpickCategoryCode,
             @Param("thumbnail") String thumbnail,
             @Param("now") Instant now
     );
+
+    default void insertIfAbsent(
+            String kakaoId,
+            String name,
+            String address,
+            String roadAddress,
+            java.math.BigDecimal latitude,
+            java.math.BigDecimal longitude,
+            String category,
+            String categoryGroupCode,
+            String phone,
+            String kakaoPlaceUrl,
+            String thumbnail,
+            Instant now
+    ) {
+        insertIfAbsent(
+                kakaoId,
+                name,
+                address,
+                roadAddress,
+                latitude,
+                longitude,
+                category,
+                categoryGroupCode,
+                phone,
+                kakaoPlaceUrl,
+                DulpickPlaceCategory.fromKakao(categoryGroupCode, category).name(),
+                thumbnail,
+                now
+        );
+    }
 
     default void insertIfAbsent(
             String kakaoId,
@@ -261,6 +298,20 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     void updateThumbnail(
             @Param("placeId") Long placeId,
             @Param("thumbnailUrl") String thumbnailUrl,
+            @Param("updatedAt") Instant updatedAt
+    );
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            UPDATE Place place
+            SET place.dulpickCategoryCode = :dulpickCategoryCode,
+                place.updatedAt = :updatedAt
+            WHERE place.id = :placeId
+              AND place.dulpickCategoryCode IS NULL
+            """)
+    int updateDulpickCategoryIfMissing(
+            @Param("placeId") Long placeId,
+            @Param("dulpickCategoryCode") DulpickPlaceCategory dulpickCategoryCode,
             @Param("updatedAt") Instant updatedAt
     );
 
