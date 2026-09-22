@@ -20,10 +20,13 @@ import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,6 +49,13 @@ class SocialLoginHandlerTest {
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository =
             mock(ActiveCoupleMemberRepository.class);
     private final TokenService tokenService = mock(TokenService.class);
+    private final ApplicationEventPublisher eventPublisher =
+            mock(ApplicationEventPublisher.class);
+    private final Clock clock = Clock.fixed(
+            Instant.EPOCH,
+            ZoneOffset.UTC
+    );
+
     private final SocialLoginHandler handler = new SocialLoginHandler(
             verifierRegistry,
             loginNonceService,
@@ -53,7 +63,9 @@ class SocialLoginHandlerTest {
             socialAccountService,
             memberProfileRepository,
             activeCoupleMemberRepository,
-            tokenService
+            tokenService,
+            eventPublisher,
+            clock
     );
 
     @Test
