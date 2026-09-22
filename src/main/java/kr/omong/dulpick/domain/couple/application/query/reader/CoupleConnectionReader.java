@@ -60,7 +60,8 @@ public class CoupleConnectionReader {
                 me,
                 readProfile(partnerId),
                 connectedAt,
-                calculateDaysTogether(connectedAt)
+                calculateDaysTogether(connectedAt),
+                membership.getCouple().getId()
         );
     }
 

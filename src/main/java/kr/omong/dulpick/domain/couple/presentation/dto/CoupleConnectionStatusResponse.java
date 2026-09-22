@@ -16,7 +16,14 @@ public record CoupleConnectionStatusResponse(
         @Schema(description = "커플 연결 시각. Asia/Seoul 기준이며 미연결이면 null입니다.", nullable = true, format = "date-time", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
         LocalDateTime connectedAt,
         @Schema(description = "연결일을 1일째로 계산한 함께한 일수. 미연결이면 null입니다.", example = "1", nullable = true, minimum = "1", requiredMode = Schema.RequiredMode.NOT_REQUIRED)
-        Long daysTogether
+        Long daysTogether,
+        @Schema(
+                description = "활성 커플 식별자. Mixpanel 등 분석 이벤트 속성으로 사용하며, 미연결이면 null입니다.",
+                example = "10",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        Long coupleId
 ) {
 
     public static CoupleConnectionStatusResponse from(CoupleConnectionStatus status) {
@@ -25,7 +32,8 @@ public record CoupleConnectionStatusResponse(
                 CoupleMemberProfileResponse.from(status.me()),
                 CoupleMemberProfileResponse.from(status.partner()),
                 ServiceTime.toLocalDateTime(status.connectedAt()),
-                status.daysTogether()
+                status.daysTogether(),
+                status.coupleId()
         );
     }
 }

@@ -69,6 +69,7 @@ class CoupleConnectionReaderTest {
 
         assertThat(status.connected()).isTrue();
         assertThat(status.daysTogether()).isEqualTo(2);
+        assertThat(status.coupleId()).isEqualTo(10L);
         assertThat(status.partner().nickname()).isEqualTo("상대");
     }
 

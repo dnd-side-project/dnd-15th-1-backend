@@ -1,10 +1,12 @@
 package kr.omong.dulpick.domain.auth.application.command.handler;
 
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
+import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
 import kr.omong.dulpick.domain.auth.application.command.SocialLoginCommand;
 import kr.omong.dulpick.domain.auth.application.command.result.IssuedTokens;
 import kr.omong.dulpick.domain.auth.application.command.result.SocialLoginResult;
-import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
 import kr.omong.dulpick.domain.auth.application.exception.ConcurrentSocialAccountCreationException;
+import kr.omong.dulpick.domain.auth.application.exception.InvalidSocialLoginRequestException;
 import kr.omong.dulpick.domain.auth.application.support.AppleAuthorizationService;
 import kr.omong.dulpick.domain.auth.application.support.LoginNonceService;
 import kr.omong.dulpick.domain.auth.application.support.SocialAccountService;
@@ -14,15 +16,13 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
-import kr.omong.dulpick.domain.analytics.domain.AnalyticsActionEvent;
-import kr.omong.dulpick.domain.analytics.domain.AnalyticsEventType;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 import java.time.Clock;
-import java.time.Instant;
 
 @Component
 public class SocialLoginHandler {
@@ -32,6 +32,7 @@ public class SocialLoginHandler {
     private final AppleAuthorizationService appleAuthorizationService;
     private final SocialAccountService socialAccountService;
     private final MemberProfileRepository memberProfileRepository;
+    private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final TokenService tokenService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
@@ -43,6 +44,7 @@ public class SocialLoginHandler {
             AppleAuthorizationService appleAuthorizationService,
             SocialAccountService socialAccountService,
             MemberProfileRepository memberProfileRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
             TokenService tokenService,
             ApplicationEventPublisher eventPublisher,
             Clock clock
@@ -52,6 +54,7 @@ public class SocialLoginHandler {
         this.appleAuthorizationService = appleAuthorizationService;
         this.socialAccountService = socialAccountService;
         this.memberProfileRepository = memberProfileRepository;
+        this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.tokenService = tokenService;
         this.eventPublisher = eventPublisher;
         this.clock = clock;
@@ -71,6 +74,7 @@ public class SocialLoginHandler {
                 appleAuthorizationService,
                 socialAccountService,
                 memberProfileRepository,
+                null,
                 tokenService,
                 null,
                 Clock.systemUTC()
@@ -79,32 +83,61 @@ public class SocialLoginHandler {
 
     public SocialLoginResult handle(SocialLoginCommand command) {
         validateRequiredFields(command);
-        SocialIdentity identity = verifierRegistry.verify(command.provider(), command.idToken());
+
+        SocialIdentity identity = verifierRegistry.verify(
+                command.provider(),
+                command.idToken()
+        );
+
         validateNonce(command, identity);
-        ProviderAuthorization providerAuthorization = exchangeAppleCode(command, identity);
+
+        ProviderAuthorization providerAuthorization = exchangeAppleCode(
+                command,
+                identity
+        );
+
         AuthenticatedMember authenticatedMember = getOrCreateMember(
                 command.provider(),
                 identity,
                 providerAuthorization
         );
+
         publishSignupEvent(authenticatedMember);
+
         IssuedTokens tokens = tokenService.issue(authenticatedMember.member());
+
+        Long memberId = authenticatedMember.member().getId();
+
         return new SocialLoginResult(
-                authenticatedMember.member().getId(),
+                memberId,
                 authenticatedMember.newMember(),
                 isOnboardingCompleted(authenticatedMember),
+                findCoupleId(memberId),
                 tokens
         );
+    }
+
+    private Long findCoupleId(Long memberId) {
+        if (activeCoupleMemberRepository == null) {
+            return null;
+        }
+
+        return activeCoupleMemberRepository.findByMemberId(memberId)
+                .map(membership -> membership.getCouple().getId())
+                .orElse(null);
     }
 
     private void publishSignupEvent(AuthenticatedMember authenticatedMember) {
         if (!authenticatedMember.newMember() || eventPublisher == null) {
             return;
         }
+
         Long memberId = authenticatedMember.member().getId();
+
         if (memberId == null) {
             return;
         }
+
         eventPublisher.publishEvent(new AnalyticsActionEvent(
                 "MEMBER_SIGNED_UP:%d".formatted(memberId),
                 AnalyticsEventType.MEMBER_SIGNED_UP,
@@ -116,13 +149,24 @@ public class SocialLoginHandler {
         ));
     }
 
-    private boolean isOnboardingCompleted(AuthenticatedMember authenticatedMember) {
+    private boolean isOnboardingCompleted(
+            AuthenticatedMember authenticatedMember
+    ) {
         return !authenticatedMember.newMember()
-                && memberProfileRepository.existsById(authenticatedMember.member().getId());
+                && memberProfileRepository.existsById(
+                authenticatedMember.member().getId()
+        );
     }
 
-    private void validateNonce(SocialLoginCommand command, SocialIdentity identity) {
-        loginNonceService.consume(command.provider(), command.nonce(), identity.tokenNonce());
+    private void validateNonce(
+            SocialLoginCommand command,
+            SocialIdentity identity
+    ) {
+        loginNonceService.consume(
+                command.provider(),
+                command.nonce(),
+                identity.tokenNonce()
+        );
     }
 
     private ProviderAuthorization exchangeAppleCode(
@@ -132,19 +176,26 @@ public class SocialLoginHandler {
         if (command.provider() != SocialProvider.APPLE) {
             return ProviderAuthorization.none();
         }
+
         if (isBlank(command.authorizationCode())) {
             return ProviderAuthorization.clientIdOnly(identity.audience());
         }
-        return appleAuthorizationService.exchange(command.authorizationCode(), identity);
+
+        return appleAuthorizationService.exchange(
+                command.authorizationCode(),
+                identity
+        );
     }
 
     private void validateRequiredFields(SocialLoginCommand command) {
         if (isBlank(command.nonce())) {
             throw new InvalidSocialLoginRequestException("Nonce is required");
         }
+
         if (command.provider() == null) {
             throw new InvalidSocialLoginRequestException("Provider is required");
         }
+
         if (isBlank(command.idToken())) {
             throw new InvalidSocialLoginRequestException("ID token is required");
         }
@@ -163,7 +214,10 @@ public class SocialLoginHandler {
                     providerAuthorization
             );
         } catch (ConcurrentSocialAccountCreationException exception) {
-            return socialAccountService.getExisting(provider, identity.providerSubject());
+            return socialAccountService.getExisting(
+                    provider,
+                    identity.providerSubject()
+            );
         }
     }
 

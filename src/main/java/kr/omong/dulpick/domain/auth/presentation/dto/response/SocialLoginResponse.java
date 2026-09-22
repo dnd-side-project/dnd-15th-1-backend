@@ -19,6 +19,13 @@ public record SocialLoginResponse(
         )
         boolean onboardingCompleted,
         @Schema(
+                description = "활성 커플 식별자. Mixpanel 등 분석 이벤트 속성으로 사용하며, 미연결이면 null입니다.",
+                example = "10",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        Long coupleId,
+        @Schema(
                 description = "둘픽 API 인증에 사용할 Access·Refresh Token 묶음입니다.",
                 example = "{\"tokenType\":\"Bearer\",\"accessToken\":\"eyJhbGciOiJIUzI1NiJ9.example.access\",\"refreshToken\":\"eyJhbGciOiJIUzI1NiJ9.example.refresh\",\"expiresIn\":900}",
                 requiredMode = Schema.RequiredMode.REQUIRED
@@ -31,6 +38,7 @@ public record SocialLoginResponse(
                 result.memberId(),
                 result.newMember(),
                 result.onboardingCompleted(),
+                result.coupleId(),
                 TokenResponse.from(result.tokens())
         );
     }

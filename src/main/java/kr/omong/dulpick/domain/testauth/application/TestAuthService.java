@@ -11,6 +11,7 @@ import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorizat
 import kr.omong.dulpick.domain.auth.domain.RefreshToken;
 import kr.omong.dulpick.domain.auth.domain.RefreshTokenRepository;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.testauth.domain.TestAuthCredential;
@@ -41,6 +42,7 @@ public class TestAuthService {
     private final MemberProfileRepository memberProfileRepository;
     private final TokenService tokenService;
     private final AuthCommandService authCommandService;
+    private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
 
@@ -51,6 +53,7 @@ public class TestAuthService {
             MemberProfileRepository memberProfileRepository,
             TokenService tokenService,
             AuthCommandService authCommandService,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
             PasswordEncoder passwordEncoder,
             Clock clock
     ) {
@@ -60,6 +63,7 @@ public class TestAuthService {
         this.memberProfileRepository = memberProfileRepository;
         this.tokenService = tokenService;
         this.authCommandService = authCommandService;
+        this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.passwordEncoder = passwordEncoder;
         this.clock = clock;
     }
@@ -147,8 +151,15 @@ public class TestAuthService {
                 member.getId(),
                 isNewMember,
                 isOnboardingCompleted,
+                findCoupleId(member.getId()),
                 tokenService.issue(member)
         );
+    }
+
+    private Long findCoupleId(Long memberId) {
+        return activeCoupleMemberRepository.findByMemberId(memberId)
+                .map(membership -> membership.getCouple().getId())
+                .orElse(null);
     }
 
     private void validateTestAuthRefreshToken(String rawRefreshToken) {

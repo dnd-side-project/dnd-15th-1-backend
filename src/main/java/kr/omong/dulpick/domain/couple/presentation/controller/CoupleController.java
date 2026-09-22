@@ -55,6 +55,7 @@ public class CoupleController {
                     상대방의 활성 연결 코드로 커플 관계를 생성합니다.
                     connectionCode는 필수이며 영문 대문자 5자리입니다.
                     연결에 성공하면 connected=true이고 partner에는 연결된 상대방의 최신 nickname과 profileIcon이 표시됩니다.
+                    응답의 coupleId는 생성된 활성 커플 식별자입니다.
                     partner=null은 미연결 상태에서만 사용합니다.
                     회원별 요청 제한은 분당 10회, 일일 30회입니다.
                     연결과 연결 해제는 합산하여 회원별 일일 50회까지 가능합니다.
@@ -83,7 +84,8 @@ public class CoupleController {
                                                 "profileIcon": 3
                                               },
                                               "connectedAt": "2026-08-16T14:30:00",
-                                              "daysTogether": 1
+                                              "daysTogether": 1,
+                                              "coupleId": 10
                                             }
                                             """
                             )
@@ -133,8 +135,8 @@ public class CoupleController {
             summary = "내 커플 연결 상태 조회",
             description = """
                     연결 여부와 나·상대방의 최신 프로필을 조회합니다.
-                    연결 상태이면 connected=true와 상대방 partner 객체를 반환합니다.
-                    미연결이면 connected=false이고 partner, connectedAt, daysTogether는 null입니다.
+                    연결 상태이면 connected=true와 상대방 partner 객체, coupleId를 반환합니다.
+                    미연결이면 connected=false이고 partner, connectedAt, daysTogether, coupleId는 null입니다.
                     """
     )
     @ApiResponses({
@@ -153,7 +155,8 @@ public class CoupleController {
                                                       "me": {"nickname": "둘픽이", "profileIcon": 1},
                                                       "partner": {"nickname": "오몽이", "profileIcon": 3},
                                                       "connectedAt": "2026-08-16T14:30:00",
-                                                      "daysTogether": 1
+                                                      "daysTogether": 1,
+                                                      "coupleId": 10
                                                     }
                                                     """
                                     ),
@@ -165,7 +168,8 @@ public class CoupleController {
                                                       "me": {"nickname": "둘픽이", "profileIcon": 1},
                                                       "partner": null,
                                                       "connectedAt": null,
-                                                      "daysTogether": null
+                                                      "daysTogether": null,
+                                                      "coupleId": null
                                                     }
                                                     """
                                     )

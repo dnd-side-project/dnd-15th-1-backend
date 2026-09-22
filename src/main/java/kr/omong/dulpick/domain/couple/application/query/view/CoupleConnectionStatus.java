@@ -7,25 +7,28 @@ public record CoupleConnectionStatus(
         CoupleMemberProfile me,
         CoupleMemberProfile partner,
         Instant connectedAt,
-        Long daysTogether
+        Long daysTogether,
+        Long coupleId
 ) {
 
     public static CoupleConnectionStatus disconnected(CoupleMemberProfile me) {
-        return new CoupleConnectionStatus(false, me, null, null, null);
+        return new CoupleConnectionStatus(false, me, null, null, null, null);
     }
 
     public static CoupleConnectionStatus connected(
             CoupleMemberProfile me,
             CoupleMemberProfile partner,
             Instant connectedAt,
-            long daysTogether
+            long daysTogether,
+            Long coupleId
     ) {
         return new CoupleConnectionStatus(
                 true,
                 me,
                 partner,
                 connectedAt,
-                daysTogether
+                daysTogether,
+                coupleId
         );
     }
 }

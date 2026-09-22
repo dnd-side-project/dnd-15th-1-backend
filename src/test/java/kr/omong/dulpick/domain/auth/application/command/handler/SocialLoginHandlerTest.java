@@ -14,13 +14,20 @@ import kr.omong.dulpick.domain.auth.application.support.model.AuthenticatedMembe
 import kr.omong.dulpick.domain.auth.application.support.model.ProviderAuthorization;
 import kr.omong.dulpick.domain.auth.domain.SocialProvider;
 import kr.omong.dulpick.domain.auth.infrastructure.oidc.SocialIdentity;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMember;
+import kr.omong.dulpick.domain.couple.domain.ActiveCoupleMemberRepository;
+import kr.omong.dulpick.domain.couple.domain.Couple;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -39,14 +46,26 @@ class SocialLoginHandlerTest {
     private final SocialAccountService socialAccountService = mock(SocialAccountService.class);
     private final MemberProfileRepository memberProfileRepository =
             mock(MemberProfileRepository.class);
+    private final ActiveCoupleMemberRepository activeCoupleMemberRepository =
+            mock(ActiveCoupleMemberRepository.class);
     private final TokenService tokenService = mock(TokenService.class);
+    private final ApplicationEventPublisher eventPublisher =
+            mock(ApplicationEventPublisher.class);
+    private final Clock clock = Clock.fixed(
+            Instant.EPOCH,
+            ZoneOffset.UTC
+    );
+
     private final SocialLoginHandler handler = new SocialLoginHandler(
             verifierRegistry,
             loginNonceService,
             appleAuthorizationService,
             socialAccountService,
             memberProfileRepository,
-            tokenService
+            activeCoupleMemberRepository,
+            tokenService,
+            eventPublisher,
+            clock
     );
 
     @Test
@@ -78,6 +97,7 @@ class SocialLoginHandlerTest {
         assertThat(result.memberId()).isEqualTo(1L);
         assertThat(result.newMember()).isTrue();
         assertThat(result.onboardingCompleted()).isFalse();
+        assertThat(result.coupleId()).isNull();
         verifyNoInteractions(memberProfileRepository);
         verify(loginNonceService).consume(
                 SocialProvider.GOOGLE,
@@ -275,6 +295,41 @@ class SocialLoginHandlerTest {
 
         assertThatThrownBy(() -> handler.handle(command)).isSameAs(unexpected);
         verifyNoInteractions(tokenService);
+    }
+
+    @Test
+    void includesActiveCoupleIdWhenMemberIsConnected() {
+        SocialLoginCommand command = new SocialLoginCommand(
+                SocialProvider.GOOGLE,
+                "id-token",
+                null,
+                "login-nonce"
+        );
+        SocialIdentity identity = new SocialIdentity(
+                "subject",
+                "member@example.com",
+                "login-nonce",
+                "google-client-id"
+        );
+        Member member = member(6L);
+        Couple couple = Couple.connect(Instant.EPOCH);
+        ReflectionTestUtils.setField(couple, "id", 42L);
+        ActiveCoupleMember membership = ActiveCoupleMember.join(member, couple, Instant.EPOCH);
+        when(verifierRegistry.verify(SocialProvider.GOOGLE, "id-token")).thenReturn(identity);
+        when(socialAccountService.getOrCreate(
+                SocialProvider.GOOGLE,
+                "subject",
+                "member@example.com",
+                ProviderAuthorization.none()
+        )).thenReturn(new AuthenticatedMember(member, false));
+        when(memberProfileRepository.existsById(6L)).thenReturn(true);
+        when(activeCoupleMemberRepository.findByMemberId(6L)).thenReturn(Optional.of(membership));
+        when(tokenService.issue(member)).thenReturn(tokens());
+
+        SocialLoginResult result = handler.handle(command);
+
+        assertThat(result.memberId()).isEqualTo(6L);
+        assertThat(result.coupleId()).isEqualTo(42L);
     }
 
     private Member member(Long id) {

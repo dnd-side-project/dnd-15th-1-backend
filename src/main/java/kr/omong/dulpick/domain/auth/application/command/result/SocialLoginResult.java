@@ -4,6 +4,7 @@ public record SocialLoginResult(
         Long memberId,
         boolean newMember,
         boolean onboardingCompleted,
+        Long coupleId,
         IssuedTokens tokens
 ) {
 }
