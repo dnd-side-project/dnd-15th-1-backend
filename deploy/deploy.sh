@@ -24,6 +24,11 @@ if [[ ! -f "${ENV_FILE}" ]]; then
     exit 1
 fi
 
+if ! grep -q '^GOOGLE_ANDROID_CLIENT_ID=.' "${ENV_FILE}"; then
+    echo "Google Android client ID is not configured in: ${ENV_FILE}" >&2
+    exit 1
+fi
+
 if [[ ! -f "${APPLE_PRIVATE_KEY_FILE}" ]]; then
     echo "Apple private key not found: ${APPLE_PRIVATE_KEY_FILE}" >&2
     exit 1
