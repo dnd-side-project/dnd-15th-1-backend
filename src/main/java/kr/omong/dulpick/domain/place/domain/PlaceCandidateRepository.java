@@ -11,5 +11,10 @@ public interface PlaceCandidateRepository extends JpaRepository<PlaceCandidate, 
 
     List<PlaceCandidate> findAllByImportIdOrderByIdAsc(Long importId);
 
+    boolean existsByImportIdAndPlaceIdIsNullAndVerificationStatusIn(
+            Long importId,
+            List<PlaceVerificationStatus> statuses
+    );
+
     void deleteAllByImportId(Long importId);
 }

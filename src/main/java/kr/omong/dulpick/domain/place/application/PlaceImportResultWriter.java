@@ -110,6 +110,10 @@ public class PlaceImportResultWriter {
         contentWriter.saveSuccess(importId, claimToken, metadata, verifiedCandidates, preserveExistingLinks);
     }
 
+    public void saveReviewRequired(Long importId, String claimToken, ContentMetadata metadata) {
+        contentWriter.saveReviewRequired(importId, claimToken, metadata);
+    }
+
     private PlaceImport requireClaim(Long importId, String claimToken) {
         return importRepository.findClaimedForUpdate(importId, claimToken)
                 .orElseThrow(PlaceImportClaimLostException::new);

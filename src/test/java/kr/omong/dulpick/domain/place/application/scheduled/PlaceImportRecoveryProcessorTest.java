@@ -46,6 +46,8 @@ class PlaceImportRecoveryProcessorTest {
         when(importRepository.findRecoverableIds(
                 now.minusSeconds(5),
                 now.minusSeconds(600),
+                now.minusSeconds(300),
+                3,
                 PageRequest.of(0, 20)
         )).thenReturn(List.of(1L, 2L));
         processor.process();

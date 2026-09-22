@@ -7,6 +7,7 @@ import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.place.domain.Content;
 import kr.omong.dulpick.domain.place.domain.ContentImage;
 import kr.omong.dulpick.domain.place.domain.ContentImageRepository;
+import kr.omong.dulpick.domain.place.domain.ContentPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.ContentRepository;
 import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
@@ -16,6 +17,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceCandidateRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceImport;
 import kr.omong.dulpick.domain.place.domain.PlaceImportRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import kr.omong.dulpick.global.security.config.OpsAccessProperties;
 import kr.omong.dulpick.global.security.crypto.Sha256;
 import org.junit.jupiter.api.Test;
@@ -65,6 +68,12 @@ class OperationsAdminIntegrationTest {
 
     @Autowired
     private PlaceCandidateRepository placeCandidateRepository;
+
+    @Autowired
+    private ContentPlaceRepository contentPlaceRepository;
+
+    @Autowired
+    private MemberPlaceRepository memberPlaceRepository;
 
     @Autowired
     private SocialAccountService socialAccountService;
@@ -320,6 +329,55 @@ class OperationsAdminIntegrationTest {
 
         assertThat(placeImportRepository.findById(placeImport.getId()).orElseThrow()
                 .getStatus().name()).isEqualTo("COMPLETED");
+    }
+
+    @Test
+    void addsOperationsVerifiedPlaceToContentWithoutSavingItForMember() throws Exception {
+        Content content = createContent();
+        Place place = createPlace();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-unresolved-" + UUID.randomUUID(),
+                "ops-import-unresolved@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport = placeImportRepository.save(placeImport);
+        PlaceCandidate candidate = placeCandidateRepository.save(PlaceCandidate.matched(
+                placeImport.getId(), null, "운영진 확인 필요 장소", "서울", null,
+                "EXPLICIT_VENUE", PlaceVerificationStatus.REVIEW_REQUIRED,
+                Instant.now()
+        ));
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/manual-place", placeImport.getId())
+                        .with(operator())
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "placeId": %d,
+                                  "candidateId": %d,
+                                  "publish": false,
+                                  "expectedUpdatedAt": "%s"
+                                }
+                                """.formatted(place.getId(), candidate.getId(), placeImport.getUpdatedAt())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].placeId").value(place.getId()));
+
+        assertThat(contentPlaceRepository.findAllByContentId(content.getId()))
+                .extracting(contentPlace -> contentPlace.getPlaceId())
+                .containsExactly(place.getId());
+        assertThat(memberPlaceRepository.findAllByMemberIdOrderBySavedAtDesc(member.getId()))
+                .isEmpty();
+        assertThat(placeCandidateRepository.findById(candidate.getId()).orElseThrow().getVerificationStatus())
+                .isEqualTo(PlaceVerificationStatus.VERIFIED);
     }
 
     @Test
@@ -625,6 +683,37 @@ class OperationsAdminIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.canonicalUrl").value(partialContent.getCanonicalUrl()))
                 .andExpect(jsonPath("$.summary.failedPlaceNames").value("미검증 후보"));
+    }
+
+    @Test
+    void requeuesReviewRequiredImportForOperatorRetry() throws Exception {
+        Content content = createContent();
+        Member member = socialAccountService.getOrCreate(
+                SocialProvider.KAKAO,
+                "ops-import-retry-review-" + UUID.randomUUID(),
+                "ops-import-retry-review@example.com",
+                ProviderAuthorization.none()
+        ).member();
+        PlaceImport placeImport = PlaceImport.receive(
+                member.getId(),
+                content.getCanonicalUrl(),
+                Sha256.hex(content.getCanonicalUrl()),
+                ContentSourceType.INSTAGRAM_REEL,
+                content.getCreatedAt()
+        );
+        placeImport.attachContent(content.getId());
+        placeImport.complete("제목", "본문", null, "hash", Instant.now(), Instant.now(), true);
+        placeImport = placeImportRepository.saveAndFlush(placeImport);
+
+        mockMvc.perform(post("/api/v1/admin/place-imports/{importId}/retry", placeImport.getId())
+                        .with(operator())
+                        .with(csrf()))
+                .andExpect(status().isAccepted());
+
+        mockMvc.perform(get("/api/v1/admin/place-imports/{importId}", placeImport.getId())
+                        .with(operator()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.status").value("RECEIVED"));
     }
 
     private org.springframework.test.web.servlet.request.RequestPostProcessor operator() {

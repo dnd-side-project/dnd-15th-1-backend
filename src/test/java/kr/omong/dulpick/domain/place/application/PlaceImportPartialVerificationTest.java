@@ -10,6 +10,8 @@ import kr.omong.dulpick.domain.place.domain.PlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceVerificationStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.Clock;
@@ -71,7 +73,7 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
-    void savesVerifiedCandidatesWhenSomeVerificationsFail() {
+    void preservesExtractedCandidatesWhenVerificationRetriesAreExhausted() {
         ExtractedPlace succeeded = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace failed = new ExtractedPlace("실패 카페", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(succeeded, failed));
@@ -88,12 +90,14 @@ class PlaceImportPartialVerificationTest {
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
         List<VerifiedCandidate> saved = captor.getValue();
-        assertThat(saved).hasSize(1);
-        assertThat(saved.getFirst().extracted().name()).isEqualTo("성공 카페");
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getFirst().verificationStatus()).isEqualTo(PlaceVerificationStatus.VERIFIED);
+        assertThat(saved.getLast().verificationStatus()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+        assertThat(saved.getLast().verified()).isNull();
     }
 
     @Test
-    void preservesLinksWhenMatchReturnsNoResult() {
+    void keepsUnmatchedPlaceForManualReview() {
         ExtractedPlace succeeded = new ExtractedPlace("성공 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace unmatched = new ExtractedPlace("미매칭 카페", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(succeeded, unmatched));
@@ -109,7 +113,59 @@ class PlaceImportPartialVerificationTest {
         org.mockito.Mockito.verify(resultWriter).saveSuccess(
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
-        assertThat(captor.getValue()).hasSize(1);
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getLast().verificationStatus())
+                .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+        assertThat(saved.getLast().verified()).isNull();
+    }
+
+    @Test
+    void keepsImportReviewableWhenEveryPlaceHasNoKakaoMatch() {
+        ExtractedPlace first = new ExtractedPlace("첫 장소", null, null, "EXPLICIT_VENUE");
+        ExtractedPlace second = new ExtractedPlace("두 번째 장소", null, null, "EXPLICIT_VENUE");
+        when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(first, second));
+        when(placeVerifier.verify(any(ExtractedPlace.class))).thenReturn(null);
+
+        service.processClaimed(1L, CLAIM_TOKEN);
+
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), anyList(), eq(true)
+        );
+        org.mockito.Mockito.verify(reservationService, org.mockito.Mockito.never())
+                .failClaimed(anyLong(), anyString(), anyString(), any());
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "https://www.instagram.com/reel/DbFB5plhwaC, 사천약방",
+            "https://www.instagram.com/reel/Dbk0bhrxjg1, 포티윙크스",
+            "https://www.instagram.com/reel/C9Bgi88yEbt, 함수라 논현직영점"
+    })
+    void replaysObservedVerificationFailuresAsReviewableCandidates(
+            String canonicalUrl,
+            String extractedName
+    ) {
+        when(importRepository.findById(anyLong())).thenReturn(
+                Optional.of(receivedImport(1L, canonicalUrl))
+        );
+        when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(
+                new ExtractedPlace(extractedName, null, extractedName, "EXPLICIT_VENUE")
+        ));
+        when(placeVerifier.verify(any(ExtractedPlace.class))).thenReturn(null);
+
+        service.processClaimed(1L, CLAIM_TOKEN);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
+        );
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).singleElement().satisfies(candidate -> {
+            assertThat(candidate.extracted().name()).isEqualTo(extractedName);
+            assertThat(candidate.verificationStatus()).isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+            assertThat(candidate.verified()).isNull();
+        });
     }
 
     @Test
@@ -135,7 +191,10 @@ class PlaceImportPartialVerificationTest {
         org.mockito.Mockito.verify(resultWriter).saveSuccess(
                 eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
-        assertThat(captor.getValue()).hasSize(1);
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved.getLast().verificationStatus())
+                .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
     }
 
     private PlaceImportProcessingService createService(Executor verificationExecutor) {
@@ -160,7 +219,7 @@ class PlaceImportPartialVerificationTest {
     }
 
     @Test
-    void failsImportWhenEveryVerificationFails() {
+    void keepsEveryVerificationFailureAvailableForOperationsReview() {
         ExtractedPlace first = new ExtractedPlace("실패 카페", null, null, "EXPLICIT_VENUE");
         ExtractedPlace second = new ExtractedPlace("실패 펜션", null, null, "EXPLICIT_VENUE");
         when(placeAnalyzer.analyze(any(ContentMetadata.class))).thenReturn(List.of(first, second));
@@ -169,18 +228,30 @@ class PlaceImportPartialVerificationTest {
 
         service.processClaimed(1L, CLAIM_TOKEN);
 
-        org.mockito.Mockito.verify(reservationService).failClaimed(
-                eq(1L),
-                eq(CLAIM_TOKEN),
-                eq(kr.omong.dulpick.global.exception.ErrorCode.PLACE_VERIFICATION_UNAVAILABLE.getCode()),
-                any(Instant.class)
+        var captor = org.mockito.ArgumentCaptor.forClass(List.class);
+        org.mockito.Mockito.verify(resultWriter).saveSuccess(
+                eq(1L), eq(CLAIM_TOKEN), any(ContentMetadata.class), captor.capture(), eq(true)
         );
+        List<VerifiedCandidate> saved = captor.getValue();
+        assertThat(saved).hasSize(2);
+        assertThat(saved)
+                .allSatisfy(candidate -> {
+                    assertThat(candidate.verificationStatus())
+                            .isEqualTo(PlaceVerificationStatus.REVIEW_REQUIRED);
+                    assertThat(candidate.verified()).isNull();
+                });
+        org.mockito.Mockito.verify(reservationService, org.mockito.Mockito.never())
+                .failClaimed(anyLong(), anyString(), anyString(), any());
     }
 
     private PlaceImport receivedImport(Long importId) {
+        return receivedImport(importId, "https://www.instagram.com/reel/example");
+    }
+
+    private PlaceImport receivedImport(Long importId, String canonicalUrl) {
         PlaceImport placeImport = PlaceImport.receive(
                 1L,
-                "https://www.instagram.com/reel/example",
+                canonicalUrl,
                 "url-hash",
                 ContentSourceType.INSTAGRAM_REEL,
                 NOW

@@ -37,6 +37,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -226,9 +227,12 @@ public class PlaceCommandService {
                 .stream()
                 .collect(Collectors.toMap(PlaceCandidate::getId, Function.identity()));
         validateCandidates(importId, selections, candidates);
+        List<PlaceSelection> saveableSelections = selections.stream()
+                .filter(selection -> candidates.get(selection.candidateId()).getPlaceId() != null)
+                .toList();
         Map<Long, MemberPlace> existingMemberPlaces = existingMemberPlaces(
                 memberId,
-                selections,
+                saveableSelections,
                 candidates
         );
         validateImportStatus(placeImport);
@@ -237,7 +241,7 @@ public class PlaceCommandService {
                 .orElse(null);
         Long partnerId = partnerId(membership, memberId);
         Instant now = clock.instant();
-        List<PlaceConfirmationView.SavedPlaceView> savedPlaces = selections.stream()
+        List<PlaceConfirmationView.SavedPlaceView> savedPlaces = saveableSelections.stream()
                 .map(selection -> saveOrReuseSelection(
                         memberId,
                         importId,
@@ -249,7 +253,7 @@ public class PlaceCommandService {
                         now
                 ))
                 .toList();
-        placeImport.markCompleted(now);
+        markCompletedWhenAllCandidatesAreResolved(placeImport, importId, now);
         importRepository.save(placeImport);
         return new PlaceConfirmationView(
                 importId,
@@ -310,16 +314,39 @@ public class PlaceCommandService {
                 .anyMatch(candidate -> candidate == null
                         || !candidate.getImportId().equals(importId)
                         || !isConfirmable(candidate.getVerificationStatus())
-                        || candidate.getPlaceId() == null);
+                        || isUnresolvedCandidateWithUnsupportedStatus(candidate));
         if (invalid) {
             throw new InvalidPlaceCandidateException();
         }
         long distinctPlaceCount = selections.stream()
                 .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
+                .filter(Objects::nonNull)
                 .distinct()
                 .count();
-        if (distinctPlaceCount != selections.size()) {
+        long saveableSelectionCount = selections.stream()
+                .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
+                .filter(Objects::nonNull)
+                .count();
+        if (distinctPlaceCount != saveableSelectionCount) {
             throw new InvalidPlaceCandidateException();
+        }
+    }
+
+    private boolean isUnresolvedCandidateWithUnsupportedStatus(PlaceCandidate candidate) {
+        return candidate.getPlaceId() == null
+                && candidate.getVerificationStatus() != PlaceVerificationStatus.REVIEW_REQUIRED;
+    }
+
+    private void markCompletedWhenAllCandidatesAreResolved(
+            PlaceImport placeImport,
+            Long importId,
+            Instant now
+    ) {
+        if (!candidateRepository.existsByImportIdAndPlaceIdIsNullAndVerificationStatusIn(
+                importId,
+                List.of(PlaceVerificationStatus.EXTRACTED, PlaceVerificationStatus.REVIEW_REQUIRED)
+        )) {
+            placeImport.markCompleted(now);
         }
     }
 
@@ -333,6 +360,9 @@ public class PlaceCommandService {
             List<PlaceSelection> selections,
             Map<Long, PlaceCandidate> candidates
     ) {
+        if (selections.isEmpty()) {
+            return Map.of();
+        }
         List<Long> placeIds = selections.stream()
                 .map(selection -> candidates.get(selection.candidateId()).getPlaceId())
                 .distinct()

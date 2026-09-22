@@ -20,9 +20,13 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 @Component
 public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
+
+    private static final int MAX_VISION_IMAGES = 2;
+    private static final long VISION_IMAGE_TIMEOUT_MILLIS = 2_000L;
 
     private final GeminiProperties properties;
     private final RestClient restClient;
@@ -83,11 +87,7 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
             throw new PlaceAnalysisUnavailableException(null);
         }
         try {
-            List<ExtractedPlace> textCandidates = requestAndParse(metadata, false);
-            if (!textCandidates.isEmpty() || !shouldUseImageFallback(metadata)) {
-                return textCandidates;
-            }
-            return requestAndParse(metadata, true);
+            return requestAndParse(metadata, shouldIncludeImages(metadata));
         } catch (RuntimeException exception) {
             if (exception instanceof PlaceAnalysisUnavailableException failure) {
                 throw failure;
@@ -109,7 +109,7 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
         return parseCandidates(responseText(response));
     }
 
-    private boolean shouldUseImageFallback(ContentMetadata metadata) {
+    private boolean shouldIncludeImages(ContentMetadata metadata) {
         return metadata.sourceType().name().startsWith("INSTAGRAM")
                 && imageDownloader != null
                 && !metadata.imageUrls().isEmpty();
@@ -201,22 +201,33 @@ public class GeminiPlaceAnalyzer implements PlaceAnalyzer {
         if (!metadata.sourceType().name().startsWith("INSTAGRAM") || imageDownloader == null) {
             return List.of();
         }
-        List<Map<String, Object>> parts = new ArrayList<>();
-        for (String imageUrl : metadata.imageUrls().stream().limit(10).toList()) {
-            try {
-                ContentThumbnailDownloader.DownloadedThumbnail image = imageDownloader.download(imageUrl);
-                if (image.bytes().length > 1_500_000) {
-                    continue;
-                }
-                parts.add(Map.of("inlineData", Map.of(
-                        "mimeType", image.contentType().toString(),
-                        "data", Base64.getEncoder().encodeToString(image.bytes())
-                )));
-            } catch (RuntimeException ignored) {
-                // OCR is supplemental; place extraction must continue from text when an image expires.
+        List<CompletableFuture<Map<String, Object>>> downloads = metadata.imageUrls().stream()
+                .limit(MAX_VISION_IMAGES)
+                .map(imageUrl -> CompletableFuture
+                        .supplyAsync(() -> downloadImagePart(imageUrl))
+                        .completeOnTimeout(null, VISION_IMAGE_TIMEOUT_MILLIS,
+                                java.util.concurrent.TimeUnit.MILLISECONDS))
+                .toList();
+        return downloads.stream()
+                .map(CompletableFuture::join)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+    }
+
+    private Map<String, Object> downloadImagePart(String imageUrl) {
+        try {
+            ContentThumbnailDownloader.DownloadedThumbnail image = imageDownloader.download(imageUrl);
+            if (image.bytes().length > 1_500_000) {
+                return null;
             }
+            return Map.of("inlineData", Map.of(
+                    "mimeType", image.contentType().toString(),
+                    "data", Base64.getEncoder().encodeToString(image.bytes())
+            ));
+        } catch (RuntimeException ignored) {
+            // OCR is supplemental; place extraction must continue from text when an image expires.
+            return null;
         }
-        return parts;
     }
 
     private Map<String, Object> responseSchema() {
