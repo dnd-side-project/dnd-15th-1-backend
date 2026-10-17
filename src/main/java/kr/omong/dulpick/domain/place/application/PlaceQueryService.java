@@ -74,6 +74,36 @@ public class PlaceQueryService {
     }
 
     @Transactional(readOnly = true)
+    public List<MemberPlaceView> getVisiblePlacesByIds(
+            Long memberId,
+            Collection<Long> placeIds
+    ) {
+        List<Long> distinctPlaceIds = placeIds.stream().distinct().toList();
+        if (distinctPlaceIds.isEmpty()) {
+            return List.of();
+        }
+        List<List<MemberPlace>> groupedPlaces = memberPlaceRepository
+                .findAllByMemberIdInAndPlaceIdIn(
+                        visibleMemberIds(memberId),
+                        distinctPlaceIds
+                )
+                .stream()
+                .collect(Collectors.groupingBy(
+                        memberPlace -> memberPlace.getPlace().getId(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ))
+                .values()
+                .stream()
+                .toList();
+        Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
+        Map<Long, PlaceDateTraitsView> dateTraits = dateTraitsFor(groupedPlaces);
+        return groupedPlaces.stream()
+                .map(places -> toView(memberId, places, saveCounts, dateTraits))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public Map<Long, PlaceOwnership> getOwnerships(
             Long memberId,
             Collection<Long> placeIds

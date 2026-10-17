@@ -2,21 +2,34 @@ package kr.omong.dulpick.domain.date.presentation.controller;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import kr.omong.dulpick.domain.date.application.command.DateCourseCommandService;
 import kr.omong.dulpick.domain.date.application.query.DateCourseQueryService;
 import kr.omong.dulpick.domain.date.presentation.dto.request.CreateDateCourseRequest;
 import kr.omong.dulpick.domain.date.presentation.dto.request.SaveDateCourseRequest;
 import kr.omong.dulpick.domain.date.presentation.dto.response.CurrentDateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePlacePoolResponse;
+import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePlaceSearchPageResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCoursePartnerNotifyResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.DateCourseResponse;
 import kr.omong.dulpick.domain.date.presentation.dto.response.PastDateCoursesPageResponse;
+import kr.omong.dulpick.domain.place.domain.PlaceActivity;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
+import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
+import kr.omong.dulpick.domain.place.domain.PlaceFocus;
+import kr.omong.dulpick.domain.place.domain.PlaceTime;
 import kr.omong.dulpick.global.config.SwaggerTagNames;
+import kr.omong.dulpick.global.exception.ErrorResponse;
+import org.springframework.http.MediaType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -76,6 +89,70 @@ public class DateCourseController {
                         memberId(jwt),
                         region,
                         category
+                )
+        ));
+    }
+
+    @Operation(
+            summary = "데이트 코스 장소 검색",
+            description = """
+                    현재 커플이 저장한 장소만 검색합니다.
+                    query는 장소명, 저장 별칭, 지번 주소, 도로명 주소를 대상으로 부분 일치 검색하며,
+                    성수동·성동구와 같은 지역명도 주소에 포함되어 있으면 검색됩니다.
+                    query와 네 가지 분류 조건은 모두 선택사항입니다. 생략된 조건은 필터링하지 않습니다.
+                    여러 분류 조건을 함께 전달하면 모든 조건을 만족하는 장소만 반환합니다.
+                    조건을 모두 생략하면 커플 저장 장소를 저장 시각 최신순으로 조회합니다.
+                    Kakao 신규 검색 결과는 포함하지 않으며, 페이지당 10건을 반환합니다.
+                    """
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "커플 저장 장소 검색 성공. 결과가 없으면 빈 배열을 반환합니다.",
+                    content = @Content(
+                            mediaType = MediaType.APPLICATION_JSON_VALUE,
+                            schema = @Schema(implementation = DateCoursePlaceSearchPageResponse.class)
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "검색어 길이 또는 페이지 번호가 올바르지 않습니다.",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "Access Token이 없거나 유효하지 않습니다.",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))
+            )
+    })
+    @GetMapping("/places/search")
+    public ResponseEntity<DateCoursePlaceSearchPageResponse> searchPlaces(
+            @AuthenticationPrincipal Jwt jwt,
+            @Parameter(
+                    description = "장소명·저장 별칭·지번 주소·도로명 주소의 부분 일치 검색어. 예: 성수, 성수동, 성동구",
+                    example = "성수"
+            )
+            @RequestParam(required = false) @Size(max = 200) @Schema(example = "성수", nullable = true) String query,
+            @Parameter(description = "실내·실외 조건. 생략하면 필터링하지 않습니다.", example = "INDOOR")
+            @RequestParam(required = false) @Schema(example = "INDOOR", nullable = true) PlaceEnvironment environment,
+            @Parameter(description = "활동적·정적 조건. 생략하면 필터링하지 않습니다.", example = "STATIC")
+            @RequestParam(required = false) @Schema(example = "STATIC", nullable = true) PlaceActivity activity,
+            @Parameter(description = "낮·밤 조건. 생략하면 필터링하지 않습니다.", example = "DAY")
+            @RequestParam(required = false) @Schema(example = "DAY", nullable = true) PlaceTime time,
+            @Parameter(description = "음식·관광 조건. 생략하면 필터링하지 않습니다.", example = "FOOD")
+            @RequestParam(required = false) @Schema(example = "FOOD", nullable = true) PlaceFocus focus,
+            @Parameter(description = "0부터 시작하는 페이지 번호. 페이지당 10건을 반환합니다.", example = "0")
+            @RequestParam(defaultValue = "0") @Min(0) @Max(100) @Schema(example = "0") int page
+    ) {
+        return ResponseEntity.ok(DateCoursePlaceSearchPageResponse.from(
+                dateCourseQueryService.searchCoupleSavedPlaces(
+                        memberId(jwt),
+                        query,
+                        environment,
+                        activity,
+                        time,
+                        focus,
+                        page
                 )
         ));
     }

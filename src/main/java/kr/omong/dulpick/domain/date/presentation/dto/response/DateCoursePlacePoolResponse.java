@@ -78,7 +78,7 @@ public record DateCoursePlacePoolResponse(
             PlaceDateTraitsResponse dateTraits
     ) {
 
-        private static DateCoursePlaceCandidateResponse from(DateCoursePlaceCandidateView view) {
+        public static DateCoursePlaceCandidateResponse from(DateCoursePlaceCandidateView view) {
             return new DateCoursePlaceCandidateResponse(
                     view.placeId(),
                     view.name(),

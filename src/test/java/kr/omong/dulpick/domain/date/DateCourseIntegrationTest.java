@@ -170,6 +170,93 @@ class DateCourseIntegrationTest {
     }
 
     @Test
+    void searchesCoupleSavedPlacesByKeywordAndOptionalClassifications() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Instant now = Instant.now();
+        Place first = placeRepository.save(place("first", now));
+        memberPlaceRepository.save(MemberPlace.save(
+                fixture.first().member().getId(),
+                first,
+                null,
+                "주말 카페",
+                now
+        ));
+        Place second = savePlaceForMember(
+                fixture.second().member().getId(),
+                "second",
+                now
+        );
+        PlaceClassification classification = PlaceClassification.initialize(first.getId(), now);
+        classification.classifyEnvironment(PlaceEnvironment.INDOOR, ClassificationSource.MANUAL, now);
+        classification.classifyFocus(PlaceFocus.FOOD, ClassificationSource.MANUAL, now);
+        placeClassificationRepository.save(classification);
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("query", "주말"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(first.getId()))
+                .andExpect(jsonPath("$.places[0].ownershipStatus").value("MINE"))
+                .andExpect(jsonPath("$.hasNext").value(false));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("query", "성동구")
+                        .param("environment", "INDOOR")
+                        .param("focus", "FOOD"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(first.getId()));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(2))
+                .andExpect(jsonPath("$.places[*].placeId")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                first.getId().intValue(),
+                                second.getId().intValue()
+                        )));
+    }
+
+    @Test
+    void paginatesCoursePlaceSearchByTenPlaces() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Instant now = Instant.now();
+        for (int index = 0; index < 11; index++) {
+            savePlaceForMember(
+                    fixture.first().member().getId(),
+                    "page-" + index,
+                    now.plusSeconds(index)
+            );
+        }
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(10))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(10))
+                .andExpect(jsonPath("$.hasNext").value(true));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("page", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.hasNext").value(false));
+    }
+
+    @Test
+    void rejectsUnauthenticatedCoursePlaceSearch() throws Exception {
+        mockMvc.perform(get("/api/v1/date-courses/places/search"))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
     void createsDateCourseWithoutTime() throws Exception {
         CoupleFixture fixture = createConnectedCouple();
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(5);
