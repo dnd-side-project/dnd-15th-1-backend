@@ -63,7 +63,12 @@ public record PlaceDetailResponse(
         @Schema(description = "대표 이미지를 제외한 이미지 목록", example = "[]", requiredMode = Schema.RequiredMode.REQUIRED)
         List<String> imageUrls,
         @Schema(description = "이 장소를 저장한 회원 수입니다.", example = "12", requiredMode = Schema.RequiredMode.REQUIRED)
-        int savedMemberCount
+        int savedMemberCount,
+        @Schema(
+                description = "장소에 저장된 네 축 분류(실내·실외, 액티비티·정적, 낮·밤, 식사·볼거리). 미분류 장소는 status가 UNCLASSIFIED이고 각 축은 null입니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        PlaceDateTraitsResponse dateTraits
 ) {
 
     public static PlaceDetailResponse from(PlaceDetailView view) {
@@ -84,7 +89,8 @@ public record PlaceDetailResponse(
                 view.ownershipStatus(),
                 view.thumbnailUrl(),
                 view.imageUrls(),
-                view.savedMemberCount()
+                view.savedMemberCount(),
+                PlaceDateTraitsResponse.from(view.dateTraits())
         );
     }
 }

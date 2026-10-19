@@ -23,6 +23,7 @@ import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.place.application.MemberPlaceView;
 import kr.omong.dulpick.domain.place.application.PlaceQueryService;
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
@@ -201,7 +202,8 @@ public class DateCourseQueryService {
                 placeView.alias(),
                 placeView.savedAt(),
                 placeView.thumbnailUrl(),
-                placeView.imageUrls()
+                placeView.imageUrls(),
+                placeView.dateTraits()
         );
     }
 
@@ -240,7 +242,8 @@ public class DateCourseQueryService {
                 selected.getCategoryName(),
                 selected.getThumbnailUrl(),
                 selected.getImageUrls(),
-                walkToNext
+                walkToNext,
+                PlaceDateTraitsView.from(selected.getClassification())
         );
     }
 

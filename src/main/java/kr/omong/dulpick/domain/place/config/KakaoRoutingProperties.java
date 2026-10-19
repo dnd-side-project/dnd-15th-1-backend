@@ -7,7 +7,8 @@ public record KakaoRoutingProperties(
         boolean enabled,
         String restApiKey,
         String baseUrl,
-        int timeoutSeconds
+        int timeoutSeconds,
+        int transitThresholdMinutes
 ) {
 
     public KakaoRoutingProperties {
@@ -16,6 +17,9 @@ public record KakaoRoutingProperties(
         }
         if (timeoutSeconds <= 0) {
             timeoutSeconds = 3;
+        }
+        if (transitThresholdMinutes <= 0) {
+            transitThresholdMinutes = 30;
         }
     }
 }

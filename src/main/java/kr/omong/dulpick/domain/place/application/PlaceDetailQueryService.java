@@ -174,7 +174,10 @@ public class PlaceDetailQueryService {
                         kakao == null ? null : kakao.thumbnailUrl()
                 ),
                 place == null ? List.of() : place.getImageUrls(),
-                placeQueryService.savedMemberCount(placeId)
+                placeQueryService.savedMemberCount(placeId),
+                place == null
+                        ? PlaceDateTraitsView.unclassified()
+                        : PlaceDateTraitsView.from(place.getClassification())
         );
     }
 

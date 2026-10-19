@@ -404,7 +404,8 @@ public class PlaceCommandService {
                 saved.getSavedAt(),
                 place.getThumbnailUrl(),
                 place.getImageUrls(),
-                0
+                0,
+                PlaceDateTraitsView.from(place.getClassification())
         );
     }
 

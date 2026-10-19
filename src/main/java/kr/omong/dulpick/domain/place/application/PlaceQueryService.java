@@ -142,7 +142,8 @@ public class PlaceQueryService {
                 selected.getSavedAt(),
                 selected.getPlace().getThumbnailUrl(),
                 selected.getPlace().getImageUrls(),
-                saveCounts.getOrDefault(placeId, 0L).intValue()
+                saveCounts.getOrDefault(placeId, 0L).intValue(),
+                PlaceDateTraitsView.from(selected.getPlace().getClassification())
         );
     }
 

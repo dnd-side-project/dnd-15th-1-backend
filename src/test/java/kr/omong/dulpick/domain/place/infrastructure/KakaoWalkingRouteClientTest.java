@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
+import kr.omong.dulpick.domain.place.application.RoutePoint;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.config.KakaoRoutingProperties;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
@@ -26,7 +28,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))
@@ -43,7 +45,11 @@ class KakaoWalkingRouteClientTest {
                             "properties": {
                               "totalDistance": 4025,
                               "totalTime": 3914
-                            }
+                            },
+                            "path": [
+                              {"x": 127.056, "y": 37.5445},
+                              {"x": 127.041, "y": 37.548}
+                            ]
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -55,7 +61,10 @@ class KakaoWalkingRouteClientTest {
                 new BigDecimal("37.5480000")
         );
 
-        assertThat(route).contains(new WalkingRoute(4025, 3914));
+        assertThat(route).contains(new WalkingRoute(4025, 3914, List.of(
+                new RoutePoint(37.5445, 127.056),
+                new RoutePoint(37.548, 127.041)
+        )));
         server.verify();
     }
 
@@ -64,7 +73,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))
@@ -86,7 +95,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))

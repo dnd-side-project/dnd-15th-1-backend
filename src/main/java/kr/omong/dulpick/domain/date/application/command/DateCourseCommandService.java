@@ -25,6 +25,7 @@ import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.notification.application.event.DateCoursePlannedEvent;
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.application.exception.PlaceNotFoundException;
@@ -350,7 +351,8 @@ public class DateCourseCommandService {
                 selected.getCategoryName(),
                 selected.getThumbnailUrl(),
                 selected.getImageUrls(),
-                walkToNext
+                walkToNext,
+                PlaceDateTraitsView.from(selected.getClassification())
         );
     }
 

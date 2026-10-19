@@ -22,10 +22,12 @@ public record PlaceDetailView(
         PlaceOwnershipStatus ownershipStatus,
         String thumbnailUrl,
         List<String> imageUrls,
-        int savedMemberCount
+        int savedMemberCount,
+        PlaceDateTraitsView dateTraits
 ) {
 
     public PlaceDetailView {
+        dateTraits = dateTraits == null ? PlaceDateTraitsView.unclassified() : dateTraits;
         imageUrls = imageUrls == null ? List.of() : imageUrls.stream().distinct().toList();
     }
 }

@@ -100,7 +100,11 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
         if (distance == null || duration == null) {
             return Optional.empty();
         }
-        return Optional.of(new WalkingRoute(distance, duration));
+        return Optional.of(new WalkingRoute(
+                distance,
+                duration,
+                KakaoRoutePathParser.parse(route.get("path"))
+        ));
     }
 
     private String text(Object value) {

@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.date.application.query.view;
 
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 
 import java.math.BigDecimal;
@@ -20,10 +21,12 @@ public record DateCoursePlaceCandidateView(
         String alias,
         Instant savedAt,
         String thumbnailUrl,
-        List<String> imageUrls
+        List<String> imageUrls,
+        PlaceDateTraitsView dateTraits
 ) {
 
     public DateCoursePlaceCandidateView {
+        dateTraits = dateTraits == null ? PlaceDateTraitsView.unclassified() : dateTraits;
         imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
     }
 }

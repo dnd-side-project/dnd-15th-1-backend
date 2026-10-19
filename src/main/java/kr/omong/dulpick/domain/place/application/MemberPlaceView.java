@@ -22,10 +22,12 @@ public record MemberPlaceView(
         Instant savedAt,
         String thumbnailUrl,
         List<String> imageUrls,
-        int savedMemberCount
+        int savedMemberCount,
+        PlaceDateTraitsView dateTraits
 ) {
 
     public MemberPlaceView {
+        dateTraits = dateTraits == null ? PlaceDateTraitsView.unclassified() : dateTraits;
         imageUrls = imageUrls == null
                 ? List.of()
                 : imageUrls.stream()
@@ -65,7 +67,8 @@ public record MemberPlaceView(
                 savedAt,
                 null,
                 List.of(),
-                0
+                0,
+                PlaceDateTraitsView.unclassified()
         );
     }
 }
