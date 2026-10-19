@@ -13,10 +13,18 @@ import kr.omong.dulpick.domain.member.application.command.MemberCommandService;
 import kr.omong.dulpick.domain.member.domain.DatePreferenceOption;
 import kr.omong.dulpick.domain.member.domain.DatePreferences;
 import kr.omong.dulpick.domain.member.domain.Member;
+import jakarta.persistence.EntityManager;
+import kr.omong.dulpick.domain.place.domain.ClassificationSource;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceActivity;
+import kr.omong.dulpick.domain.place.domain.PlaceClassification;
+import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
+import kr.omong.dulpick.domain.place.domain.PlaceFocus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceTime;
 import kr.omong.dulpick.global.time.ServiceTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -72,6 +80,12 @@ class DateCourseIntegrationTest {
 
     @Autowired
     private MemberPlaceRepository memberPlaceRepository;
+
+    @Autowired
+    private PlaceClassificationRepository placeClassificationRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Test
     void createsAndConfirmsDateCourseAndExposesHomeSummary() throws Exception {
@@ -409,6 +423,100 @@ class DateCourseIntegrationTest {
                 new InitializeMemberProfileCommand(nickname, profileIcon, PREFERENCES)
         ).connectionCode().code();
         return new TestMember(member, tokens, connectionCode);
+    }
+
+    @Test
+    void exposesSavedDateTraitsOnPlaceListDetailAndDateCoursePlaces() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Instant now = Instant.now();
+        Place classified = savePlaceForMember(fixture.first().member().getId(), "classified", now);
+        Place unclassified = savePlaceForMember(fixture.first().member().getId(), "unclassified", now);
+        // 상세 조회가 별도 트랜잭션으로 분류 코드를 채우면 테스트 트랜잭션과 락이 충돌하므로 미리 채워 둔다.
+        fillDulpickCategory(classified, now);
+        fillDulpickCategory(unclassified, now);
+        PlaceClassification classification = PlaceClassification.initialize(classified.getId(), now);
+        classification.classifyEnvironment(PlaceEnvironment.INDOOR, ClassificationSource.AI, now);
+        classification.classifyActivity(PlaceActivity.STATIC, ClassificationSource.AI, now);
+        classification.classifyTime(PlaceTime.DAY, ClassificationSource.AI, now);
+        classification.classifyFocus(PlaceFocus.FOOD, ClassificationSource.AI, now);
+        placeClassificationRepository.save(classification);
+        entityManager.flush();
+        entityManager.clear();
+
+        mockMvc.perform(get("/api/v1/places")
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.status".formatted(classified.getId()))
+                        .value("CLASSIFIED"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.environment".formatted(classified.getId()))
+                        .value("INDOOR"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.activity".formatted(classified.getId()))
+                        .value("STATIC"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.time".formatted(classified.getId()))
+                        .value("DAY"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.focus".formatted(classified.getId()))
+                        .value("FOOD"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].dateTraits.status".formatted(unclassified.getId()))
+                        .value("UNCLASSIFIED"))
+                .andExpect(jsonPath("$[?(@.placeId==%d)].category".formatted(classified.getId()))
+                        .value("음식점 > 카페"));
+
+        mockMvc.perform(get("/api/v1/places/{placeId}", classified.getId())
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.dateTraits.status").value("CLASSIFIED"))
+                .andExpect(jsonPath("$.dateTraits.focus").value("FOOD"))
+                .andExpect(jsonPath("$.category").value("음식점 > 카페"));
+
+        mockMvc.perform(get("/api/v1/date-courses/places")
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[?(@.placeId==%d)].dateTraits.status".formatted(classified.getId()))
+                        .value("CLASSIFIED"))
+                .andExpect(jsonPath("$.places[?(@.placeId==%d)].dateTraits.status".formatted(unclassified.getId()))
+                        .value("UNCLASSIFIED"));
+
+        LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(3);
+        MvcResult createResult = mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"분류 테스트","date":"%s","time":"19:30:00"}
+                                """.formatted(futureDate)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        Long dateCourseId = readLongFromJson(createResult, "$.dateCourseId");
+
+        mockMvc.perform(put("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first()))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "version":0,
+                                  "title":"분류 테스트",
+                                  "date":"%s",
+                                  "time":"19:30:00",
+                                  "placeIds":[%d, %d]
+                                }
+                                """.formatted(futureDate, classified.getId(), unclassified.getId())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].dateTraits.status").value("CLASSIFIED"))
+                .andExpect(jsonPath("$.places[0].dateTraits.environment").value("INDOOR"))
+                .andExpect(jsonPath("$.places[1].dateTraits.status").value("UNCLASSIFIED"))
+                .andExpect(jsonPath("$.places[0].walkToNext.path").isArray())
+                .andExpect(jsonPath("$.places[0].walkToNext.transit").doesNotExist());
+
+        mockMvc.perform(get("/api/v1/date-courses/{dateCourseId}", dateCourseId)
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places[0].dateTraits.status").value("CLASSIFIED"))
+                .andExpect(jsonPath("$.places[0].walkToNext.path").isArray());
+    }
+
+    private void fillDulpickCategory(Place place, Instant now) {
+        place.updateDetails(place.getName(), place.getAddress(), place.getRoadAddress(),
+                place.getCategory(), place.getCategoryGroupCode(), null, null, now);
+        placeRepository.save(place);
     }
 
     private Place savePlaceForMember(Long memberId, String suffix, Instant now) {

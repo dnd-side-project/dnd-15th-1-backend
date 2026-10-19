@@ -49,7 +49,9 @@ class PlaceResponseContractTest {
                         "savedMemberCount"
                 );
         assertThat(componentNames(MemberPlaceResponse.class))
-                .contains("savedMemberCount");
+                .contains("savedMemberCount", "category", "dateTraits");
+        assertThat(componentNames(PlaceDetailResponse.class))
+                .contains("category", "dateTraits");
         assertThat(componentNames(PlaceSearchPageResponse.class))
                 .contains("places", "page", "size", "hasNext");
         assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse.class))
