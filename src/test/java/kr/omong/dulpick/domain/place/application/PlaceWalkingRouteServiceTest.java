@@ -110,21 +110,20 @@ class PlaceWalkingRouteServiceTest {
     void looksUpTransitWhenWalkTakesThirtyMinutesOrMore() {
         Place from = place(1L, "37.5445000", "127.0560000");
         Place to = place(2L, "37.5480000", "127.0410000");
-        List<RoutePoint> transitPath = List.of(new RoutePoint(37.5, 127.0), new RoutePoint(37.6, 127.1));
+        TransitRoute transit = new TransitRoute("SUBWAY", 5200, 1500, 0, 1550, List.of());
         when(walkingRouteCacheRepository.findAllByFromPlaceIdInAndToPlaceIdIn(List.of(1L), List.of(2L)))
                 .thenReturn(List.of());
         when(walkingRouteClient.find(any(), any(), any(), any()))
                 .thenReturn(Optional.of(new WalkingRoute(4025, 1800)));
-        when(transitRouteClient.find(any(), any(), any(), any()))
-                .thenReturn(Optional.of(new TransitRoute(5200, 1500, transitPath)));
+        when(transitRouteClient.find(any(), any(), any(), any())).thenReturn(Optional.of(transit));
 
         List<WalkingRoute> walks = service.consecutiveWalks(List.of(from, to));
 
-        assertThat(walks.getFirst().transit()).isEqualTo(new TransitRoute(5200, 1500, transitPath));
+        assertThat(walks.getFirst().transit()).isEqualTo(transit);
     }
 
     @Test
-    void reusesCachedTransitWithoutCallingKakaoAgain() {
+    void doesNotStoreTransitAndLooksItUpAgainEvenWhenWalkIsCached() {
         Place from = place(1L, "37.5445000", "127.0560000");
         Place to = place(2L, "37.5480000", "127.0410000");
         WalkingRouteCache cache = WalkingRouteCache.create(
@@ -134,17 +133,18 @@ class PlaceWalkingRouteServiceTest {
                 4025, 3914, Instant.parse("2026-08-19T00:00:00Z")
         );
         cache.updatePath("37.5445,127.056;37.548,127.041");
-        cache.updateTransit(5200, 1500, "37.5,127.0;37.6,127.1");
+        TransitRoute transit = new TransitRoute("BUS", 5200, 1500, 0, null, List.of());
         when(walkingRouteCacheRepository.findAllByFromPlaceIdInAndToPlaceIdIn(List.of(1L), List.of(2L)))
                 .thenReturn(List.of(cache));
+        when(transitRouteClient.find(any(), any(), any(), any())).thenReturn(Optional.of(transit));
 
         WalkingRoute walk = service.consecutiveWalks(List.of(from, to)).getFirst();
 
-        assertThat(walk.transit().durationSeconds()).isEqualTo(1500);
-        assertThat(walk.transit().path()).hasSize(2);
         assertThat(walk.path()).hasSize(2);
+        assertThat(walk.transit()).isEqualTo(transit);
         verify(walkingRouteClient, never()).find(any(), any(), any(), any());
-        verify(transitRouteClient, never()).find(any(), any(), any(), any());
+        verify(transitRouteClient).find(any(), any(), any(), any());
+        verify(walkingRouteCacheRepository, never()).save(any());
     }
 
     @Test

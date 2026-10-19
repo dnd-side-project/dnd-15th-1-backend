@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
+import kr.omong.dulpick.domain.place.application.TransitLeg;
 import kr.omong.dulpick.domain.place.application.TransitRoute;
 import kr.omong.dulpick.domain.place.application.TransitRouteClient;
 import kr.omong.dulpick.domain.place.config.KakaoRoutingProperties;
@@ -14,9 +15,15 @@ import org.springframework.web.client.RestClientException;
 
 import java.math.BigDecimal;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+/**
+ * Kakao 대중교통 경로 조회 API(/v2/routing/publictraffic) 클라이언트입니다.
+ * Kakao 정책상 응답을 저장하지 않고 매번 실시간으로 호출합니다.
+ */
 @Component
 public class KakaoTransitRouteClient implements TransitRouteClient {
 
@@ -58,7 +65,7 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
         try {
             Map<String, Object> response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
-                            .path("/v2/routing/transit")
+                            .path("/v2/routing/publictraffic")
                             .queryParam("start_x", startLongitude.toPlainString())
                             .queryParam("start_y", startLatitude.toPlainString())
                             .queryParam("end_x", endLongitude.toPlainString())
@@ -79,19 +86,15 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
             return Optional.empty();
         }
         String status = text(response.get("status"));
-        if ("SAME_POINT".equals(status)) {
-            return Optional.of(new TransitRoute(0, 0, java.util.List.of()));
-        }
-        if (!status.isBlank() && !"OK".equals(status)) {
+        if (!"OK".equals(status)) {
             logger.warn("Kakao transit route returned status={}", status);
             return Optional.empty();
         }
-        Object routeValue = response.get("route");
-        if (!(routeValue instanceof Map<?, ?> route)) {
+        if (!(response.get("routes") instanceof List<?> routes) || routes.isEmpty()) {
             return Optional.empty();
         }
-        Object propertiesValue = route.get("properties");
-        if (!(propertiesValue instanceof Map<?, ?> routeProperties)) {
+        if (!(routes.getFirst() instanceof Map<?, ?> route)
+                || !(route.get("properties") instanceof Map<?, ?> routeProperties)) {
             return Optional.empty();
         }
         Integer distance = integer(routeProperties.get("totalDistance"));
@@ -99,11 +102,66 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
         if (distance == null || duration == null) {
             return Optional.empty();
         }
+        Integer transfers = integer(routeProperties.get("transfers"));
+        Integer fare = routeProperties.get("fare") instanceof Map<?, ?> fareMap
+                ? integer(fareMap.get("value"))
+                : null;
         return Optional.of(new TransitRoute(
+                text(routeProperties.get("type")),
                 distance,
                 duration,
-                KakaoRoutePathParser.parse(route.get("path"))
+                transfers == null ? 0 : transfers,
+                fare,
+                legs(route.get("steps"))
         ));
+    }
+
+    private List<TransitLeg> legs(Object stepsValue) {
+        if (!(stepsValue instanceof List<?> steps)) {
+            return List.of();
+        }
+        List<TransitLeg> legs = new ArrayList<>(steps.size());
+        for (Object stepValue : steps) {
+            if (!(stepValue instanceof Map<?, ?> step)
+                    || !(step.get("properties") instanceof Map<?, ?> stepProperties)) {
+                continue;
+            }
+            Integer distance = integer(stepProperties.get("distance"));
+            Integer time = integer(stepProperties.get("time"));
+            Map<?, ?> vehicle = firstMap(stepProperties.get("vehicles"));
+            Object points = step.get("path") instanceof Map<?, ?> path ? path.get("points") : null;
+            legs.add(new TransitLeg(
+                    text(stepProperties.get("type")),
+                    text(stepProperties.get("guidance")),
+                    distance == null ? 0 : distance,
+                    time == null ? 0 : time,
+                    vehicle == null ? null : text(vehicle.get("name")),
+                    vehicle == null ? null : text(vehicle.get("type")),
+                    stopNames(stepProperties.get("stops")),
+                    KakaoRoutePathParser.parse(points)
+            ));
+        }
+        return List.copyOf(legs);
+    }
+
+    private Map<?, ?> firstMap(Object value) {
+        if (value instanceof List<?> list && !list.isEmpty() && list.getFirst() instanceof Map<?, ?> map) {
+            return map;
+        }
+        return null;
+    }
+
+    private List<String> stopNames(Object value) {
+        if (!(value instanceof List<?> stops)) {
+            return List.of();
+        }
+        List<String> names = new ArrayList<>(stops.size());
+        for (Object stop : stops) {
+            if (stop instanceof Map<?, ?> map && !text(map.get("name")).isBlank()) {
+                names.add(text(map.get("name")));
+            }
+        }
+        return names;
     }
 
     private String text(Object value) {

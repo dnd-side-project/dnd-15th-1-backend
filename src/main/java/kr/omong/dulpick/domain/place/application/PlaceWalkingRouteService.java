@@ -139,17 +139,13 @@ public class PlaceWalkingRouteService {
         if (walk.durationSeconds() < transitThresholdSeconds) {
             return walk;
         }
-        return walk.withTransit(resolveTransit(from, to, cached));
+        return walk.withTransit(resolveTransit(from, to));
     }
 
-    private TransitRoute resolveTransit(Place from, Place to, WalkingRouteCache cached) {
-        if (cached != null && cached.getTransitDurationSeconds() != null) {
-            return new TransitRoute(
-                    cached.getTransitDistanceMeters() == null ? 0 : cached.getTransitDistanceMeters(),
-                    cached.getTransitDurationSeconds(),
-                    RoutePathCodec.decode(cached.getTransitPathPoints())
-            );
-        }
+    /**
+     * Kakao 정책상 대중교통 응답은 저장하지 않고 매번 실시간으로 조회합니다.
+     */
+    private TransitRoute resolveTransit(Place from, Place to) {
         Optional<TransitRoute> lookedUp = transitRouteClient.find(
                 from.getLongitude(),
                 from.getLatitude(),
@@ -164,15 +160,7 @@ public class PlaceWalkingRouteService {
             );
             return null;
         }
-        TransitRoute transit = lookedUp.get();
-        if (cached != null) {
-            cached.updateTransit(
-                    transit.distanceMeters(),
-                    transit.durationSeconds(),
-                    emptyIfNull(RoutePathCodec.encode(transit.path()))
-            );
-        }
-        return transit;
+        return lookedUp.get();
     }
 
     private WalkingRouteCache persist(Place from, Place to, WalkingRoute route, WalkingRouteCache cached) {
@@ -205,7 +193,6 @@ public class PlaceWalkingRouteService {
                 clock.instant()
         );
         cached.updatePath(emptyIfNull(RoutePathCodec.encode(route.path())));
-        cached.updateTransit(null, null, null);
         return cached;
     }
 
