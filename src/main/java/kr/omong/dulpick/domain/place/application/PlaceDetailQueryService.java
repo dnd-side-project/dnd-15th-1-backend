@@ -25,6 +25,7 @@ public class PlaceDetailQueryService {
     private final PlaceCategoryWriteThroughService categoryWriteThroughService;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final PlaceDateTraitsReader dateTraitsReader;
 
     public PlaceDetailQueryService(
             PlaceRepository placeRepository,
@@ -34,7 +35,6 @@ public class PlaceDetailQueryService {
         this(placeRepository, placeQueryService, placeSearchService, null, null, Clock.systemUTC());
     }
 
-    @Autowired
     public PlaceDetailQueryService(
             PlaceRepository placeRepository,
             PlaceQueryService placeQueryService,
@@ -43,6 +43,21 @@ public class PlaceDetailQueryService {
             ApplicationEventPublisher eventPublisher,
             Clock clock
     ) {
+        this(placeRepository, placeQueryService, placeSearchService,
+                categoryWriteThroughService, eventPublisher, clock, null);
+    }
+
+    @Autowired
+    public PlaceDetailQueryService(
+            PlaceRepository placeRepository,
+            PlaceQueryService placeQueryService,
+            PlaceSearchService placeSearchService,
+            PlaceCategoryWriteThroughService categoryWriteThroughService,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock,
+            PlaceDateTraitsReader dateTraitsReader
+    ) {
+        this.dateTraitsReader = dateTraitsReader;
         this.placeRepository = placeRepository;
         this.placeQueryService = placeQueryService;
         this.placeSearchService = placeSearchService;
@@ -175,9 +190,9 @@ public class PlaceDetailQueryService {
                 ),
                 place == null ? List.of() : place.getImageUrls(),
                 placeQueryService.savedMemberCount(placeId),
-                place == null
+                dateTraitsReader == null || placeId == null
                         ? PlaceDateTraitsView.unclassified()
-                        : PlaceDateTraitsView.from(place.getClassification())
+                        : dateTraitsReader.findByPlaceId(placeId)
         );
     }
 

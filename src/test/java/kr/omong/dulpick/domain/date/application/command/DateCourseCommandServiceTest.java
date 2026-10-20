@@ -12,6 +12,7 @@ import kr.omong.dulpick.domain.date.domain.DateCourseRepository;
 import kr.omong.dulpick.domain.member.domain.Member;
 import kr.omong.dulpick.domain.member.domain.MemberProfileRepository;
 import kr.omong.dulpick.domain.member.domain.MemberRepository;
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsReader;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
@@ -43,6 +44,7 @@ class DateCourseCommandServiceTest {
     private final PlaceRepository placeRepository = mock(PlaceRepository.class);
     private final PlaceWalkingRouteService placeWalkingRouteService = mock(PlaceWalkingRouteService.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final PlaceDateTraitsReader dateTraitsReader = mock(PlaceDateTraitsReader.class);
     private final DateCourseCommandService service = new DateCourseCommandService(
             memberRepository,
             memberProfileRepository,
@@ -53,7 +55,8 @@ class DateCourseCommandServiceTest {
             placeRepository,
             placeWalkingRouteService,
             eventPublisher,
-            Clock.fixed(Instant.parse("2026-08-16T00:00:00Z"), ZoneOffset.UTC)
+            Clock.fixed(Instant.parse("2026-08-16T00:00:00Z"), ZoneOffset.UTC),
+            dateTraitsReader
     );
 
     @Test

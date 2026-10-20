@@ -7,15 +7,11 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.OneToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OrderBy;
 import jakarta.persistence.Table;
 import org.hibernate.annotations.BatchSize;
-import org.hibernate.annotations.NotFound;
-import org.hibernate.annotations.NotFoundAction;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -73,11 +69,6 @@ public class Place {
     @OrderBy("displayOrder ASC")
     @BatchSize(size = 50)
     private List<PlaceImage> images = new ArrayList<>();
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "id", referencedColumnName = "place_id", insertable = false, updatable = false)
-    @NotFound(action = NotFoundAction.IGNORE)
-    private PlaceClassification classification;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -285,10 +276,6 @@ public class Place {
 
     public Instant getUpdatedAt() {
         return updatedAt;
-    }
-
-    public PlaceClassification getClassification() {
-        return classification;
     }
 
     public String getCategoryName() {

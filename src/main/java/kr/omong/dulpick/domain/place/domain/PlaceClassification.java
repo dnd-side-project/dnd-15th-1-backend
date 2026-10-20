@@ -6,14 +6,12 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import org.hibernate.annotations.BatchSize;
 
 import java.time.Instant;
 import java.util.Objects;
 
 @Entity
 @Table(name = "place_classifications")
-@BatchSize(size = 50)
 public class PlaceClassification {
 
     @Id

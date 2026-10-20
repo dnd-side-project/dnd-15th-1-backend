@@ -54,6 +54,7 @@ public class PlaceCommandService {
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
+    private final PlaceDateTraitsReader dateTraitsReader;
     private final PlaceImageEnrichmentService imageEnrichmentService;
     private final PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher;
 
@@ -101,6 +102,34 @@ public class PlaceCommandService {
                 eventPublisher,
                 clock,
                 imageEnrichmentService,
+                null,
+                null
+        );
+    }
+
+    public PlaceCommandService(
+            PlaceImportRepository importRepository,
+            PlaceCandidateRepository candidateRepository,
+            PlaceRepository placeRepository,
+            MemberRepository memberRepository,
+            MemberPlaceRepository memberPlaceRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
+            ApplicationEventPublisher eventPublisher,
+            Clock clock,
+            PlaceImageEnrichmentService imageEnrichmentService,
+            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher
+    ) {
+        this(
+                importRepository,
+                candidateRepository,
+                placeRepository,
+                memberRepository,
+                memberPlaceRepository,
+                activeCoupleMemberRepository,
+                eventPublisher,
+                clock,
+                imageEnrichmentService,
+                imageEnrichmentDispatcher,
                 null
         );
     }
@@ -116,8 +145,10 @@ public class PlaceCommandService {
             ApplicationEventPublisher eventPublisher,
             Clock clock,
             PlaceImageEnrichmentService imageEnrichmentService,
-            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher
+            PlaceImageEnrichmentDispatcher imageEnrichmentDispatcher,
+            PlaceDateTraitsReader dateTraitsReader
     ) {
+        this.dateTraitsReader = dateTraitsReader;
         this.importRepository = importRepository;
         this.candidateRepository = candidateRepository;
         this.placeRepository = placeRepository;
@@ -405,7 +436,9 @@ public class PlaceCommandService {
                 place.getThumbnailUrl(),
                 place.getImageUrls(),
                 0,
-                PlaceDateTraitsView.from(place.getClassification())
+                dateTraitsReader == null
+                        ? PlaceDateTraitsView.unclassified()
+                        : dateTraitsReader.findByPlaceId(place.getId())
         );
     }
 

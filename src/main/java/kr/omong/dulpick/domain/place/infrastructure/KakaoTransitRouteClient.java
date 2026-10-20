@@ -12,8 +12,10 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -31,6 +33,7 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
 
     private final KakaoRoutingProperties properties;
     private final RestClient restClient;
+    private final KakaoQuotaGuard quotaGuard = new KakaoQuotaGuard(Clock.systemUTC());
 
     @Autowired
     public KakaoTransitRouteClient(KakaoRoutingProperties properties) {
@@ -62,6 +65,9 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
                 || properties.restApiKey().isBlank()) {
             return Optional.empty();
         }
+        if (quotaGuard.isBlocked()) {
+            return Optional.empty();
+        }
         try {
             Map<String, Object> response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -75,6 +81,11 @@ public class KakaoTransitRouteClient implements TransitRouteClient {
                     .retrieve()
                     .body(Map.class);
             return parse(response);
+        } catch (RestClientResponseException exception) {
+            if (!quotaGuard.recordIfQuotaExceeded(exception, "transit route", logger)) {
+                logger.warn("Kakao transit route lookup failed", exception);
+            }
+            return Optional.empty();
         } catch (RestClientException exception) {
             logger.warn("Kakao transit route lookup failed", exception);
             return Optional.empty();

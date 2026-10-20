@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,20 +24,33 @@ public class PlaceQueryService {
     private final MemberPlaceRepository memberPlaceRepository;
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
 
+    private final PlaceDateTraitsReader dateTraitsReader;
+
     public PlaceQueryService(
             MemberPlaceRepository memberPlaceRepository,
             ActiveCoupleMemberRepository activeCoupleMemberRepository
     ) {
+        this(memberPlaceRepository, activeCoupleMemberRepository, null);
+    }
+
+    @Autowired
+    public PlaceQueryService(
+            MemberPlaceRepository memberPlaceRepository,
+            ActiveCoupleMemberRepository activeCoupleMemberRepository,
+            PlaceDateTraitsReader dateTraitsReader
+    ) {
         this.memberPlaceRepository = memberPlaceRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
+        this.dateTraitsReader = dateTraitsReader;
     }
 
     @Transactional(readOnly = true)
     public List<MemberPlaceView> getVisiblePlaces(Long memberId) {
         List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
         Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
+        Map<Long, PlaceDateTraitsView> dateTraits = dateTraitsFor(groupedPlaces);
         return groupedPlaces.stream()
-                .map(places -> toView(memberId, places, saveCounts))
+                .map(places -> toView(memberId, places, saveCounts, dateTraits))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
     }
@@ -49,11 +63,12 @@ public class PlaceQueryService {
     ) {
         List<List<MemberPlace>> groupedPlaces = groupedVisiblePlaces(memberId);
         Map<Long, Long> saveCounts = saveCountsFor(groupedPlaces);
+        Map<Long, PlaceDateTraitsView> dateTraits = dateTraitsFor(groupedPlaces);
         return groupedPlaces.stream()
                 .filter(places -> category == null
                         || category.getDisplayName().equals(places.getFirst().getPlace().getCategoryName()))
                 .filter(places -> ownership(memberId, places).matchesFilter(ownershipStatus))
-                .map(places -> toView(memberId, places, saveCounts))
+                .map(places -> toView(memberId, places, saveCounts, dateTraits))
                 .sorted(Comparator.comparing(MemberPlaceView::savedAt).reversed())
                 .toList();
     }
@@ -117,7 +132,8 @@ public class PlaceQueryService {
     private MemberPlaceView toView(
             Long memberId,
             List<MemberPlace> places,
-            Map<Long, Long> saveCounts
+            Map<Long, Long> saveCounts,
+            Map<Long, PlaceDateTraitsView> dateTraits
     ) {
         MemberPlace mine = places.stream()
                 .filter(place -> place.getMemberId().equals(memberId))
@@ -143,8 +159,17 @@ public class PlaceQueryService {
                 selected.getPlace().getThumbnailUrl(),
                 selected.getPlace().getImageUrls(),
                 saveCounts.getOrDefault(placeId, 0L).intValue(),
-                PlaceDateTraitsView.from(selected.getPlace().getClassification())
+                dateTraits.getOrDefault(placeId, PlaceDateTraitsView.unclassified())
         );
+    }
+
+    private Map<Long, PlaceDateTraitsView> dateTraitsFor(List<List<MemberPlace>> groupedPlaces) {
+        if (dateTraitsReader == null) {
+            return Map.of();
+        }
+        return dateTraitsReader.findByPlaceIds(groupedPlaces.stream()
+                .map(places -> places.getFirst().getPlace().getId())
+                .toList());
     }
 
     private Map<Long, Long> saveCountsFor(List<List<MemberPlace>> groupedPlaces) {

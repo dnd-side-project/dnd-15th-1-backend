@@ -23,6 +23,7 @@ import kr.omong.dulpick.domain.member.domain.MemberRepository;
 import kr.omong.dulpick.domain.member.domain.exception.MemberNotActiveException;
 import kr.omong.dulpick.domain.place.application.MemberPlaceView;
 import kr.omong.dulpick.domain.place.application.PlaceQueryService;
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsReader;
 import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
@@ -38,6 +39,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Clock;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -58,6 +60,7 @@ public class DateCourseQueryService {
     private final PlaceWalkingRouteService placeWalkingRouteService;
     private final PlaceRegionExtractor placeRegionExtractor;
     private final Clock clock;
+    private final PlaceDateTraitsReader dateTraitsReader;
 
     public DateCourseQueryService(
             MemberRepository memberRepository,
@@ -67,8 +70,10 @@ public class DateCourseQueryService {
             PlaceQueryService placeQueryService,
             PlaceWalkingRouteService placeWalkingRouteService,
             PlaceRegionExtractor placeRegionExtractor,
-            Clock clock
+            Clock clock,
+            PlaceDateTraitsReader dateTraitsReader
     ) {
+        this.dateTraitsReader = dateTraitsReader;
         this.memberRepository = memberRepository;
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.dateCourseRepository = dateCourseRepository;
@@ -214,8 +219,11 @@ public class DateCourseQueryService {
         List<WalkingRoute> walks = placeWalkingRouteService.consecutiveWalks(
                 orderedPlaces.stream().map(DateCoursePlace::getPlace).toList()
         );
+        Map<Long, PlaceDateTraitsView> dateTraits = dateTraitsReader.findByPlaceIds(
+                orderedPlaces.stream().map(place -> place.getPlace().getId()).toList()
+        );
         List<DateCoursePlaceView> placeViews = IntStream.range(0, orderedPlaces.size())
-                .mapToObj(index -> toPlaceView(orderedPlaces.get(index), walks.get(index)))
+                .mapToObj(index -> toPlaceView(orderedPlaces.get(index), walks.get(index), dateTraits))
                 .toList();
         return new DateCourseView(
                 dateCourse.getId(),
@@ -228,7 +236,11 @@ public class DateCourseQueryService {
         );
     }
 
-    private DateCoursePlaceView toPlaceView(DateCoursePlace place, WalkingRoute walkToNext) {
+    private DateCoursePlaceView toPlaceView(
+            DateCoursePlace place,
+            WalkingRoute walkToNext,
+            Map<Long, PlaceDateTraitsView> dateTraits
+    ) {
         Place selected = place.getPlace();
         return new DateCoursePlaceView(
                 place.getSequenceOrder(),
@@ -243,7 +255,7 @@ public class DateCourseQueryService {
                 selected.getThumbnailUrl(),
                 selected.getImageUrls(),
                 walkToNext,
-                PlaceDateTraitsView.from(selected.getClassification())
+                dateTraits.getOrDefault(selected.getId(), PlaceDateTraitsView.unclassified())
         );
     }
 
