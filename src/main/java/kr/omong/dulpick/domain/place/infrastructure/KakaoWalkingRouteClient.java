@@ -114,7 +114,7 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
         return Optional.of(new WalkingRoute(
                 distance,
                 duration,
-                KakaoRoutePathParser.parse(route.get("path"))
+                KakaoRoutePathParser.parseWalkingRoute(route)
         ));
     }
 

@@ -47,9 +47,20 @@ class KakaoWalkingRouteClientTest {
                               "totalDistance": 4025,
                               "totalTime": 3914
                             },
-                            "path": [
-                              {"x": 127.056, "y": 37.5445},
-                              {"x": 127.041, "y": 37.548}
+                            "legs": [
+                              {
+                                "properties": {"distance": 4025, "time": 3914},
+                                "steps": [
+                                  {
+                                    "properties": {"distance": 2000, "time": 1900},
+                                    "path": {"points": [[127.056, 37.5445], [127.050, 37.546]]}
+                                  },
+                                  {
+                                    "properties": {"distance": 2025, "time": 2014},
+                                    "path": {"points": [[127.050, 37.546], [127.041, 37.548]]}
+                                  }
+                                ]
+                              }
                             ]
                           }
                         }
@@ -62,8 +73,10 @@ class KakaoWalkingRouteClientTest {
                 new BigDecimal("37.5480000")
         );
 
+        // 구간 경계의 중복 좌표(127.050, 37.546)는 하나로 합쳐집니다.
         assertThat(route).contains(new WalkingRoute(4025, 3914, List.of(
                 new RoutePoint(37.5445, 127.056),
+                new RoutePoint(37.546, 127.050),
                 new RoutePoint(37.548, 127.041)
         )));
         server.verify();
@@ -161,6 +174,34 @@ class KakaoWalkingRouteClientTest {
         client.find(new BigDecimal("127.1"), new BigDecimal("37.1"),
                 new BigDecimal("127.2"), new BigDecimal("37.2"));
 
+        server.verify();
+    }
+
+    @Test
+    void fallsBackToRoutePathWhenLegsAreMissing() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
+                builder
+        );
+        server.expect(once(), requestTo(containsString("/v2/routing/walk")))
+                .andRespond(withSuccess("""
+                        {
+                          "status": "OK",
+                          "route": {
+                            "properties": {"totalDistance": 100, "totalTime": 80},
+                            "path": [[127.056, 37.5445], [127.041, 37.548]]
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<WalkingRoute> route = client.find(
+                new BigDecimal("127.056"), new BigDecimal("37.5445"),
+                new BigDecimal("127.041"), new BigDecimal("37.548")
+        );
+
+        assertThat(route.orElseThrow().path()).hasSize(2);
         server.verify();
     }
 }

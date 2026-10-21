@@ -10,6 +10,32 @@ final class KakaoRoutePathParser {
     private KakaoRoutePathParser() {
     }
 
+    /**
+     * 도보 응답의 route.legs[].steps[].path.points를 이어 붙입니다.
+     * 구간 경계의 중복 좌표는 하나로 합칩니다. legs가 없으면 route.path를 사용합니다.
+     */
+    static List<RoutePoint> parseWalkingRoute(java.util.Map<?, ?> route) {
+        List<RoutePoint> path = new ArrayList<>();
+        if (route.get("legs") instanceof List<?> legs) {
+            for (Object legValue : legs) {
+                if (!(legValue instanceof java.util.Map<?, ?> leg) || !(leg.get("steps") instanceof List<?> steps)) {
+                    continue;
+                }
+                for (Object stepValue : steps) {
+                    if (stepValue instanceof java.util.Map<?, ?> step
+                            && step.get("path") instanceof java.util.Map<?, ?> stepPath) {
+                        for (RoutePoint point : parse(stepPath.get("points"))) {
+                            if (path.isEmpty() || !path.getLast().equals(point)) {
+                                path.add(point);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return path.isEmpty() ? parse(route.get("path")) : List.copyOf(path);
+    }
+
     static List<RoutePoint> parse(Object pathValue) {
         if (!(pathValue instanceof List<?> items)) {
             return List.of();
