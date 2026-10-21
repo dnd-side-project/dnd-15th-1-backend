@@ -84,7 +84,9 @@ public class PlaceController {
             summary = "내 장소와 연결된 상대방의 저장 장소 조회",
             description = "본인 저장 장소와 현재 연결된 상대방의 저장 장소를 조회합니다. 연결 해제 후 상대방 저장 정보는 반환하지 않습니다. "
                     + "같은 공용 장소를 커플이 저장한 경우 ownershipStatus=TOGETHER로 반환합니다. "
-                    + "카테고리·저장 주체 필터를 선택적으로 적용할 수 있습니다."
+                    + "카테고리·저장 주체 필터를 선택적으로 적용할 수 있으며, "
+                    + "ownershipStatus 필터는 MINE(나만 저장), PARTNER(상대방만 저장), "
+                    + "TOGETHER(나 또는 상대방이 저장한 장소 전체)로 동작합니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -106,7 +108,7 @@ public class PlaceController {
             @AuthenticationPrincipal Jwt jwt,
             @Parameter(description = "둘픽 카테고리 코드", example = "CAFE")
             @RequestParam(required = false) @Schema(example = "CAFE") DulpickPlaceCategory category,
-            @Parameter(description = "저장 주체 필터", example = "TOGETHER")
+            @Parameter(description = "저장 주체 필터. MINE은 나만 저장한 장소, PARTNER는 상대방만 저장한 장소, TOGETHER는 나 또는 상대방이 저장한 장소 전체(합집합)입니다.", example = "TOGETHER")
             @RequestParam(required = false) @Schema(example = "TOGETHER")
             PlaceOwnershipStatus ownershipStatus
     ) {

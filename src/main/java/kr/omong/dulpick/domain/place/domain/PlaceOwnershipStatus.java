@@ -29,7 +29,8 @@ public enum PlaceOwnershipStatus {
         return switch (filter) {
             case MINE -> savedByMe && !savedByPartner;
             case PARTNER -> savedByPartner && !savedByMe;
-            case TOGETHER -> savedByMe && savedByPartner;
+            // TOGETHER 필터는 커플이 저장한 장소 전체(합집합)를 조회합니다.
+            case TOGETHER -> savedByMe || savedByPartner;
         };
     }
 }

@@ -127,6 +127,33 @@ class PlaceQueryServiceTest {
         );
     }
 
+    @Test
+    void togetherFilterReturnsEveryPlaceSavedByEitherMember() {
+        Place bothPlace = place(10L);
+        Place minePlace = place(20L);
+        Place partnerPlace = place(30L);
+        for (Place place : List.of(bothPlace, minePlace, partnerPlace)) {
+            when(place.getCategoryName()).thenReturn("카페");
+        }
+        MemberPlace mineBoth = memberPlace(1L, bothPlace, null, Instant.parse("2026-08-10T00:00:00Z"));
+        MemberPlace partnerBoth = memberPlace(2L, bothPlace, null, Instant.parse("2026-08-10T01:00:00Z"));
+        MemberPlace mineOnly = memberPlace(1L, minePlace, null, Instant.parse("2026-08-11T00:00:00Z"));
+        MemberPlace partnerOnly = memberPlace(2L, partnerPlace, null, Instant.parse("2026-08-12T00:00:00Z"));
+        connectCouple(1L, 2L);
+        when(memberPlaceRepository.findAllByMemberIdInOrderBySavedAtDesc(List.of(1L, 2L)))
+                .thenReturn(List.of(partnerOnly, mineOnly, partnerBoth, mineBoth));
+
+        List<MemberPlaceView> together = service.getVisiblePlaces(1L, null, PlaceOwnershipStatus.TOGETHER);
+        List<MemberPlaceView> mine = service.getVisiblePlaces(1L, null, PlaceOwnershipStatus.MINE);
+        List<MemberPlaceView> partner = service.getVisiblePlaces(1L, null, PlaceOwnershipStatus.PARTNER);
+
+        assertThat(together).extracting(MemberPlaceView::placeId).containsExactlyInAnyOrder(10L, 20L, 30L);
+        assertThat(mine).extracting(MemberPlaceView::placeId).containsExactly(20L);
+        assertThat(partner).extracting(MemberPlaceView::placeId).containsExactly(30L);
+        assertThat(together).extracting(MemberPlaceView::ownershipStatus).containsExactlyInAnyOrder(
+                PlaceOwnershipStatus.TOGETHER, PlaceOwnershipStatus.MINE, PlaceOwnershipStatus.PARTNER);
+    }
+
     private void connectCouple(Long memberId, Long partnerId) {
         Couple couple = mock(Couple.class);
         ActiveCoupleMember mine = mock(ActiveCoupleMember.class);
