@@ -8,6 +8,7 @@ import kr.omong.dulpick.domain.date.application.exception.DateCourseNotFoundExce
 import kr.omong.dulpick.domain.date.application.query.view.DateCourseCategoryOptionView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlaceCandidateView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlacePoolView;
+import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlaceSearchPageView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlaceView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCourseSummaryView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCourseView;
@@ -27,6 +28,11 @@ import kr.omong.dulpick.domain.place.application.PlaceDateTraitsReader;
 import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.application.PlaceWalkingRouteService;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
+import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceActivity;
+import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
+import kr.omong.dulpick.domain.place.domain.PlaceFocus;
+import kr.omong.dulpick.domain.place.domain.PlaceTime;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
 import kr.omong.dulpick.domain.place.domain.Place;
 import org.springframework.data.domain.Page;
@@ -37,8 +43,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.util.LinkedHashMap;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -46,6 +54,8 @@ import java.util.stream.IntStream;
 
 @Service
 public class DateCourseQueryService {
+
+    private static final int PLACE_SEARCH_PAGE_SIZE = 10;
 
     private static final Sort PAST_DATE_COURSE_SORT = Sort.by(
             Sort.Order.desc("scheduledAt"),
@@ -56,6 +66,7 @@ public class DateCourseQueryService {
     private final ActiveCoupleMemberRepository activeCoupleMemberRepository;
     private final DateCourseRepository dateCourseRepository;
     private final DateCoursePlaceRepository dateCoursePlaceRepository;
+    private final MemberPlaceRepository memberPlaceRepository;
     private final PlaceQueryService placeQueryService;
     private final PlaceWalkingRouteService placeWalkingRouteService;
     private final PlaceRegionExtractor placeRegionExtractor;
@@ -67,6 +78,7 @@ public class DateCourseQueryService {
             ActiveCoupleMemberRepository activeCoupleMemberRepository,
             DateCourseRepository dateCourseRepository,
             DateCoursePlaceRepository dateCoursePlaceRepository,
+            MemberPlaceRepository memberPlaceRepository,
             PlaceQueryService placeQueryService,
             PlaceWalkingRouteService placeWalkingRouteService,
             PlaceRegionExtractor placeRegionExtractor,
@@ -78,6 +90,7 @@ public class DateCourseQueryService {
         this.activeCoupleMemberRepository = activeCoupleMemberRepository;
         this.dateCourseRepository = dateCourseRepository;
         this.dateCoursePlaceRepository = dateCoursePlaceRepository;
+        this.memberPlaceRepository = memberPlaceRepository;
         this.placeQueryService = placeQueryService;
         this.placeWalkingRouteService = placeWalkingRouteService;
         this.placeRegionExtractor = placeRegionExtractor;
@@ -117,6 +130,50 @@ public class DateCourseQueryService {
                         || category.getDisplayName().equals(candidate.categoryName()))
                 .toList();
         return new DateCoursePlacePoolView(filtered, availableRegions, availableCategories);
+    }
+
+    @Transactional(readOnly = true)
+    public DateCoursePlaceSearchPageView searchCoupleSavedPlaces(
+            Long memberId,
+            String query,
+            PlaceEnvironment environment,
+            PlaceActivity activity,
+            PlaceTime time,
+            PlaceFocus focus,
+            int page
+    ) {
+        CoupleContext context = requireCoupleContext(memberId);
+        String keyword = normalizeKeyword(query);
+        Page<Long> placeIds = memberPlaceRepository.searchVisiblePlaceIds(
+                context.memberIds(),
+                keyword,
+                keyword.isEmpty(),
+                enumName(environment),
+                enumName(activity),
+                enumName(time),
+                enumName(focus),
+                PageRequest.of(page, PLACE_SEARCH_PAGE_SIZE)
+        );
+        Map<Long, DateCoursePlaceCandidateView> candidates = placeQueryService
+                .getVisiblePlacesByIds(memberId, placeIds.getContent())
+                .stream()
+                .map(this::toCandidateView)
+                .collect(Collectors.toMap(
+                        DateCoursePlaceCandidateView::placeId,
+                        candidate -> candidate,
+                        (first, ignored) -> first,
+                        LinkedHashMap::new
+                ));
+        List<DateCoursePlaceCandidateView> orderedPlaces = placeIds.getContent().stream()
+                .map(candidates::get)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        return new DateCoursePlaceSearchPageView(
+                orderedPlaces,
+                page,
+                PLACE_SEARCH_PAGE_SIZE,
+                placeIds.hasNext()
+        );
     }
 
     @Transactional
@@ -210,6 +267,19 @@ public class DateCourseQueryService {
                 placeView.imageUrls(),
                 placeView.dateTraits()
         );
+    }
+
+    private String normalizeKeyword(String query) {
+        if (query == null) {
+            return "";
+        }
+        return query.strip()
+                .replaceAll("\\s+", "")
+                .toLowerCase(Locale.ROOT);
+    }
+
+    private String enumName(Enum<?> value) {
+        return value == null ? null : value.name();
     }
 
     private DateCourseView toView(DateCourse dateCourse, List<DateCoursePlace> places) {
