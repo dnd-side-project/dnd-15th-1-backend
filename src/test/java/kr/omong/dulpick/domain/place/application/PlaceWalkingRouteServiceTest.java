@@ -164,6 +164,23 @@ class PlaceWalkingRouteServiceTest {
     }
 
     @Test
+    void keepsWalkWhenTransitClientThrowsUnexpectedly() {
+        Place from = place(1L, "37.5445000", "127.0560000");
+        Place to = place(2L, "37.5480000", "127.0410000");
+        when(walkingRouteCacheRepository.findAllByFromPlaceIdInAndToPlaceIdIn(List.of(1L), List.of(2L)))
+                .thenReturn(List.of());
+        when(walkingRouteClient.find(any(), any(), any(), any()))
+                .thenReturn(Optional.of(new WalkingRoute(4025, 3914)));
+        when(transitRouteClient.find(any(), any(), any(), any()))
+                .thenThrow(new IllegalStateException("unexpected response shape"));
+
+        WalkingRoute walk = service.consecutiveWalks(List.of(from, to)).getFirst();
+
+        assertThat(walk.durationSeconds()).isEqualTo(3914);
+        assertThat(walk.transit()).isNull();
+    }
+
+    @Test
     void keepsCourseWalksWhenKakaoLookupFails() {
         Place from = place(1L, "37.5445000", "127.0560000");
         Place to = place(2L, "37.5480000", "127.0410000");

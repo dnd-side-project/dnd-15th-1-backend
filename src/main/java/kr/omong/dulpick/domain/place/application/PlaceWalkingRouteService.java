@@ -146,12 +146,24 @@ public class PlaceWalkingRouteService {
      * Kakao 정책상 대중교통 응답은 저장하지 않고 매번 실시간으로 조회합니다.
      */
     private TransitRoute resolveTransit(Place from, Place to) {
-        Optional<TransitRoute> lookedUp = transitRouteClient.find(
-                from.getLongitude(),
-                from.getLatitude(),
-                to.getLongitude(),
-                to.getLatitude()
-        );
+        Optional<TransitRoute> lookedUp;
+        try {
+            lookedUp = transitRouteClient.find(
+                    from.getLongitude(),
+                    from.getLatitude(),
+                    to.getLongitude(),
+                    to.getLatitude()
+            );
+        } catch (RuntimeException exception) {
+            // 대중교통은 부가 정보이므로 어떤 실패도 코스 저장/조회를 막지 않습니다.
+            logger.warn(
+                    "Transit route lookup threw from place {} to place {}",
+                    from.getId(),
+                    to.getId(),
+                    exception
+            );
+            return null;
+        }
         if (lookedUp.isEmpty()) {
             logger.warn(
                     "Transit route unavailable from place {} to place {}",
