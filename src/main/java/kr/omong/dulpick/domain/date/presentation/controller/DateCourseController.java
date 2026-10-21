@@ -101,7 +101,8 @@ public class DateCourseController {
                     시간은 선택이며, 생략하면 날짜만 저장됩니다.
                     낙관적 락을 위해 요청에 version을 포함해야 하며, 충돌 시 409를 반환합니다.
                     장소는 1개 이상 필요하며, 커플이 저장한 장소만 포함할 수 있습니다.
-                    인접한 장소 간 도보 거리/시간은 Kakao 도보 경로 API로 조회해 places[].walkToNext에 포함합니다.
+                    인접한 장소 간 도보 거리/시간/경로(path)는 Kakao 도보 경로 API로 조회해 places[].walkToNext에 포함하며,
+                    도보 30분 이상이면 대중교통 경로를 places[].walkToNext.transit에 함께 제공합니다.
                     """
     )
     @PutMapping("/{dateCourseId}")

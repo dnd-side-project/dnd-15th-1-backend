@@ -11,8 +11,10 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Optional;
@@ -24,6 +26,7 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
 
     private final KakaoRoutingProperties properties;
     private final RestClient restClient;
+    private final KakaoQuotaGuard quotaGuard = new KakaoQuotaGuard(Clock.systemUTC());
 
     @Autowired
     public KakaoWalkingRouteClient(KakaoRoutingProperties properties) {
@@ -55,6 +58,9 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
                 || properties.restApiKey().isBlank()) {
             return Optional.empty();
         }
+        if (quotaGuard.isBlocked()) {
+            return Optional.empty();
+        }
         try {
             Map<String, Object> response = restClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -69,6 +75,11 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
                     .retrieve()
                     .body(Map.class);
             return parse(response);
+        } catch (RestClientResponseException exception) {
+            if (!quotaGuard.recordIfQuotaExceeded(exception, "walking route", logger)) {
+                logger.warn("Kakao walking route lookup failed", exception);
+            }
+            return Optional.empty();
         } catch (RestClientException exception) {
             logger.warn("Kakao walking route lookup failed", exception);
             return Optional.empty();
@@ -100,7 +111,11 @@ public class KakaoWalkingRouteClient implements WalkingRouteClient {
         if (distance == null || duration == null) {
             return Optional.empty();
         }
-        return Optional.of(new WalkingRoute(distance, duration));
+        return Optional.of(new WalkingRoute(
+                distance,
+                duration,
+                KakaoRoutePathParser.parseWalkingRoute(route)
+        ));
     }
 
     private String text(Object value) {

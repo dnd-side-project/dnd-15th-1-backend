@@ -6,6 +6,7 @@ import kr.omong.dulpick.domain.date.application.query.view.DateCourseCategoryOpt
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlaceCandidateView;
 import kr.omong.dulpick.domain.date.application.query.view.DateCoursePlacePoolView;
 import kr.omong.dulpick.domain.place.domain.DulpickPlaceCategory;
+import kr.omong.dulpick.domain.place.presentation.dto.response.PlaceDateTraitsResponse;
 import kr.omong.dulpick.domain.place.domain.PlaceOwnershipStatus;
 import kr.omong.dulpick.global.time.ServiceTime;
 
@@ -72,7 +73,9 @@ public record DateCoursePlacePoolResponse(
             String thumbnailUrl,
             @ArraySchema(schema = @Schema(example = "https://example.com/place-detail.jpg"))
             @Schema(example = "[]")
-            List<String> imageUrls
+            List<String> imageUrls,
+            @Schema(description = "장소에 저장된 네 축 분류. 미분류 장소는 status가 UNCLASSIFIED이고 각 축은 null입니다.")
+            PlaceDateTraitsResponse dateTraits
     ) {
 
         private static DateCoursePlaceCandidateResponse from(DateCoursePlaceCandidateView view) {
@@ -90,7 +93,8 @@ public record DateCoursePlacePoolResponse(
                     view.alias(),
                     ServiceTime.toLocalDateTime(view.savedAt()),
                     view.thumbnailUrl(),
-                    view.imageUrls()
+                    view.imageUrls(),
+                    PlaceDateTraitsResponse.from(view.dateTraits())
             );
         }
     }

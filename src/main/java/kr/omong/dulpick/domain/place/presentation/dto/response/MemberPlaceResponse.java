@@ -70,7 +70,12 @@ public record MemberPlaceResponse(
         @Schema(description = "대표 이미지를 제외한 장소 이미지 URL 목록입니다. 이미지가 없으면 빈 배열입니다.", example = "[\"https://example.com/place-detail.jpg\"]", requiredMode = Schema.RequiredMode.REQUIRED)
         List<String> imageUrls,
         @Schema(description = "이 장소를 저장한 회원 수입니다.", example = "12", requiredMode = Schema.RequiredMode.REQUIRED)
-        int savedMemberCount
+        int savedMemberCount,
+        @Schema(
+                description = "장소에 저장된 네 축 분류(실내·실외, 액티비티·정적, 낮·밤, 식사·볼거리). 미분류 장소는 status가 UNCLASSIFIED이고 각 축은 null입니다.",
+                requiredMode = Schema.RequiredMode.REQUIRED
+        )
+        PlaceDateTraitsResponse dateTraits
 ) {
 
     public static MemberPlaceResponse from(MemberPlaceView view) {
@@ -90,7 +95,8 @@ public record MemberPlaceResponse(
                 ServiceTime.toLocalDateTime(view.savedAt()),
                 view.thumbnailUrl(),
                 view.imageUrls(),
-                view.savedMemberCount()
+                view.savedMemberCount(),
+                PlaceDateTraitsResponse.from(view.dateTraits())
         );
     }
 }

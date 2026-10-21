@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.infrastructure;
 
+import kr.omong.dulpick.domain.place.application.RoutePoint;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 import kr.omong.dulpick.domain.place.config.KakaoRoutingProperties;
 import org.junit.jupiter.api.Test;
@@ -8,6 +9,7 @@ import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 import static org.hamcrest.Matchers.containsString;
@@ -16,6 +18,7 @@ import static org.springframework.test.web.client.ExpectedCount.once;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.queryParam;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withServerError;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
@@ -26,7 +29,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))
@@ -43,7 +46,22 @@ class KakaoWalkingRouteClientTest {
                             "properties": {
                               "totalDistance": 4025,
                               "totalTime": 3914
-                            }
+                            },
+                            "legs": [
+                              {
+                                "properties": {"distance": 4025, "time": 3914},
+                                "steps": [
+                                  {
+                                    "properties": {"distance": 2000, "time": 1900},
+                                    "path": {"points": [[127.056, 37.5445], [127.050, 37.546]]}
+                                  },
+                                  {
+                                    "properties": {"distance": 2025, "time": 2014},
+                                    "path": {"points": [[127.050, 37.546], [127.041, 37.548]]}
+                                  }
+                                ]
+                              }
+                            ]
                           }
                         }
                         """, MediaType.APPLICATION_JSON));
@@ -55,7 +73,12 @@ class KakaoWalkingRouteClientTest {
                 new BigDecimal("37.5480000")
         );
 
-        assertThat(route).contains(new WalkingRoute(4025, 3914));
+        // 구간 경계의 중복 좌표(127.050, 37.546)는 하나로 합쳐집니다.
+        assertThat(route).contains(new WalkingRoute(4025, 3914, List.of(
+                new RoutePoint(37.5445, 127.056),
+                new RoutePoint(37.546, 127.050),
+                new RoutePoint(37.548, 127.041)
+        )));
         server.verify();
     }
 
@@ -64,7 +87,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))
@@ -86,7 +109,7 @@ class KakaoWalkingRouteClientTest {
         RestClient.Builder builder = RestClient.builder();
         MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
-                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3),
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
                 builder
         );
         server.expect(once(), requestTo(containsString("/v2/routing/walk")))
@@ -102,6 +125,83 @@ class KakaoWalkingRouteClientTest {
         );
 
         assertThat(route).contains(new WalkingRoute(0, 0));
+        server.verify();
+    }
+
+    @Test
+    void stopsCallingKakaoAfterQuotaIsExhausted() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
+                builder
+        );
+        server.expect(once(), requestTo(containsString("/v2/routing/walk")))
+                .andRespond(withBadRequest()
+                        .body("{\"code\":-10,\"msg\":\"API limit has been exceeded.\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        Optional<?> first = client.find(
+                new BigDecimal("127.1"), new BigDecimal("37.1"),
+                new BigDecimal("127.2"), new BigDecimal("37.2")
+        );
+        Optional<?> second = client.find(
+                new BigDecimal("127.1"), new BigDecimal("37.1"),
+                new BigDecimal("127.2"), new BigDecimal("37.2")
+        );
+
+        assertThat(first).isEmpty();
+        assertThat(second).isEmpty();
+        server.verify();
+    }
+
+    @Test
+    void keepsCallingKakaoAfterNonQuotaClientError() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
+                builder
+        );
+        server.expect(org.springframework.test.web.client.ExpectedCount.times(2),
+                        requestTo(containsString("/v2/routing/walk")))
+                .andRespond(withBadRequest()
+                        .body("{\"code\":-2,\"msg\":\"invalid request\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        client.find(new BigDecimal("127.1"), new BigDecimal("37.1"),
+                new BigDecimal("127.2"), new BigDecimal("37.2"));
+        client.find(new BigDecimal("127.1"), new BigDecimal("37.1"),
+                new BigDecimal("127.2"), new BigDecimal("37.2"));
+
+        server.verify();
+    }
+
+    @Test
+    void fallsBackToRoutePathWhenLegsAreMissing() {
+        RestClient.Builder builder = RestClient.builder();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        KakaoWalkingRouteClient client = new KakaoWalkingRouteClient(
+                new KakaoRoutingProperties(true, "test-key", "https://dapi.kakao.com", 3, 30),
+                builder
+        );
+        server.expect(once(), requestTo(containsString("/v2/routing/walk")))
+                .andRespond(withSuccess("""
+                        {
+                          "status": "OK",
+                          "route": {
+                            "properties": {"totalDistance": 100, "totalTime": 80},
+                            "path": [[127.056, 37.5445], [127.041, 37.548]]
+                          }
+                        }
+                        """, MediaType.APPLICATION_JSON));
+
+        Optional<WalkingRoute> route = client.find(
+                new BigDecimal("127.056"), new BigDecimal("37.5445"),
+                new BigDecimal("127.041"), new BigDecimal("37.548")
+        );
+
+        assertThat(route.orElseThrow().path()).hasSize(2);
         server.verify();
     }
 }

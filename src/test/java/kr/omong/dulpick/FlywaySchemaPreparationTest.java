@@ -19,7 +19,7 @@ class FlywaySchemaPreparationTest {
     private static final Pattern VERSIONED_MIGRATION = Pattern.compile("V(\\d+)__.+\\.sql");
 
     @Test
-    void containsTheRebuiltV1ToV12MigrationChain() throws IOException {
+    void containsTheRebuiltV1ToV13MigrationChain() throws IOException {
         List<String> versions = migrationFiles()
                 .map(path -> VERSIONED_MIGRATION.matcher(path.getFileName().toString()))
                 .filter(java.util.regex.Matcher::matches)
@@ -27,7 +27,7 @@ class FlywaySchemaPreparationTest {
                 .toList();
 
         assertThat(versions).containsExactly(
-                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"
+                "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13"
         );
     }
 

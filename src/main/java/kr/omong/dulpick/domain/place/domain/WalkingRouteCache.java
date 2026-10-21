@@ -43,6 +43,9 @@ public class WalkingRouteCache {
     @Column(name = "duration_seconds", nullable = false)
     private int durationSeconds;
 
+    @Column(name = "path_points", columnDefinition = "TEXT")
+    private String pathPoints;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -127,6 +130,14 @@ public class WalkingRouteCache {
         this.distanceMeters = distanceMeters;
         this.durationSeconds = durationSeconds;
         this.updatedAt = Objects.requireNonNull(now);
+    }
+
+    public void updatePath(String pathPoints) {
+        this.pathPoints = pathPoints;
+    }
+
+    public String getPathPoints() {
+        return pathPoints;
     }
 
     public Long getFromPlaceId() {

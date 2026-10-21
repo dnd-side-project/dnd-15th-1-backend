@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.date.application.query.view;
 
+import kr.omong.dulpick.domain.place.application.PlaceDateTraitsView;
 import kr.omong.dulpick.domain.place.application.WalkingRoute;
 
 import java.math.BigDecimal;
@@ -17,10 +18,12 @@ public record DateCoursePlaceView(
         String categoryName,
         String thumbnailUrl,
         List<String> imageUrls,
-        WalkingRoute walkToNext
+        WalkingRoute walkToNext,
+        PlaceDateTraitsView dateTraits
 ) {
 
     public DateCoursePlaceView {
+        dateTraits = dateTraits == null ? PlaceDateTraitsView.unclassified() : dateTraits;
         imageUrls = imageUrls == null ? List.of() : List.copyOf(imageUrls);
     }
 }
