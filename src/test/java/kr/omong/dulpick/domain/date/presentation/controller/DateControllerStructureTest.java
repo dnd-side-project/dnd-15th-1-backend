@@ -38,6 +38,13 @@ class DateControllerStructureTest {
         assertThat(description).contains("낙관적 락", "version", "CONFIRMED");
     }
 
+    @Test
+    void searchOperationDocumentsOptionalFiltersAndSavedPlaceScope() {
+        String description = operationDescription(DateCourseController.class, "searchPlaces");
+        assertThat(description)
+                .contains("query", "네 가지 분류 조건", "커플이 저장한 장소", "Kakao", "페이지당 10건");
+    }
+
     private String operationDescription(Class<?> controllerClass, String methodName) {
         for (Method method : controllerClass.getDeclaredMethods()) {
             if (method.getName().equals(methodName)) {
