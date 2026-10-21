@@ -21,23 +21,7 @@ env:
 jobs:
   build-and-push:
     name: Test, build and push image
-    runs-on: ubuntu-latest
-
-    services:
-      mysql:
-        image: public.ecr.aws/docker/library/mysql:8.0
-        env:
-          MYSQL_DATABASE: dulpick_test
-          MYSQL_USER: dulpick
-          MYSQL_PASSWORD: test-password
-          MYSQL_ROOT_PASSWORD: root-password
-        ports:
-          - 3306:3306
-        options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -u root -proot-password"
-          --health-interval=5s
-          --health-timeout=5s
-          --health-retries=10
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout source
@@ -53,6 +37,29 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
+
+      - name: Set up MySQL
+        run: |
+          set -Eeuo pipefail
+          sudo systemctl start mysql.service
+          for attempt in {1..30}; do
+            if sudo mysqladmin --protocol=socket -uroot -proot ping --silent; then
+              break
+            fi
+            if [ "${attempt}" -eq 30 ]; then
+              echo "MySQL did not become ready in time" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+          sudo mysql --protocol=socket -uroot -proot <<'SQL'
+          CREATE DATABASE IF NOT EXISTS dulpick_test
+              CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+          CREATE USER IF NOT EXISTS 'dulpick'@'127.0.0.1' IDENTIFIED BY 'test-password';
+          ALTER USER 'dulpick'@'127.0.0.1' IDENTIFIED BY 'test-password';
+          GRANT ALL PRIVILEGES ON dulpick_test.* TO 'dulpick'@'127.0.0.1';
+          FLUSH PRIVILEGES;
+          SQL
 
       - name: Test and build
         run: |
