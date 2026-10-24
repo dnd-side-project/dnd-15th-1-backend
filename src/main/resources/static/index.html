@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="숏폼에서 발견한 데이트 장소를 저장하고 연인과 함께 확인하는 둘픽">
+  <meta name="description" content="숏폼에서 발견한 데이트 장소를 저장하고 연인과 함께 확인하는 둘픽. iOS와 Android에서 만나보세요.">
   <meta name="theme-color" content="#FF5A6F">
   <meta name="apple-itunes-app" content="app-id=6796011877">
   <meta property="og:title" content="둘픽 (DulPick) — 커플을 위한 장소 저장 서비스">
@@ -48,8 +48,11 @@
       Instagram 릴스, YouTube Shorts에서 본 그 장소.<br>
       공유하기 한 번으로 자동 저장하고, 연인과 함께 확인하세요.
     </p>
-    <a class="app-store-badge" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener">App Store에서 둘픽 다운로드</a>
-    <p class="hero-sub">둘픽 iOS 앱을 App Store에서 만나보세요</p>
+    <div class="store-links" role="group" aria-label="둘픽 다운로드">
+      <a class="store-badge" data-store="app_store" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener noreferrer">App Store에서 다운로드</a>
+      <a class="store-badge" data-store="google_play" href="https://play.google.com/store/apps/details?id=com.dulpick.app" target="_blank" rel="noopener noreferrer">Google Play에서 다운로드</a>
+    </div>
+    <p class="hero-sub">iOS와 Android에서 둘픽을 만나보세요</p>
   </div>
 </header>
 
@@ -172,7 +175,10 @@
   <div class="container">
     <h2>지금 둘픽을 시작하세요</h2>
     <p>숏폼 속 장소, 이제 잊지 말고 저장하세요</p>
-    <a class="app-store-badge" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener">App Store에서 둘픽 다운로드</a>
+    <div class="store-links" role="group" aria-label="둘픽 다운로드">
+      <a class="store-badge" data-store="app_store" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener noreferrer">App Store에서 다운로드</a>
+      <a class="store-badge" data-store="google_play" href="https://play.google.com/store/apps/details?id=com.dulpick.app" target="_blank" rel="noopener noreferrer">Google Play에서 다운로드</a>
+    </div>
   </div>
 </div>
 
@@ -194,15 +200,16 @@
     </div>
     <div class="footer-bottom">
       <span>© DulPick. All rights reserved.</span>
-      <span>iOS 앱 전용 서비스</span>
+      <span>iOS · Android 지원</span>
     </div>
   </div>
 </footer>
 
 <script>
-  document.querySelectorAll('a.app-store-badge').forEach((link) => {
+  document.querySelectorAll('a.store-badge').forEach((link) => {
     link.addEventListener('click', () => {
-      gtag('event', 'app_store_click', {
+      gtag('event', 'store_click', {
+        store: link.dataset.store,
         link_url: link.href,
         page_location: window.location.href
       });

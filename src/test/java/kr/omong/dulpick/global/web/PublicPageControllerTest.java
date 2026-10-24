@@ -24,6 +24,8 @@ class PublicPageControllerTest {
 
     private static final String APP_STORE_URL =
             "https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877";
+    private static final String GOOGLE_PLAY_URL =
+            "https://play.google.com/store/apps/details?id=com.dulpick.app";
 
     private MockMvc mockMvc;
 
@@ -40,7 +42,11 @@ class PublicPageControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith("text/html"))
                 .andExpect(content().string(containsString("G-91V1WZ1N46")))
-                .andExpect(content().string(containsString(APP_STORE_URL)));
+                .andExpect(content().string(containsString(APP_STORE_URL)))
+                .andExpect(content().string(containsString(GOOGLE_PLAY_URL)))
+                .andExpect(content().string(containsString("/Android/i")))
+                .andExpect(content().string(containsString("navigator.maxTouchPoints")))
+                .andExpect(content().string(containsString("store_redirect")));
     }
 
     @Test
