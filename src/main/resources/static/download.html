@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="둘픽 앱을 App Store에서 다운로드하세요.">
+  <meta name="description" content="둘픽 앱을 App Store 또는 Google Play에서 다운로드하세요.">
   <meta name="theme-color" content="#FF5A6F">
   <meta name="apple-itunes-app" content="app-id=6796011877">
   <meta property="og:title" content="둘픽 앱 다운로드">
@@ -68,11 +68,10 @@
     }
 
     .download-button {
-      display: inline-flex;
+      display: flex;
       align-items: center;
       justify-content: center;
       min-height: 50px;
-      margin-top: 26px;
       padding: 0 22px;
       border-radius: 14px;
       background: #ff5a6f;
@@ -80,6 +79,16 @@
       font-size: 15px;
       font-weight: 750;
       text-decoration: none;
+    }
+
+    .download-links {
+      display: grid;
+      gap: 10px;
+      margin-top: 26px;
+    }
+
+    .download-button:hover {
+      background: #e64960;
     }
 
     .download-note {
@@ -93,35 +102,65 @@
   <img class="download-logo" src="/assets/logo_app.png" alt="둘픽 앱 로고">
   <h1>둘픽 앱을 다운로드하세요</h1>
   <p>숏폼에서 발견한 데이트 장소를<br>연인과 함께 저장해 보세요.</p>
-  <a id="app-store-link" class="download-button" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener">App Store에서 다운로드</a>
-  <p class="download-note">잠시 후 App Store로 이동합니다.</p>
+  <div class="download-links" role="group" aria-label="둘픽 다운로드">
+    <a class="download-button" data-store="app_store" href="https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877" target="_blank" rel="noopener noreferrer">App Store에서 다운로드</a>
+    <a class="download-button" data-store="google_play" href="https://play.google.com/store/apps/details?id=com.dulpick.app" target="_blank" rel="noopener noreferrer">Google Play에서 다운로드</a>
+  </div>
+  <p id="download-note" class="download-note">사용 중인 기기에 맞는 스토어를 선택해 주세요.</p>
 </main>
 
 <script>
   (() => {
-    const appStoreUrl = "https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877";
-    const link = document.getElementById("app-store-link");
+    const stores = {
+      app_store: {
+        name: "App Store",
+        url: "https://apps.apple.com/kr/app/%EB%91%98%ED%94%BD-dulpick/id6796011877"
+      },
+      google_play: {
+        name: "Google Play",
+        url: "https://play.google.com/store/apps/details?id=com.dulpick.app"
+      }
+    };
+    const userAgent = navigator.userAgent;
+    const isAndroid = /Android/i.test(userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    const targetStore = isAndroid ? "google_play" : isIOS ? "app_store" : null;
+    const downloadNote = document.getElementById("download-note");
     let hasRedirected = false;
 
-    const redirectToAppStore = () => {
+    const redirectToStore = () => {
       if (hasRedirected) {
         return;
       }
       hasRedirected = true;
-      window.location.replace(appStoreUrl);
+      window.location.replace(stores[targetStore].url);
     };
 
-    link.addEventListener("click", () => {
-      gtag("event", "app_store_click", {link_url: appStoreUrl});
+    document.querySelectorAll("a.download-button").forEach((link) => {
+      link.addEventListener("click", () => {
+        hasRedirected = true;
+        gtag("event", "store_click", {
+          store: link.dataset.store,
+          link_url: link.href
+        });
+      });
     });
 
+    if (!targetStore) {
+      return;
+    }
+
+    downloadNote.textContent = `잠시 후 ${stores[targetStore].name}로 이동합니다.`;
     window.setTimeout(() => {
-      const fallback = window.setTimeout(redirectToAppStore, 1000);
-      gtag("event", "app_store_redirect", {
+      const fallback = window.setTimeout(redirectToStore, 1000);
+      gtag("event", "store_redirect", {
+        store: targetStore,
+        link_url: stores[targetStore].url,
         method: "automatic",
         event_callback: () => {
           window.clearTimeout(fallback);
-          redirectToAppStore();
+          redirectToStore();
         },
         event_timeout: 800
       });
