@@ -55,7 +55,7 @@ class PlaceResponseContractTest {
         assertThat(componentNames(PlaceSearchPageResponse.class))
                 .contains("places", "page", "size", "hasNext");
         assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentPageResponse.class))
-                .contains("contents", "hasNext", "popularTags");
+                .contains("contents", "hasNext", "recommendationSeed", "popularTags");
         assertThat(componentNames(kr.omong.dulpick.domain.place.presentation.dto.response.PublicContentResponse.PublicPlaceResponse.class))
                 .contains("dateTraits")
                 .doesNotContain("savedMembers");

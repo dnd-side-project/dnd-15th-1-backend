@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 @Tag(name = SwaggerTagNames.PLACE, description = "공용 게시물 큐레이션 조회 API")
 @SecurityRequirement(name = "bearerAuth")
 @Validated
@@ -51,9 +53,10 @@ public class PublicContentController {
     @Operation(
             summary = "공개 게시물 큐레이션 조회",
             description = "공개 게시물과 연결 장소를 조회합니다. "
-                    + "기본 정렬은 연결된 장소 저장 수 합계 내림차순(인기순)입니다. "
-                    + "sort=PREFERENCE이면 현재 회원의 데이트 성향 일치도가 높은 순으로 두고, "
-                    + "같은 성향이면 저장 수 내림차순입니다."
+                    + "기본 정렬은 현재 회원의 데이트 성향을 반영한 개인화 추천입니다. "
+                    + "개인화 점수가 같은 후보는 recommendationSeed에 따라 순서가 달라집니다. "
+                    + "다음 페이지를 조회할 때는 첫 응답의 recommendationSeed를 동일하게 전달해야 합니다. "
+                    + "데이트 성향이 없거나 sort=POPULAR이면 저장 수 내림차순으로 조회합니다."
     )
     @ApiResponses({
             @ApiResponse(
@@ -70,18 +73,29 @@ public class PublicContentController {
     @GetMapping
     public ResponseEntity<PublicContentPageResponse> findPublicContents(
             @AuthenticationPrincipal Jwt jwt,
-            @Parameter(description = "추천 정렬. POPULAR는 저장 많은 순, PREFERENCE는 성향 일치 후 저장 많은 순입니다.", example = "POPULAR")
-            @RequestParam(defaultValue = "POPULAR")
-            @Schema(allowableValues = {"POPULAR", "PREFERENCE"}, example = "POPULAR")
+            @Parameter(description = "추천 정렬. PREFERENCE는 회원 성향 기반, POPULAR는 저장 많은 순입니다.", example = "PREFERENCE")
+            @RequestParam(defaultValue = "PREFERENCE")
+            @Schema(allowableValues = {"POPULAR", "PREFERENCE"}, example = "PREFERENCE")
             ContentRecommendationSort sort,
+            @Parameter(description = "추천 순서를 유지하는 시드입니다. 첫 요청에서는 생략하고 다음 페이지 요청부터 응답값을 전달합니다.", example = "5214281041047")
+            @RequestParam(required = false) @Schema(example = "5214281041047") Long recommendationSeed,
             @Parameter(description = "0부터 시작하는 페이지 번호", example = "0")
             @RequestParam(defaultValue = "0") @Min(0) @Schema(example = "0") int page,
             @Parameter(description = "페이지당 게시물 수. 최대 50입니다.", example = "20")
             @RequestParam(defaultValue = "20") @Min(1) @Max(50) @Schema(example = "20") int size
     ) {
+        long resolvedSeed = recommendationSeed == null
+                ? ThreadLocalRandom.current().nextLong()
+                : recommendationSeed;
         return ResponseEntity.ok(PublicContentPageResponse.from(
-                queryService.findPublicContents(memberId(jwt), PageRequest.of(page, size), sort),
-                thumbnailProperties.baseUrl()
+                queryService.findPublicContents(
+                        memberId(jwt),
+                        PageRequest.of(page, size),
+                        sort,
+                        resolvedSeed
+                ),
+                thumbnailProperties.baseUrl(),
+                resolvedSeed
         ));
     }
 

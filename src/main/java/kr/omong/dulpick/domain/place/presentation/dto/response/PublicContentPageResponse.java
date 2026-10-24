@@ -1,5 +1,6 @@
 package kr.omong.dulpick.domain.place.presentation.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import kr.omong.dulpick.domain.place.application.PopularContentTags;
@@ -21,6 +22,14 @@ public record PublicContentPageResponse(
         int totalPages,
         @Schema(description = "다음 페이지가 있으면 true입니다.", example = "false", requiredMode = Schema.RequiredMode.REQUIRED)
         boolean hasNext,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @Schema(
+                description = "추천 페이지 순서를 유지하는 시드입니다. 추천의 다음 페이지 요청에 동일한 값을 전달합니다.",
+                example = "5214281041047",
+                nullable = true,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        Long recommendationSeed,
         @ArraySchema(schema = @Schema(example = "성수"))
         @Schema(
                 description = "인기 태그 목록입니다. 현재는 고정값이며 추후 이 목록만 변경합니다.",
@@ -35,6 +44,14 @@ public record PublicContentPageResponse(
     }
 
     public static PublicContentPageResponse from(Page<PublicContentView> page, String thumbnailBaseUrl) {
+        return from(page, thumbnailBaseUrl, null);
+    }
+
+    public static PublicContentPageResponse from(
+            Page<PublicContentView> page,
+            String thumbnailBaseUrl,
+            Long recommendationSeed
+    ) {
         return new PublicContentPageResponse(
                 page.getContent().stream()
                         .map(view -> PublicContentResponse.from(view, thumbnailBaseUrl))
@@ -44,6 +61,7 @@ public record PublicContentPageResponse(
                 page.getTotalElements(),
                 page.getTotalPages(),
                 page.hasNext(),
+                recommendationSeed,
                 PopularContentTags.values()
         );
     }
