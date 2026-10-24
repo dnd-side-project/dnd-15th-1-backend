@@ -17,11 +17,14 @@ import kr.omong.dulpick.domain.place.domain.ContentSourceType;
 import kr.omong.dulpick.domain.place.domain.MemberPlace;
 import kr.omong.dulpick.domain.place.domain.MemberPlaceRepository;
 import kr.omong.dulpick.domain.place.domain.Place;
+import kr.omong.dulpick.domain.place.domain.PlaceActivity;
 import kr.omong.dulpick.domain.place.domain.PlaceClassification;
 import kr.omong.dulpick.domain.place.domain.PlaceClassificationRepository;
 import kr.omong.dulpick.domain.place.domain.PlaceClassificationStatus;
 import kr.omong.dulpick.domain.place.domain.PlaceEnvironment;
+import kr.omong.dulpick.domain.place.domain.PlaceFocus;
 import kr.omong.dulpick.domain.place.domain.PlaceRepository;
+import kr.omong.dulpick.domain.place.domain.PlaceTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -32,6 +35,8 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.LongStream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -183,7 +188,8 @@ class PublicContentQueryServiceTest {
         Page<PublicContentView> result = service.findPublicContents(
                 1L,
                 PageRequest.of(0, 20),
-                ContentRecommendationSort.POPULAR
+                ContentRecommendationSort.POPULAR,
+                1L
         );
 
         assertThat(result.getContent()).extracting(PublicContentView::contentId)
@@ -230,13 +236,108 @@ class PublicContentQueryServiceTest {
         Page<PublicContentView> result = service.findPublicContents(
                 1L,
                 PageRequest.of(0, 20),
-                ContentRecommendationSort.PREFERENCE
+                ContentRecommendationSort.PREFERENCE,
+                1L
         );
 
         assertThat(result.getContent()).extracting(PublicContentView::contentId)
                 .containsExactly(11L, 10L);
         assertThat(result.getContent().getFirst().places()).extracting(PublicPlaceView::placeId)
                 .containsExactly(21L);
+    }
+
+    @Test
+    void ranksContentsDifferentlyForOppositeMemberPreferences() {
+        Content indoorContent = content(10L);
+        Content outdoorContent = content(11L);
+        Place indoorPlace = place(20L);
+        Place outdoorPlace = place(21L);
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(indoorContent, outdoorContent));
+        stubPlaces(
+                List.of(contentPlace(10L, 20L), contentPlace(11L, 21L)),
+                List.of(indoorPlace, outdoorPlace)
+        );
+        PlaceClassification indoorClassification = classification(
+                20L, PlaceEnvironment.INDOOR, PlaceActivity.ACTIVE, PlaceTime.DAY, PlaceFocus.FOOD
+        );
+        PlaceClassification outdoorClassification = classification(
+                21L, PlaceEnvironment.OUTDOOR, PlaceActivity.STATIC, PlaceTime.NIGHT, PlaceFocus.SIGHTSEEING
+        );
+        when(placeClassificationRepository.findAllById(anyList()))
+                .thenReturn(List.of(indoorClassification, outdoorClassification));
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 0L), row(21L, 0L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(2L), anyList()))
+                .thenReturn(List.of());
+        MemberProfile indoorProfile = profile(
+                DatePreferenceOption.INDOOR,
+                DatePreferenceOption.ACTIVE,
+                DatePreferenceOption.DAY,
+                DatePreferenceOption.FOOD
+        );
+        MemberProfile outdoorProfile = profile(
+                DatePreferenceOption.OUTDOOR,
+                DatePreferenceOption.STATIC,
+                DatePreferenceOption.NIGHT,
+                DatePreferenceOption.SIGHTSEEING
+        );
+        when(memberProfileRepository.findById(1L)).thenReturn(Optional.of(indoorProfile));
+        when(memberProfileRepository.findById(2L)).thenReturn(Optional.of(outdoorProfile));
+
+        Page<PublicContentView> indoorResult = service.findPublicContents(
+                1L, PageRequest.of(0, 20), ContentRecommendationSort.PREFERENCE, 1L
+        );
+        Page<PublicContentView> outdoorResult = service.findPublicContents(
+                2L, PageRequest.of(0, 20), ContentRecommendationSort.PREFERENCE, 1L
+        );
+
+        assertThat(indoorResult.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(10L, 11L);
+        assertThat(outdoorResult.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(11L, 10L);
+    }
+
+    @Test
+    void changesEqualPreferenceRecommendationsAcrossSeeds() {
+        Content first = content(10L);
+        Content second = content(11L);
+        stubEqualPreferenceCandidates(first, second);
+
+        Set<Long> firstContentIds = LongStream.rangeClosed(1L, 32L)
+                .mapToObj(seed -> service.findPublicContents(
+                        1L,
+                        PageRequest.of(0, 20),
+                        ContentRecommendationSort.PREFERENCE,
+                        seed
+                ))
+                .map(result -> result.getContent().getFirst().contentId())
+                .collect(java.util.stream.Collectors.toSet());
+
+        assertThat(firstContentIds).containsExactlyInAnyOrder(10L, 11L);
+    }
+
+    @Test
+    void keepsRecommendationOrderAcrossPagesWithSameSeed() {
+        stubEqualPreferenceCandidates(content(10L), content(11L));
+
+        Page<PublicContentView> firstPage = service.findPublicContents(
+                1L, PageRequest.of(0, 1), ContentRecommendationSort.PREFERENCE, 44L
+        );
+        Page<PublicContentView> repeatedFirstPage = service.findPublicContents(
+                1L, PageRequest.of(0, 1), ContentRecommendationSort.PREFERENCE, 44L
+        );
+        Page<PublicContentView> secondPage = service.findPublicContents(
+                1L, PageRequest.of(1, 1), ContentRecommendationSort.PREFERENCE, 44L
+        );
+
+        assertThat(repeatedFirstPage.getContent()).extracting(PublicContentView::contentId)
+                .containsExactly(firstPage.getContent().getFirst().contentId());
+        assertThat(secondPage.getContent()).extracting(PublicContentView::contentId)
+                .doesNotContain(firstPage.getContent().getFirst().contentId());
     }
 
     @Test
@@ -264,7 +365,8 @@ class PublicContentQueryServiceTest {
         Page<PublicContentView> result = service.findPublicContents(
                 1L,
                 PageRequest.of(0, 20),
-                ContentRecommendationSort.POPULAR
+                ContentRecommendationSort.POPULAR,
+                1L
         );
 
         assertThat(result.getContent()).extracting(PublicContentView::contentId)
@@ -412,7 +514,8 @@ class PublicContentQueryServiceTest {
         Page<PublicContentView> result = service.findPublicContents(
                 1L,
                 PageRequest.of(0, 20),
-                ContentRecommendationSort.POPULAR
+                ContentRecommendationSort.POPULAR,
+                1L
         );
 
         assertThat(result.getContent().getFirst().imageKeys())
@@ -427,6 +530,61 @@ class PublicContentQueryServiceTest {
             when(first.getContentId()).thenReturn(10L);
             when(first.getPlaceId()).thenReturn(places.getFirst().getId());
         }
+    }
+
+    private void stubEqualPreferenceCandidates(Content first, Content second) {
+        when(contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
+                ContentPublicationStatus.PUBLIC
+        )).thenReturn(List.of(first, second));
+        stubPlaces(
+                List.of(contentPlace(10L, 20L), contentPlace(11L, 21L)),
+                List.of(place(20L), place(21L))
+        );
+        when(placeClassificationRepository.findAllById(anyList())).thenReturn(List.of());
+        when(memberPlaceRepository.countSavesByPlaceIdIn(anyList()))
+                .thenReturn(saveCounts(row(20L, 0L), row(21L, 0L)));
+        when(memberPlaceRepository.findAllByMemberIdAndPlaceIdIn(eq(1L), anyList()))
+                .thenReturn(List.of());
+        MemberProfile memberProfile = profile(
+                DatePreferenceOption.INDOOR,
+                DatePreferenceOption.ACTIVE,
+                DatePreferenceOption.DAY,
+                DatePreferenceOption.FOOD
+        );
+        when(memberProfileRepository.findById(1L)).thenReturn(Optional.of(memberProfile));
+    }
+
+    private MemberProfile profile(
+            DatePreferenceOption environment,
+            DatePreferenceOption activity,
+            DatePreferenceOption time,
+            DatePreferenceOption focus
+    ) {
+        MemberProfile profile = mock(MemberProfile.class);
+        when(profile.getDatePreferences()).thenReturn(new DatePreferences(
+                environment,
+                activity,
+                time,
+                focus
+        ));
+        return profile;
+    }
+
+    private PlaceClassification classification(
+            Long placeId,
+            PlaceEnvironment environment,
+            PlaceActivity activity,
+            PlaceTime time,
+            PlaceFocus focus
+    ) {
+        PlaceClassification classification = mock(PlaceClassification.class);
+        when(classification.getPlaceId()).thenReturn(placeId);
+        when(classification.getStatus()).thenReturn(PlaceClassificationStatus.CLASSIFIED);
+        when(classification.getEnvironment()).thenReturn(environment);
+        when(classification.getActivity()).thenReturn(activity);
+        when(classification.getTime()).thenReturn(time);
+        when(classification.getFocus()).thenReturn(focus);
+        return classification;
     }
 
     private List<Object[]> saveCounts(Object[]... rows) {

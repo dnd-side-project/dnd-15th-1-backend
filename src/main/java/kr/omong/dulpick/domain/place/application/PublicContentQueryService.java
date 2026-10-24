@@ -77,7 +77,8 @@ public class PublicContentQueryService {
     public Page<PublicContentView> findPublicContents(
             Long memberId,
             Pageable pageable,
-            ContentRecommendationSort sort
+            ContentRecommendationSort sort,
+            long recommendationSeed
     ) {
         PublicContentDeduplicator.Result deduplicated = PublicContentDeduplicator.deduplicate(
                 contentRepository.findAllByPublicationStatusOrderByCreatedAtDesc(
@@ -88,13 +89,15 @@ public class PublicContentQueryService {
                 deduplicated.contents(),
                 memberId,
                 sort,
-                deduplicated.sourceIdsByRepresentative()
+                deduplicated.sourceIdsByRepresentative(),
+                recommendationSeed
         );
         return enrichPage(
                 memberId,
                 slice(ranked, pageable),
                 sort,
-                deduplicated.sourceIdsByRepresentative()
+                deduplicated.sourceIdsByRepresentative(),
+                recommendationSeed
         );
     }
 
@@ -117,7 +120,8 @@ public class PublicContentQueryService {
                 memberId,
                 slice(deduplicated.contents(), pageable),
                 ContentRecommendationSort.POPULAR,
-                deduplicated.sourceIdsByRepresentative()
+                deduplicated.sourceIdsByRepresentative(),
+                null
         );
     }
 
@@ -137,7 +141,8 @@ public class PublicContentQueryService {
                 memberId,
                 slice(deduplicated.contents(), pageable),
                 ContentRecommendationSort.POPULAR,
-                deduplicated.sourceIdsByRepresentative()
+                deduplicated.sourceIdsByRepresentative(),
+                null
         );
     }
 
@@ -164,7 +169,8 @@ public class PublicContentQueryService {
                 memberId,
                 new PageImpl<>(List.of(representative)),
                 ContentRecommendationSort.POPULAR,
-                sourceIdsByRepresentative
+                sourceIdsByRepresentative,
+                null
         ).getContent().getFirst();
     }
 
@@ -199,7 +205,8 @@ public class PublicContentQueryService {
             List<Content> contents,
             Long memberId,
             ContentRecommendationSort requestedSort,
-            Map<Long, List<Long>> sourceIdsByRepresentative
+            Map<Long, List<Long>> sourceIdsByRepresentative,
+            long recommendationSeed
     ) {
         Map<Long, List<Place>> placesByContent = findRepresentativePlaces(
                 contents,
@@ -212,7 +219,14 @@ public class PublicContentQueryService {
                 : null;
         ContentRecommendationSort sort = effectiveSort(requestedSort, preferences);
         return contents.stream()
-                .sorted(contentComparator(sort, preferences, placesByContent, traitsByPlace, saveCounts))
+                .sorted(contentComparator(
+                        sort,
+                        preferences,
+                        placesByContent,
+                        traitsByPlace,
+                        saveCounts,
+                        recommendationSeed
+                ))
                 .toList();
     }
 
@@ -220,7 +234,8 @@ public class PublicContentQueryService {
             Long memberId,
             Page<Content> contents,
             ContentRecommendationSort requestedSort,
-            Map<Long, List<Long>> sourceIdsByRepresentative
+            Map<Long, List<Long>> sourceIdsByRepresentative,
+            Long recommendationSeed
     ) {
         List<Long> contentIds = contents.getContent().stream().map(Content::getId).toList();
         Map<Long, List<Place>> placesByContent = findRepresentativePlaces(
@@ -246,7 +261,8 @@ public class PublicContentQueryService {
                 saveCounts,
                 imageKeysByContent,
                 sort,
-                preferences
+                preferences,
+                recommendationSeed
         ));
     }
 
@@ -334,7 +350,8 @@ public class PublicContentQueryService {
             DatePreferences preferences,
             Map<Long, List<Place>> placesByContent,
             Map<Long, PlaceDateTraitsView> traitsByPlace,
-            Map<Long, Long> saveCounts
+            Map<Long, Long> saveCounts,
+            long recommendationSeed
     ) {
         Comparator<Content> bySaves = Comparator.comparingLong(
                 (Content content) -> saveCount(placesByContent.getOrDefault(content.getId(), List.of()), saveCounts)
@@ -349,6 +366,7 @@ public class PublicContentQueryService {
                             )
                     )
                     .reversed()
+                    .thenComparingLong(content -> recommendationRank(recommendationSeed, content.getId()))
                     .thenComparing(bySaves)
                     .thenComparing(byId);
         }
@@ -409,14 +427,16 @@ public class PublicContentQueryService {
             Map<Long, Long> saveCounts,
             Map<Long, List<String>> imageKeysByContent,
             ContentRecommendationSort sort,
-            DatePreferences preferences
+            DatePreferences preferences,
+            Long recommendationSeed
     ) {
         List<Place> places = rankedPlaces(
                 placesByContent.getOrDefault(content.getId(), List.of()),
                 traitsByPlace,
                 saveCounts,
                 sort,
-                preferences
+                preferences,
+                recommendationSeed
         );
         return new PublicContentView(
                 content.getId(),
@@ -459,7 +479,8 @@ public class PublicContentQueryService {
             Map<Long, PlaceDateTraitsView> traitsByPlace,
             Map<Long, Long> saveCounts,
             ContentRecommendationSort sort,
-            DatePreferences preferences
+            DatePreferences preferences,
+            Long recommendationSeed
     ) {
         Comparator<Place> bySaves = Comparator.comparingLong(
                 (Place place) -> saveCounts.getOrDefault(place.getId(), 0L)
@@ -473,10 +494,18 @@ public class PublicContentQueryService {
                                 )
                         )
                         .reversed()
+                        .thenComparingLong(place -> recommendationRank(recommendationSeed, place.getId()))
                         .thenComparing(bySaves)
                         .thenComparing(byId)
                 : bySaves.thenComparing(byId);
         return places.stream().sorted(comparator).toList();
+    }
+
+    private long recommendationRank(long seed, Long id) {
+        long mixed = seed ^ (id * 0x9E3779B97F4A7C15L);
+        mixed = (mixed ^ (mixed >>> 30)) * 0xBF58476D1CE4E5B9L;
+        mixed = (mixed ^ (mixed >>> 27)) * 0x94D049BB133111EBL;
+        return mixed ^ (mixed >>> 31);
     }
 
     private PublicPlaceView toPlaceView(
