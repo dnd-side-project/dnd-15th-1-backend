@@ -67,7 +67,7 @@ public class DateCourseController {
     @Operation(
             summary = "데이트 코스 장소 선택용 커플 저장 장소 조회",
             description = """
-                    현재 커플이 저장한 장소만 조회합니다.
+                    현재 커플이 저장한 장소만 조회합니다. 커플 연결 전에는 내가 저장한 장소만 조회합니다.
                     region 문자열, category(일반 카테고리) 필터를 선택적으로 적용할 수 있습니다.
                     category는 RESTAURANT, CAFE, ENTERTAINMENT, SHOPPING, CONVENIENCE, TOURISM, ACCOMMODATION 값을 사용합니다.
                     """
@@ -96,11 +96,13 @@ public class DateCourseController {
     @Operation(
             summary = "데이트 코스 장소 검색",
             description = """
-                    현재 커플이 저장한 장소만 검색합니다.
+                    현재 커플이 저장한 장소만 검색합니다. 커플 연결 전에는 내가 저장한 장소만 검색합니다.
                     query는 장소명, 저장 별칭, 지번 주소, 도로명 주소를 대상으로 부분 일치 검색하며,
                     성수동·성동구와 같은 지역명도 주소에 포함되어 있으면 검색됩니다.
-                    query와 네 가지 분류 조건은 모두 선택사항입니다. 생략된 조건은 필터링하지 않습니다.
-                    여러 분류 조건을 함께 전달하면 모든 조건을 만족하는 장소만 반환합니다.
+                    category는 RESTAURANT(맛집), CAFE(카페), ENTERTAINMENT(놀거리), SHOPPING(쇼핑),
+                    CONVENIENCE(생활 편의), TOURISM(관광), ACCOMMODATION(숙박) 중 하나를 사용합니다.
+                    query, category, 네 가지 분류 조건(environment, activity, time, focus)은 모두 선택사항입니다.
+                    생략된 조건은 필터링하지 않으며, 여러 조건을 함께 전달하면 모든 조건을 만족하는 장소만 반환합니다.
                     조건을 모두 생략하면 커플 저장 장소를 저장 시각 최신순으로 조회합니다.
                     Kakao 신규 검색 결과는 포함하지 않으며, 페이지당 10건을 반환합니다.
                     """
@@ -141,6 +143,12 @@ public class DateCourseController {
             @RequestParam(required = false) @Schema(example = "DAY", nullable = true) PlaceTime time,
             @Parameter(description = "음식·관광 조건. 생략하면 필터링하지 않습니다.", example = "FOOD")
             @RequestParam(required = false) @Schema(example = "FOOD", nullable = true) PlaceFocus focus,
+            @Parameter(
+                    description = "장소 카테고리(RESTAURANT 맛집, CAFE 카페, ENTERTAINMENT 놀거리, SHOPPING 쇼핑, "
+                            + "CONVENIENCE 생활 편의, TOURISM 관광, ACCOMMODATION 숙박). 생략하면 필터링하지 않습니다.",
+                    example = "CAFE"
+            )
+            @RequestParam(required = false) @Schema(example = "CAFE", nullable = true) DulpickPlaceCategory category,
             @Parameter(description = "0부터 시작하는 페이지 번호. 페이지당 10건을 반환합니다.", example = "0")
             @RequestParam(defaultValue = "0") @Min(0) @Max(100) @Schema(example = "0") int page
     ) {
@@ -152,6 +160,7 @@ public class DateCourseController {
                         activity,
                         time,
                         focus,
+                        category,
                         page
                 )
         ));

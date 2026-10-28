@@ -103,7 +103,7 @@ public class DateCourseQueryService {
             String region,
             DulpickPlaceCategory category
     ) {
-        requireCoupleContext(memberId);
+        validateActiveMember(memberId);
         List<DateCoursePlaceCandidateView> allCandidates = placeQueryService.getVisiblePlaces(memberId)
                 .stream()
                 .map(this::toCandidateView)
@@ -140,18 +140,21 @@ public class DateCourseQueryService {
             PlaceActivity activity,
             PlaceTime time,
             PlaceFocus focus,
+            DulpickPlaceCategory category,
             int page
     ) {
-        CoupleContext context = requireCoupleContext(memberId);
+        List<Long> memberIds = visibleMemberIds(memberId);
         String keyword = normalizeKeyword(query);
         Page<Long> placeIds = memberPlaceRepository.searchVisiblePlaceIds(
-                context.memberIds(),
+                memberIds,
                 keyword,
                 keyword.isEmpty(),
                 enumName(environment),
                 enumName(activity),
                 enumName(time),
                 enumName(focus),
+                category == null ? null : category.name(),
+                categoryGroupCodes(category),
                 PageRequest.of(page, PLACE_SEARCH_PAGE_SIZE)
         );
         Map<Long, DateCoursePlaceCandidateView> candidates = placeQueryService
@@ -338,6 +341,22 @@ public class DateCourseQueryService {
                 dateCourse.getVersion(),
                 (int) dateCoursePlaceRepository.countByDateCourseId(dateCourse.getId())
         );
+    }
+
+    /**
+     * 장소 검색 대상 회원입니다. 커플이 연결되어 있으면 커플 두 명, 아니면 본인만 포함합니다.
+     */
+    private List<Long> visibleMemberIds(Long memberId) {
+        validateActiveMember(memberId);
+        if (activeCoupleMemberRepository.findByMemberId(memberId).isEmpty()) {
+            return List.of(memberId);
+        }
+        return requireCoupleContext(memberId).memberIds();
+    }
+
+    private List<String> categoryGroupCodes(DulpickPlaceCategory category) {
+        // 빈 IN 절을 피하기 위해 카테고리가 없을 때도 값을 하나 채웁니다.
+        return category == null ? List.of("") : category.kakaoCategoryGroupCodes();
     }
 
     private CoupleContext requireCoupleContext(Long memberId) {

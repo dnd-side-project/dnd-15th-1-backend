@@ -257,6 +257,132 @@ class DateCourseIntegrationTest {
     }
 
     @Test
+    void searchesAndListsOwnSavedPlacesWithoutCouple() throws Exception {
+        TestMember single = createProfileMember("혼자", 1);
+        TestMember other = createProfileMember("다른사람", 2);
+        Instant now = Instant.now();
+        Place mine = savePlaceForMember(single.member().getId(), "mine", now);
+        savePlaceForMember(other.member().getId(), "others", now);
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(single)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(mine.getId()))
+                .andExpect(jsonPath("$.places[0].ownershipStatus").value("MINE"));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(single))
+                        .param("query", "성동구"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1));
+
+        mockMvc.perform(get("/api/v1/date-courses/places")
+                        .header("Authorization", bearer(single)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(mine.getId()));
+    }
+
+    @Test
+    void stillRequiresCoupleToCreateDateCourse() throws Exception {
+        TestMember single = createProfileMember("혼자", 1);
+
+        mockMvc.perform(post("/api/v1/date-courses")
+                        .header("Authorization", bearer(single))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"혼자 코스","date":"%s"}
+                                """.formatted(LocalDate.now(ServiceTime.ZONE_ID).plusDays(3))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void filtersCoursePlaceSearchByPlaceCategory() throws Exception {
+        CoupleFixture fixture = createConnectedCouple();
+        Long memberId = fixture.first().member().getId();
+        Instant now = Instant.now();
+        // 저장된 둘픽 카테고리 코드가 없는 장소(Kakao 카테고리 그룹으로 판정)
+        Place cafe = savePlace(memberId, "category-cafe", "음식점 > 카페", "CE7", false, now);
+        // 저장된 둘픽 카테고리 코드가 있는 장소
+        Place restaurant = savePlace(memberId, "category-restaurant", "음식점 > 한식", "FD6", true, now);
+        Place cafeWithCode = savePlace(memberId, "category-cafe-2", "음식점 > 카페", "CE7", true, now);
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("category", "CAFE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(2))
+                .andExpect(jsonPath("$.places[*].placeId")
+                        .value(org.hamcrest.Matchers.containsInAnyOrder(
+                                cafe.getId().intValue(),
+                                cafeWithCode.getId().intValue()
+                        )))
+                .andExpect(jsonPath("$.places[*].categoryName")
+                        .value(org.hamcrest.Matchers.everyItem(org.hamcrest.Matchers.is("카페"))));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("category", "RESTAURANT"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(restaurant.getId()));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("category", "CAFE")
+                        .param("query", "category-cafe-2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(1))
+                .andExpect(jsonPath("$.places[0].placeId").value(cafeWithCode.getId()));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("category", "TOURISM"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(0));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.places.length()").value(3));
+
+        mockMvc.perform(get("/api/v1/date-courses/places/search")
+                        .header("Authorization", bearer(fixture.first()))
+                        .param("category", "NOT_A_CATEGORY"))
+                .andExpect(status().isBadRequest());
+    }
+
+    private Place savePlace(
+            Long memberId,
+            String name,
+            String category,
+            String categoryGroupCode,
+            boolean withStoredCategoryCode,
+            Instant now
+    ) {
+        Place place = Place.create(
+                "kakao-" + name + "-" + UUID.randomUUID(),
+                name,
+                "서울 성동구 성수동",
+                "서울 성동구 연무장길 1",
+                new BigDecimal("37.5445000"),
+                new BigDecimal("127.0560000"),
+                category,
+                categoryGroupCode,
+                null,
+                now
+        );
+        if (withStoredCategoryCode) {
+            place.updateDetails(name, place.getAddress(), place.getRoadAddress(),
+                    category, categoryGroupCode, null, null, now);
+        }
+        place = placeRepository.save(place);
+        memberPlaceRepository.save(MemberPlace.save(memberId, place, null, null, now));
+        return place;
+    }
+
+    @Test
     void createsDateCourseWithoutTime() throws Exception {
         CoupleFixture fixture = createConnectedCouple();
         LocalDate futureDate = LocalDate.now(ServiceTime.ZONE_ID).plusDays(5);
