@@ -63,6 +63,10 @@ public interface MemberPlaceRepository extends JpaRepository<MemberPlace, Long> 
                    OR classification.time_type = :timeType)
               AND (:focusType IS NULL
                    OR classification.focus_type = :focusType)
+              AND (:categoryCode IS NULL
+                   OR place.dulpick_category_code = :categoryCode
+                   OR (place.dulpick_category_code IS NULL
+                       AND place.category_group_code IN (:categoryGroupCodes)))
             GROUP BY place.id
             ORDER BY MIN(CASE
                 WHEN :keywordEmpty = false
@@ -111,6 +115,10 @@ public interface MemberPlaceRepository extends JpaRepository<MemberPlace, Long> 
                    OR classification.time_type = :timeType)
               AND (:focusType IS NULL
                    OR classification.focus_type = :focusType)
+              AND (:categoryCode IS NULL
+                   OR place.dulpick_category_code = :categoryCode
+                   OR (place.dulpick_category_code IS NULL
+                       AND place.category_group_code IN (:categoryGroupCodes)))
             """,
             nativeQuery = true)
     Page<Long> searchVisiblePlaceIds(
@@ -121,6 +129,8 @@ public interface MemberPlaceRepository extends JpaRepository<MemberPlace, Long> 
             @Param("activityType") String activityType,
             @Param("timeType") String timeType,
             @Param("focusType") String focusType,
+            @Param("categoryCode") String categoryCode,
+            @Param("categoryGroupCodes") List<String> categoryGroupCodes,
             Pageable pageable
     );
 }

@@ -69,6 +69,17 @@ public enum DulpickPlaceCategory {
         return displayName;
     }
 
+    /**
+     * 이 카테고리로 분류되는 Kakao 카테고리 그룹 코드 목록입니다.
+     * 저장된 둘픽 카테고리 코드가 없는 장소를 그룹 코드로 판정할 때 사용합니다.
+     */
+    public List<String> kakaoCategoryGroupCodes() {
+        return KAKAO_CATEGORY_GROUPS.stream()
+                .map(KakaoCategoryGroup::code)
+                .filter(code -> fromGroupCode(code) == this)
+                .toList();
+    }
+
     private static DulpickPlaceCategory fromGroupCode(String categoryGroupCode) {
         if (categoryGroupCode == null || categoryGroupCode.isBlank()) {
             return null;
